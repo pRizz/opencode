@@ -281,7 +281,7 @@ Plans:
 Update docs to use the opencode fork at https://github.com/pRizz/opencode which actually has the auth implementation. [To be added during planning.]
 
 ### Phase 16: Allow the user to download git repos so that they can work on them with their opencode sessions
-**Goal:** [To be planned]
+**Goal:** Incorporate the Ralphcity UI clone workflow into the opencode front end to support repo download/clone flows
 **Depends on:** Phase 15
 **Plans:** 0 plans
 
@@ -289,6 +289,7 @@ Plans:
 - [ ] TBD (run /gsd:plan-phase 16 to break down)
 
 **Details:**
+This phase should merge or adapt the Ralphcity UI clone experience and integrate it into the opencode web UI.
 [To be added during planning]
 
 ## Progress
