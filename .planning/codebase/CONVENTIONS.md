@@ -1,6 +1,6 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-01-19
+**Analysis Date:** 2026-01-27
 
 ## Naming Patterns
 
@@ -35,20 +35,30 @@
 ## Code Style
 
 **Formatting:**
-- Prettier configured in root `package.json`
-- No semicolons: `"semi": false`
-- Print width 120: `"printWidth": 120`
+- Prettier configured in root `package.json` at `.planning/codebase/` level
+- Configuration: `"semi": false`, `"printWidth": 120`
+- Format command: `bun run --prettier --write src/**/*.ts` (from `packages/opencode/package.json`)
+- Prettier version: 3.6.2 (in root `devDependencies`)
 
 **Indentation:**
 - 2 spaces (from `.editorconfig`)
 - LF line endings
 - UTF-8 charset
 - Insert final newline
+- Max line length: 80 (per `.editorconfig`, though Prettier uses 120)
 
 **Linting:**
-- ESLint with TypeScript parser (in `sdks/vscode/`)
-- Rules: `curly: "warn"`, `eqeqeq: "warn"`, `no-throw-literal: "warn"`
+- ESLint not configured for main `packages/opencode/` package
+- ESLint configured in:
+  - `packages/ralphcity-ui/frontend/eslint.config.js` - uses typescript-eslint, React hooks
+  - `sdks/vscode/eslint.config.mjs` - uses typescript-eslint
+- ESLint rules (where configured): `curly: "warn"`, `eqeqeq: "warn"`, `no-throw-literal: "warn"`
 - Import naming: camelCase or PascalCase
+
+**Type Checking:**
+- TypeScript compiler: `tsgo --noEmit` (from `packages/opencode/package.json`)
+- Root command: `bun typecheck` runs `bun turbo typecheck`
+- Pre-commit: `.husky/pre-push` runs `bun typecheck` before push
 
 ## Import Organization
 
@@ -251,6 +261,31 @@ using writer = await Lock.write(key)
 // automatically disposed when scope exits
 ```
 
+## Tooling Commands
+
+**Formatting:**
+```bash
+# Format code (from packages/opencode/)
+bun run format
+# Or directly
+bun run --prettier --write src/**/*.ts
+```
+
+**Type Checking:**
+```bash
+# Type check (from packages/opencode/)
+bun run typecheck
+# Or from root
+bun typecheck
+```
+
+**Linting:**
+```bash
+# Note: No lint command in main opencode package
+# Lint command exists but just runs tests with coverage
+bun run lint  # Actually runs: bun test --coverage
+```
+
 ---
 
-*Convention analysis: 2026-01-19*
+*Convention analysis: 2026-01-27*
