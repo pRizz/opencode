@@ -590,6 +590,16 @@ If `trustProxy: true` without a real proxy, opencode will treat this as HTTPS, a
 }
 ```
 
+**Optional UI proxy (for local UI development):**
+
+```json
+{
+  "server": {
+    "uiUrl": "http://localhost:3000"
+  }
+}
+```
+
 **Environment variable:**
 
 ```bash

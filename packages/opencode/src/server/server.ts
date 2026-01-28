@@ -21,6 +21,7 @@ import { Auth } from "../auth"
 import { Flag } from "../flag/flag"
 import { Command } from "../command"
 import { Global } from "../global"
+import { Config } from "../config/config"
 import { ProjectRoutes } from "./routes/project"
 import { SessionRoutes } from "./routes/session"
 import { PtyRoutes } from "./routes/pty"
@@ -50,6 +51,7 @@ globalThis.AI_SDK_LOG_WARNINGS = false
 
 export namespace Server {
   const log = Log.create({ service: "server" })
+  const defaultUiUrl = "https://app.opencode.ai"
 
   let _url: URL | undefined
   let _corsWhitelist: string[] = []
@@ -511,12 +513,14 @@ export namespace Server {
           },
         )
         .all("/*", async (c) => {
-          const path = c.req.path
-          const response = await proxy(`https://app.opencode.ai${path}`, {
+          const config = await Config.get()
+          const uiUrl = (config?.server?.uiUrl ?? defaultUiUrl).replace(/\/+$/, "")
+          const targetUrl = new URL(c.req.path, `${uiUrl}/`)
+          const response = await proxy(targetUrl.toString(), {
             ...c.req,
             headers: {
               ...c.req.raw.headers,
-              host: "app.opencode.ai",
+              host: targetUrl.host,
             },
           })
           response.headers.set(
