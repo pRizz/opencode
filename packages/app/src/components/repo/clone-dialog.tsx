@@ -176,7 +176,7 @@ export function CloneDialog(props: CloneDialogProps) {
           value={gitUrl()}
           onChange={setGitUrl}
           disabled={isCloning()}
-          onKeyDown={(event) => {
+          onKeyDown={(event: KeyboardEvent) => {
             if (event.key === "Enter" && !isCloning()) handleClone()
           }}
         />

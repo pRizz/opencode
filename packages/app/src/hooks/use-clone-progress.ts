@@ -115,7 +115,8 @@ export function useCloneProgress(options: UseCloneProgressOptions): UseCloneProg
     }
 
     try {
-      const response = await platform.fetch(`${baseUrl}/repo/clone-progress`, {
+      const requestFetch = platform.fetch ?? fetch
+      const response = await requestFetch(`${baseUrl}/repo/clone-progress`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url, credentials, branch: branch?.trim() || undefined }),
