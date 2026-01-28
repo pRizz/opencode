@@ -240,7 +240,12 @@ export function CloneDialog(props: CloneDialogProps) {
               </Match>
               <Match when={credentialMode() === "https_basic"}>
                 <div class="flex flex-col gap-2">
-                  <TextField label="Username" value={httpUsername()} onChange={setHttpUsername} disabled={isCloning()} />
+                  <TextField
+                    label="Username"
+                    value={httpUsername()}
+                    onChange={setHttpUsername}
+                    disabled={isCloning()}
+                  />
                   <div class="flex items-center gap-2">
                     <div class="text-12-medium text-text-weak">Password</div>
                     <Tooltip value="Used only for this clone, not stored.">

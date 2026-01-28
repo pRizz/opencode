@@ -56,7 +56,10 @@ export function RepositoryManagerDialog(props: RepositoryManagerDialogProps) {
         showToast({ title: "Repository added", description: repo.name })
       }
     } catch (err) {
-      showToast({ title: "Failed to add repository", description: err instanceof Error ? err.message : "Unknown error" })
+      showToast({
+        title: "Failed to add repository",
+        description: err instanceof Error ? err.message : "Unknown error",
+      })
     }
   }
 
@@ -77,7 +80,11 @@ export function RepositoryManagerDialog(props: RepositoryManagerDialogProps) {
   }
 
   return (
-    <Dialog title="Manage repositories" description="Clone repositories or add existing local paths." class="max-w-[640px]">
+    <Dialog
+      title="Manage repositories"
+      description="Clone repositories or add existing local paths."
+      class="max-w-[640px]"
+    >
       <div class="flex flex-col gap-4 px-2 pb-3">
         <div class="flex flex-col gap-3 rounded-md border border-border-weak-base p-3">
           <TextField

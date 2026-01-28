@@ -74,7 +74,10 @@ export function RepoSettingsDialog(props: RepoSettingsDialogProps) {
           <div class="text-12-regular text-text-weak">{props.repo.path}</div>
         </div>
 
-        <Show when={branchOptions().length > 0} fallback={<div class="text-12-regular text-text-weak">Loading branches...</div>}>
+        <Show
+          when={branchOptions().length > 0}
+          fallback={<div class="text-12-regular text-text-weak">Loading branches...</div>}
+        >
           <div class="flex items-center gap-2">
             <Icon name="branch" size="small" />
             <Select

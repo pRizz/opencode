@@ -51,6 +51,7 @@ completed: 2026-01-27
 **UI workflow now mirrors Ralphcity clone and repo management behavior in opencode.**
 
 ## Accomplishments
+
 - Added Solid hook to handle clone progress (SSE + POST stream) and cancellation.
 - Built clone dialog with branch input, progress display, and credential retry flow.
 - Added repo selector for session start with local add, clone, and branch switching.
@@ -59,6 +60,7 @@ completed: 2026-01-27
 - Wired home and new-session views to expose repo clone/selection UI.
 
 ## Files Created/Modified
+
 - `packages/app/src/hooks/use-clone-progress.ts` - clone progress via SSE and POST stream parsing
 - `packages/app/src/components/repo/clone-dialog.tsx` - clone UI with progress and auth retry
 - `packages/app/src/components/repo/repo-selector.tsx` - repo + branch selector
@@ -71,11 +73,14 @@ completed: 2026-01-27
 - `packages/sdk/js/src/v2/gen/types.gen.ts` - generated repo types
 
 ## Test Coverage
+
 - Not run (UI + SDK updates only).
 
 ## Deviations from Plan
+
 - None.
 
 ---
-*Phase: 16-allow-the-user-to-download-git-repos-so-that-they-can-work-on-them-with-their-opencode-sessions*
-*Completed: 2026-01-27*
+
+_Phase: 16-allow-the-user-to-download-git-repos-so-that-they-can-work-on-them-with-their-opencode-sessions_
+_Completed: 2026-01-27_

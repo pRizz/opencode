@@ -125,7 +125,10 @@ export namespace Repo {
   }
 
   function extractRepoName(url: string) {
-    const trimmed = url.trim().replace(/\/+$/, "").replace(/\.git$/, "")
+    const trimmed = url
+      .trim()
+      .replace(/\/+$/, "")
+      .replace(/\.git$/, "")
     const slash = trimmed.split("/").filter(Boolean)
     const name = slash[slash.length - 1] || trimmed.split(":").pop()
     if (!name || name.includes("/")) {
@@ -188,7 +191,10 @@ export namespace Repo {
     if (normalized.includes("permission denied") && normalized.includes("publickey")) {
       return {
         message: "SSH authentication failed. Check your SSH key and repository access.",
-        help_steps: ["Ensure your SSH key is added to the ssh-agent.", "Confirm the repository exists and you have access."],
+        help_steps: [
+          "Ensure your SSH key is added to the ssh-agent.",
+          "Confirm the repository exists and you have access.",
+        ],
         auth_type: "ssh",
         can_retry_with_credentials: true,
       }
@@ -537,10 +543,7 @@ export namespace Repo {
       return { dirty: true, files }
     }
 
-    const localBranch = await $`git show-ref --verify --quiet refs/heads/${branch}`
-      .quiet()
-      .nothrow()
-      .cwd(repo.path)
+    const localBranch = await $`git show-ref --verify --quiet refs/heads/${branch}`.quiet().nothrow().cwd(repo.path)
     if (localBranch.exitCode === 0) {
       const args = ["checkout"]
       if (force) args.push("-f")

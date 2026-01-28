@@ -5,20 +5,24 @@
 ## Naming Patterns
 
 **Files:**
+
 - Lowercase with hyphens for multi-word: `oauth-provider.ts`, `bus-event.ts`
 - Single lowercase word preferred: `index.ts`, `agent.ts`, `config.ts`
 - Test files: `*.test.ts` co-located or in `test/` directory mirroring `src/`
 
 **Functions:**
+
 - camelCase for regular functions: `ascending()`, `shouldLog()`, `formatError()`
 - PascalCase for factory/creator functions exported from namespaces: `NamedError.create()`
 
 **Variables:**
+
 - Prefer single-word names: `level`, `result`, `write`, `tags`
 - camelCase for multi-word when necessary: `lastTimestamp`, `levelPriority`
 - Uppercase snake_case for constants within namespace sets: `FOLDERS`, `FILES`, `PATTERNS`
 
 **Types:**
+
 - PascalCase for types/interfaces: `Logger`, `Options`, `Level`
 - Namespaces wrap related types and functions: `Log.Level`, `Log.Logger`
 - Zod schemas exported with same name as inferred type:
@@ -28,6 +32,7 @@
   ```
 
 **Namespaces:**
+
 - PascalCase module namespaces: `Lock`, `Log`, `FileIgnore`, `Identifier`, `ProviderTransform`
 - Group related functions, types, and constants together
 - Export functions directly from namespace: `Lock.read()`, `Log.create()`
@@ -35,12 +40,14 @@
 ## Code Style
 
 **Formatting:**
+
 - Prettier configured in root `package.json` at `.planning/codebase/` level
 - Configuration: `"semi": false`, `"printWidth": 120`
 - Format command: `bun run --prettier --write src/**/*.ts` (from `packages/opencode/package.json`)
 - Prettier version: 3.6.2 (in root `devDependencies`)
 
 **Indentation:**
+
 - 2 spaces (from `.editorconfig`)
 - LF line endings
 - UTF-8 charset
@@ -48,6 +55,7 @@
 - Max line length: 80 (per `.editorconfig`, though Prettier uses 120)
 
 **Linting:**
+
 - ESLint not configured for main `packages/opencode/` package
 - ESLint configured in:
   - `packages/ralphcity-ui/frontend/eslint.config.js` - uses typescript-eslint, React hooks
@@ -56,6 +64,7 @@
 - Import naming: camelCase or PascalCase
 
 **Type Checking:**
+
 - TypeScript compiler: `tsgo --noEmit` (from `packages/opencode/package.json`)
 - Root command: `bun typecheck` runs `bun turbo typecheck`
 - Pre-commit: `.husky/pre-push` runs `bun typecheck` before push
@@ -63,16 +72,19 @@
 ## Import Organization
 
 **Order:**
+
 1. External packages (node built-ins, npm packages)
 2. Internal workspace packages (`@opencode-ai/util`, `@opencode-ai/sdk`)
 3. Relative imports from same package
 
 **Path Aliases:**
+
 - `@/*` maps to `./src/*` in opencode package
 - `@tui/*` maps to `./src/cli/cmd/tui/*`
 - Configured in `tsconfig.json` with `paths`
 
 **Example:**
+
 ```typescript
 import z from "zod"
 import path from "path"
@@ -85,12 +97,14 @@ import type { Provider } from "./provider"
 ## Error Handling
 
 **Patterns:**
+
 - Use `NamedError.create()` for typed errors with Zod schemas
 - Errors include `.data` property with typed payload
 - Avoid try/catch where possible (per STYLE_GUIDE.md)
 - Let errors propagate rather than swallowing
 
 **Error Definition:**
+
 ```typescript
 export const OutputLengthError = NamedError.create("MessageOutputLengthError", z.object({}))
 export const AuthError = NamedError.create(
@@ -103,6 +117,7 @@ export const AuthError = NamedError.create(
 ```
 
 **Error Checking:**
+
 ```typescript
 if (ErrorClass.isInstance(error)) {
   // handle typed error
@@ -114,12 +129,14 @@ if (ErrorClass.isInstance(error)) {
 **Framework:** Custom `Log` namespace in `packages/opencode/src/util/log.ts`
 
 **Patterns:**
+
 - Create tagged loggers: `Log.create({ service: "provider" })`
 - Log levels: DEBUG, INFO, WARN, ERROR
 - Include structured extra data: `log.info("message", { key: "value" })`
 - Use `.time()` for duration logging with `using` syntax
 
 **When to Log:**
+
 - INFO for significant operations starting/completing
 - DEBUG for internal state details
 - ERROR for failures that should be investigated
@@ -128,11 +145,13 @@ if (ErrorClass.isInstance(error)) {
 ## Comments
 
 **When to Comment:**
+
 - Comment the "why", not the "what"
 - JSDoc not widely used in codebase
 - Inline comments for non-obvious logic
 
 **Example from codebase:**
+
 ```typescript
 // Strip null bytes from paths (defensive fix for CI environment issues)
 function sanitizePath(p: string): string {
@@ -145,6 +164,7 @@ function sanitizePath(p: string): string {
 **Style Guide Rules (from STYLE_GUIDE.md):**
 
 **Avoid `let` statements:**
+
 ```typescript
 // Good
 const foo = condition ? 1 : 2
@@ -156,6 +176,7 @@ else foo = 2
 ```
 
 **Avoid `else` statements:**
+
 ```typescript
 // Good
 function foo() {
@@ -171,6 +192,7 @@ function foo() {
 ```
 
 **Avoid unnecessary destructuring:**
+
 ```typescript
 // Preferred - preserves context
 obj.a
@@ -181,6 +203,7 @@ const { a, b } = obj
 ```
 
 **Single-word naming preferred:**
+
 ```typescript
 // Good
 const foo = 1
@@ -191,10 +214,12 @@ const fooBar = 1
 ```
 
 **Use Bun APIs:**
+
 - Prefer `Bun.file()`, `Bun.Glob`, `Bun.write()` over Node.js equivalents
 - Use `bun:test` for testing
 
 **Use `iife` for inline expressions:**
+
 ```typescript
 import { iife } from "@/util/iife"
 
@@ -207,15 +232,18 @@ const result = iife(() => {
 ## Module Design
 
 **Exports:**
+
 - Namespace pattern for module grouping
 - Types and functions exported from namespace
 - Avoid default exports
 
 **Barrel Files:**
+
 - `index.ts` files re-export from directory modules
 - Example: `packages/opencode/src/util/` has multiple utility modules
 
 **Module Structure:**
+
 ```typescript
 export namespace ModuleName {
   // Types
@@ -237,11 +265,13 @@ export namespace ModuleName {
 ## TypeScript Specifics
 
 **Type Safety:**
+
 - Avoid `any` type (per STYLE_GUIDE.md)
 - Use Zod for runtime validation and type inference
 - Discriminated unions for state machines
 
 **Async/Disposable Pattern:**
+
 ```typescript
 // Using Symbol.asyncDispose for cleanup
 const result = {
@@ -256,6 +286,7 @@ await using tmp = await tmpdir()
 ```
 
 **`using` Syntax:**
+
 ```typescript
 using writer = await Lock.write(key)
 // automatically disposed when scope exits
@@ -264,6 +295,7 @@ using writer = await Lock.write(key)
 ## Tooling Commands
 
 **Formatting:**
+
 ```bash
 # Format code (from packages/opencode/)
 bun run format
@@ -272,6 +304,7 @@ bun run --prettier --write src/**/*.ts
 ```
 
 **Type Checking:**
+
 ```bash
 # Type check (from packages/opencode/)
 bun run typecheck
@@ -280,6 +313,7 @@ bun typecheck
 ```
 
 **Linting:**
+
 ```bash
 # Note: No lint command in main opencode package
 # Lint command exists but just runs tests with coverage
@@ -288,4 +322,4 @@ bun run lint  # Actually runs: bun test --coverage
 
 ---
 
-*Convention analysis: 2026-01-27*
+_Convention analysis: 2026-01-27_
