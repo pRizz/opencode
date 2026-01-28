@@ -89,6 +89,10 @@ export namespace Config {
     result.agent = result.agent || {}
     result.mode = result.mode || {}
     result.plugin = result.plugin || []
+    result.workspace = result.workspace || {}
+    if (!result.workspace.root) {
+      result.workspace.root = path.join(Global.Path.home, "opencode")
+    }
 
     const directories = [
       Global.Path.config,
@@ -896,6 +900,11 @@ export namespace Config {
       logLevel: Log.Level.optional().describe("Log level"),
       tui: TUI.optional().describe("TUI specific settings"),
       server: Server.optional().describe("Server configuration for opencode serve and web commands"),
+      workspace: z
+        .object({
+          root: z.string().optional().describe("Workspace root for cloning repositories"),
+        })
+        .optional(),
       command: z
         .record(z.string(), Command)
         .optional()
