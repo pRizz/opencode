@@ -59,16 +59,26 @@ async function shouldRebuildUi(appDir: string, distDir: string) {
   return sourceLatest > distLatest
 }
 
+async function resolveLocalAppDir() {
+  const candidates = [
+    fileURLToPath(new URL("../../app", import.meta.url)),
+    fileURLToPath(new URL("../../../packages/app", import.meta.url)),
+    fileURLToPath(new URL("../../../../app", import.meta.url)),
+  ]
+
+  for (const candidate of candidates) {
+    if (await Filesystem.isDir(candidate)) return candidate
+  }
+
+  throw new Error(`Local web app directory not found. Checked: ${candidates.join(", ")}`)
+}
+
 export async function resolveForkWebUiDir(): Promise<string | undefined> {
   const packaged = await getPackagedUiDir()
   if (packaged.uiDir) return packaged.uiDir
 
-  const appDir = fileURLToPath(new URL("../../../../app", import.meta.url))
+  const appDir = await resolveLocalAppDir()
   const distDir = path.join(appDir, "dist")
-  const hasAppDir = await Filesystem.isDir(appDir)
-  if (!hasAppDir) {
-    throw new Error(`Local web app directory not found at ${appDir}`)
-  }
 
   const rebuild = await shouldRebuildUi(appDir, distDir)
   if (rebuild) {

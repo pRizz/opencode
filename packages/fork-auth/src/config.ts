@@ -1,5 +1,14 @@
 import z from "zod"
-import { Duration } from "../../../opencode/src/util/duration"
+
+const durationPattern = /^\d+(?:\.\d+)?(?:ms|s|m|h|d|w|y)$/
+
+const Duration = z
+  .string()
+  .refine((value) => durationPattern.test(value), {
+    message: "Invalid duration format. Use formats like '30m', '1h', '7d'",
+  })
+  .describe("Duration string (e.g., '30m', '1h', '7d')")
+  .meta({ ref: "DurationString" })
 
 /**
  * PAM-specific authentication configuration.

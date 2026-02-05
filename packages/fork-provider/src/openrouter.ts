@@ -1,5 +1,5 @@
-import type { Provider } from "../../../opencode/src/provider/provider"
 import type { OpenRouterConfig } from "./config"
+import type { ProviderInfo, ProviderModel } from "./types"
 
 const OPENROUTER_FREE_ROUTER_ID = "openrouter/free"
 
@@ -7,11 +7,11 @@ export function isOpenRouterFreeModelId(modelID: string) {
   return modelID === OPENROUTER_FREE_ROUTER_ID || modelID.endsWith(":free")
 }
 
-export function isOpenRouterFreeModel(model: Provider.Model) {
+export function isOpenRouterFreeModel(model: ProviderModel) {
   return model.providerID === "openrouter" && isOpenRouterFreeModelId(model.id)
 }
 
-function zeroCost(cost: Provider.Model["cost"]): Provider.Model["cost"] {
+function zeroCost(cost: ProviderModel["cost"]): ProviderModel["cost"] {
   return {
     input: 0,
     output: 0,
@@ -32,7 +32,7 @@ function zeroCost(cost: Provider.Model["cost"]): Provider.Model["cost"] {
   }
 }
 
-function intersectOpenRouterCapabilities(models: Provider.Model[]): Provider.Model["capabilities"] {
+function intersectOpenRouterCapabilities(models: ProviderModel[]): ProviderModel["capabilities"] {
   const input = {
     text: models.every((m) => m.capabilities.input.text),
     audio: models.every((m) => m.capabilities.input.audio),
@@ -90,7 +90,7 @@ function minLimitValue(values: Array<number | undefined>) {
   return Math.min(...candidates)
 }
 
-function inferOpenRouterFreeModel(provider: Provider.Info): Provider.Model | undefined {
+function inferOpenRouterFreeModel(provider: ProviderInfo): ProviderModel | undefined {
   const baseModels = Object.values(provider.models).filter((model) => !isOpenRouterFreeModelId(model.id))
   if (baseModels.length === 0) return undefined
 
@@ -125,7 +125,7 @@ function inferOpenRouterFreeModel(provider: Provider.Info): Provider.Model | und
   }
 }
 
-export function augmentOpenRouterModels(provider: Provider.Info, openrouterConfig?: OpenRouterConfig) {
+export function augmentOpenRouterModels(provider: ProviderInfo, openrouterConfig?: OpenRouterConfig) {
   const freeRouterEnabled = !!openrouterConfig?.freeRouter
   const freeVariantsEnabled = !!openrouterConfig?.freeVariants
 
@@ -167,7 +167,7 @@ export function augmentOpenRouterModels(provider: Provider.Info, openrouterConfi
   }
 }
 
-export function getOpenRouterPreferredModels(provider: Provider.Info): Provider.Model[] | undefined {
+export function getOpenRouterPreferredModels(provider: ProviderInfo): ProviderModel[] | undefined {
   if (provider.id !== "openrouter") return undefined
   const models = Object.values(provider.models)
   const freeModels = models.filter((model) => isOpenRouterFreeModel(model))

@@ -1,22 +1,20 @@
-import type { Config } from "../../../opencode/src/config/config"
-import type { Provider } from "../../../opencode/src/provider/provider"
-import type { OpenRouterConfig } from "./config"
+import type { ForkProviderConfig, ProviderInfo, ProviderModel } from "./types"
 import { augmentOpenRouterModels, getOpenRouterPreferredModels } from "./openrouter"
 
 export function augmentForkProviders(params: {
-  providers: Record<string, Provider.Info>
-  config: Config.Info
+  providers: Record<string, ProviderInfo>
+  config: ForkProviderConfig
 }): void {
   const openrouterProvider = params.providers["openrouter"]
   if (!openrouterProvider) return
 
-  augmentOpenRouterModels(openrouterProvider, params.config.openrouter as OpenRouterConfig | undefined)
+  augmentOpenRouterModels(openrouterProvider, params.config.openrouter)
 }
 
 export function getForkPreferredModels(params: {
-  provider: Provider.Info
-  models: Provider.Model[]
-  config: Config.Info
-}): Provider.Model[] | undefined {
+  provider: ProviderInfo
+  models: ProviderModel[]
+  config: ForkProviderConfig
+}): ProviderModel[] | undefined {
   return getOpenRouterPreferredModels(params.provider)
 }

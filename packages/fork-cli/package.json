@@ -16,6 +16,7 @@
   },
   "devDependencies": {
     "yargs": "catalog:",
+    "@types/yargs": "17.0.33",
     "typescript": "catalog:",
     "@types/bun": "catalog:"
   }

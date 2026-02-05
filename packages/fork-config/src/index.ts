@@ -1,25 +1,31 @@
 import z from "zod"
 import path from "node:path"
-import type { Filesystem } from "../../../opencode/src/util/filesystem"
-import type { Config } from "../../../opencode/src/config/config"
 import { validateAuthConfig } from "@opencode-ai/fork-auth"
 import { AuthConfig } from "@opencode-ai/fork-auth/config"
 
-export function extendForkServerConfig<T extends z.ZodTypeAny>(server: T): T {
-  if (!(server instanceof z.ZodObject)) return server
+export type ForkConfigInfo = {
+  workspace?: {
+    root?: string
+  }
+  auth?: z.infer<typeof AuthConfig>
+  [key: string]: unknown
+}
 
+export type ForkFilesystem = {
+  exists: (path: string) => Promise<boolean>
+}
+
+export function extendForkServerConfig<T extends z.ZodRawShape>(server: z.ZodObject<T>) {
   return server.extend({
     uiUrl: z
       .string()
       .url()
       .optional()
       .describe("Base URL for the web UI proxy (defaults to https://app.opencode.ai)"),
-  }) as T
+  })
 }
 
-export function extendForkInfoConfig<T extends z.ZodTypeAny>(info: T): T {
-  if (!(info instanceof z.ZodObject)) return info
-
+export function extendForkInfoConfig<T extends z.ZodRawShape>(info: z.ZodObject<T>) {
   return info.extend({
     workspace: z
       .object({
@@ -27,10 +33,10 @@ export function extendForkInfoConfig<T extends z.ZodTypeAny>(info: T): T {
       })
       .optional(),
     auth: AuthConfig.optional().describe("Authentication configuration for multi-user access"),
-  }) as T
+  })
 }
 
-export function applyForkConfigDefaults(result: Config.Info, opts: { home: string }): void {
+export function applyForkConfigDefaults(result: ForkConfigInfo, opts: { home: string }): void {
   result.workspace = result.workspace || {}
   if (!result.workspace.root) {
     result.workspace.root = path.join(opts.home, "opencode")
@@ -38,8 +44,8 @@ export function applyForkConfigDefaults(result: Config.Info, opts: { home: strin
 }
 
 export async function validateForkConfig(args: {
-  auth: Config.Info["auth"]
-  filesystem: Filesystem
+  auth: ForkConfigInfo["auth"]
+  filesystem: ForkFilesystem
   log: { info: (message: string, data?: unknown) => void }
   onMissingPam: (input: { service: string; path: string }) => Error
 }): Promise<void> {

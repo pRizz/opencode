@@ -163,7 +163,7 @@ const BrokerCommand: CommandModule<EmptyArgs, EmptyArgs> = {
 }
 
 export function registerAuthBrokerCommands<T>(yargs: Argv<T>): Argv<T> {
-  return yargs.command(BrokerCommand)
+  return yargs.command(BrokerCommand as any)
 }
 
 /**

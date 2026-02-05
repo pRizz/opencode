@@ -1,4 +1,5 @@
 import type { Ghostty, Terminal as Term, FitAddon } from "ghostty-web"
+// @ts-expect-error package exports omit the Vite-style ?url suffix, but bundlers resolve this asset import.
 import ghosttyWasmUrl from "ghostty-web/ghostty-vt.wasm?url"
 import { ComponentProps, createEffect, createSignal, onCleanup, onMount, splitProps } from "solid-js"
 import { SerializeAddon } from "./serialize-addon"

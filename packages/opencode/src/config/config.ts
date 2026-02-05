@@ -193,7 +193,7 @@ export namespace Config {
       auth: result.auth,
       filesystem: Filesystem,
       log: {
-        info: (message, data) => log.info(message, data),
+        info: (message, data) => log.info(message, data as Record<string, any> | undefined),
       },
       onMissingPam: ({ service, path }) =>
         new PamServiceNotFoundError({
@@ -824,6 +824,7 @@ export namespace Config {
       port: z.number().int().positive().optional().describe("Port to listen on"),
       hostname: z.string().optional().describe("Hostname to listen on"),
       mdns: z.boolean().optional().describe("Enable mDNS service discovery"),
+      mdnsDomain: z.string().optional().describe("mDNS discovery domain"),
       cors: z.array(z.string()).optional().describe("Additional domains to allow for CORS"),
     })
     .strict()

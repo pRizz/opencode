@@ -17,14 +17,14 @@ export type ForkRunSessionInput = {
   title?: string
   permission?: Array<{
     permission: string
-    action: string
+    action: "ask" | "allow" | "deny"
     pattern: string
   }>
 }
 
 type ForkRunEventContext = {
   args: Record<string, any>
-  sessionID: string
+  sessionID?: string
   sdk: any
   state: ForkRunState
 }
@@ -171,7 +171,7 @@ export async function handleForkRunEvent(
 
 export function resolveForkRunSessionCreateInput(ctx: ForkRunSessionContext): ForkRunSessionInput | undefined {
   const title = ctx.title
-  const questionRule = [
+  const questionRule: NonNullable<ForkRunSessionInput["permission"]> = [
     {
       permission: "question",
       action: "deny",

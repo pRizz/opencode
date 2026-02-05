@@ -8,7 +8,7 @@ function getCsrfToken(): string | undefined {
 }
 
 export function createCsrfFetch(baseFetch: typeof fetch = fetch): typeof fetch {
-  const wrapped: typeof fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+  const wrapped = ((input: RequestInfo | URL, init?: RequestInit) => {
     const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase()
     if (method === "GET" || method === "HEAD" || method === "OPTIONS") {
       return baseFetch(input, init)
@@ -24,14 +24,14 @@ export function createCsrfFetch(baseFetch: typeof fetch = fetch): typeof fetch {
     if (csrfToken) headers.set("X-CSRF-Token", csrfToken)
 
     return baseFetch(input, { ...init, headers })
-  }
+  }) as FetchWithPreconnect
 
   const baseWithPreconnect = baseFetch as FetchWithPreconnect
-  return Object.assign(wrapped, {
-    preconnect: (url: string | URL) => {
-      if (typeof baseWithPreconnect.preconnect === "function") {
-        baseWithPreconnect.preconnect(url)
-      }
-    },
-  })
+  wrapped.preconnect = (url: string | URL) => {
+    if (typeof baseWithPreconnect.preconnect === "function") {
+      baseWithPreconnect.preconnect(url)
+    }
+  }
+
+  return wrapped as typeof fetch
 }

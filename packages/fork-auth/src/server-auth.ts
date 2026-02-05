@@ -1,8 +1,31 @@
 import path from "path"
+import os from "os"
 import { parse as parseJsonc } from "jsonc-parser"
 import { AuthConfig, type AuthConfig as AuthConfigType } from "./config"
-import { Filesystem } from "../../opencode/src/util/filesystem"
-import { Global } from "../../opencode/src/global"
+
+function configDir(): string {
+  const home = process.env.OPENCODE_TEST_HOME || os.homedir()
+  const xdgConfig = process.env.XDG_CONFIG_HOME || path.join(home, ".config")
+  return path.join(xdgConfig, "opencode")
+}
+
+async function exists(file: string): Promise<boolean> {
+  return Bun.file(file)
+    .stat()
+    .then(() => true)
+    .catch(() => false)
+}
+
+async function* findDotOpencodeDirs(start: string): AsyncGenerator<string> {
+  let current = start
+  while (true) {
+    const dir = path.join(current, ".opencode")
+    if (await exists(dir)) yield dir
+    const parent = path.dirname(current)
+    if (parent === current) break
+    current = parent
+  }
+}
 
 /**
  * Server-level auth configuration.
@@ -29,7 +52,7 @@ export namespace ServerAuth {
     const searchPaths: string[] = []
 
     // Find .opencode directories walking up from cwd
-    for await (const dir of Filesystem.up({ targets: [".opencode"], start: cwd })) {
+    for await (const dir of findDotOpencodeDirs(cwd)) {
       for (const file of configFiles) {
         searchPaths.push(path.join(dir, file))
       }
@@ -37,11 +60,11 @@ export namespace ServerAuth {
 
     // Also check global config
     for (const file of configFiles) {
-      searchPaths.push(path.join(Global.Path.config, file))
+      searchPaths.push(path.join(configDir(), file))
     }
 
     for (const configPath of searchPaths) {
-      if (await Filesystem.exists(configPath)) {
+      if (await exists(configPath)) {
         try {
           const text = await Bun.file(configPath).text()
           const parsed = parseJsonc(text, undefined, { allowTrailingComma: true })

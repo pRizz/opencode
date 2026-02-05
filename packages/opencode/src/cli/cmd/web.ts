@@ -43,10 +43,11 @@ export const WebCommand = cmd({
     UI.empty()
     UI.println(UI.logo("  "))
     UI.empty()
+    const activePort = server.port ?? Number(server.url.port || opts.port || 0)
 
     if (opts.hostname === "0.0.0.0") {
       // Show localhost for local access
-      const localhostUrl = `http://localhost:${server.port}`
+      const localhostUrl = `http://localhost:${activePort}`
       UI.println(UI.Style.TEXT_INFO_BOLD + "  Local access:      ", UI.Style.TEXT_NORMAL, localhostUrl)
 
       // Show network IPs for remote access
@@ -56,15 +57,15 @@ export const WebCommand = cmd({
           UI.println(
             UI.Style.TEXT_INFO_BOLD + "  Network access:    ",
             UI.Style.TEXT_NORMAL,
-            `http://${ip}:${server.port}`,
+            `http://${ip}:${activePort}`,
           )
         }
       }
 
       if (opts.mdns) {
         const mdnsLabel =
-          formatForkWebMdnsLabel({ port: server.port, hostname: opts.hostname }) ??
-          `${opts.mdnsDomain ?? "opencode.local"}:${server.port}`
+          formatForkWebMdnsLabel({ port: activePort, hostname: opts.hostname }) ??
+          `${opts.mdnsDomain ?? "opencode.local"}:${activePort}`
         UI.println(
           UI.Style.TEXT_INFO_BOLD + "  mDNS:              ",
           UI.Style.TEXT_NORMAL,

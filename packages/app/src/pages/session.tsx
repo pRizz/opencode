@@ -278,7 +278,7 @@ export default function Page() {
           clearTimeout(timer)
         }
         closeTimers.clear()
-        setClosingIds(new Set())
+        setClosingIds(new Set<string>())
       },
       { defer: true },
     ),
@@ -1917,7 +1917,7 @@ export default function Page() {
                         <Terminal
                           pty={pty}
                           onCleanup={terminal.update}
-                          onConnectError={(error) => {
+                          onConnectError={(error: unknown) => {
                             const details = getConnectErrorDetails(error)
                             console.error("Failed to connect terminal", {
                               error: details.message ?? error,

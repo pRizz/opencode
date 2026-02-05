@@ -1,5 +1,5 @@
 export type CommandRegistrar = {
-  command: (command: unknown) => CommandRegistrar
+  command: (...args: any[]) => CommandRegistrar
 }
 
 export type RegisterForkCommands = (cli: CommandRegistrar) => void

@@ -1190,7 +1190,7 @@ export namespace Provider {
       .then((x) => x.find((p) => !cfg.provider || Object.keys(cfg.provider).includes(p.id)))
     if (!provider) throw new Error("no providers found")
     const models = Object.values(provider.models)
-    const forkPreferred = getForkPreferredModels({ provider, models, config: cfg })
+    const forkPreferred = getForkPreferredModels({ provider, models, config: cfg }) as typeof models | undefined
     const [model] = sort(forkPreferred ?? models)
     if (!model) throw new Error("no models found")
     return {

@@ -5,6 +5,7 @@
     "moduleResolution": "bundler",
     "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
+    "allowArbitraryExtensions": true,
     "esModuleInterop": true,
     "allowJs": true,
     "noEmit": true,

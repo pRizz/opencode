@@ -10,7 +10,7 @@ export type Filesystem = {
 }
 
 export type Logger = {
-  info: (message: string, data?: Record<string, unknown>) => void
+  info: (message: string, data?: unknown) => void
 }
 
 export type MissingPamErrorFactory = (input: { service: string; path: string }) => Error
@@ -36,6 +36,6 @@ export async function validateAuthConfig(input: ValidateAuthConfigInput) {
   throw new Error(`PAM service file not found at ${pamPath}`)
 }
 
-export function registerAuthRoutes(authRoutes: () => unknown) {
+export function registerAuthRoutes<T>(authRoutes: () => T): T {
   return authRoutes()
 }

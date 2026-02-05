@@ -7,7 +7,7 @@ import { ManageTwoFactorDialog } from "./manage-2fa-dialog"
 
 interface SessionIndicatorSession {
   isAuthenticated: () => boolean
-  username: () => string
+  username: () => string | undefined
 }
 
 interface SessionIndicatorProps {
@@ -43,6 +43,7 @@ export function SessionIndicator(props: SessionIndicatorProps) {
   const session = props.session
   const dialog = useDialog()
   const [deviceTrustStatus, setDeviceTrustStatus] = createSignal<DeviceTrustStatus | null>(null)
+  const displayUsername = () => session.username() ?? ""
 
   // Fetch device trust status on mount
   const fetchDeviceTrustStatus = async () => {
@@ -193,14 +194,14 @@ export function SessionIndicator(props: SessionIndicatorProps) {
           size="small"
           class="text-text-base hover:bg-surface-base-active flex items-center gap-1"
         >
-          {session.username()}
+          {displayUsername()}
           <Icon name="chevron-down" size="small" />
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
           <DropdownMenu.Content class="mt-1">
             <DropdownMenu.Group>
               <DropdownMenu.GroupLabel class="text-text-muted px-2 py-1.5 text-xs">
-                {session.username()}
+                {displayUsername()}
               </DropdownMenu.GroupLabel>
             </DropdownMenu.Group>
             <Show when={showDeviceTrustOptions()}>
