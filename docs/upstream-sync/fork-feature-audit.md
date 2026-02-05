@@ -204,6 +204,7 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 - `docs/pam-config.md` (PAM configuration)
 - `docs/reverse-proxy.md` and `docs/reverse-proxy/*` (TLS/reverse proxy)
 - `docs/docker-install-fork.md` (fork install guidance)
+- `FORK.md` (fork-specific README notes)
 - README variants (localized)
 
 ## H. Tests
