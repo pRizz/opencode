@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@kobalte/core": "catalog:",
     "@opencode-ai/ui": "workspace:*",
     "solid-js": "catalog:"
   },
