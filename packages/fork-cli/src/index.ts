@@ -10,3 +10,4 @@ export const registerForkCommands: RegisterForkCommands = () => {
 
 export { registerAuthBrokerCommands } from "./auth-broker"
 export { formatForkCliError } from "./error"
+export { formatForkWebMdnsLabel, resolveForkWebUiDir } from "./web"

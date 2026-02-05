@@ -65,7 +65,14 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 - Behavior:
   - `opencode auth broker setup/status` (PAM file installation, broker status).
 
-### B2. TUI updates for auth and permissions
+### B2. Web CLI local UI bundling + mDNS label override
+- Files:
+  - `packages/fork-cli/src/web.ts`
+  - `packages/opencode/src/cli/cmd/web.ts` (hook usage)
+- Behavior:
+  - Builds and serves local web UI when needed; uses `opencode.local` for mDNS display.
+
+### B3. TUI updates for auth and permissions
 - Files:
   - `packages/opencode/src/cli/cmd/tui/**`
 - Behavior:
