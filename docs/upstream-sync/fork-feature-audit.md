@@ -87,6 +87,8 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
   - `packages/fork-ui/src/session-indicator.tsx`
   - `packages/fork-ui/src/manage-2fa-dialog.tsx`
   - `packages/fork-ui/src/session-expired-overlay.tsx`
+  - `packages/fork-ui/src/security-badge.tsx`
+  - `packages/fork-ui/src/http-warning-banner.tsx`
   - `packages/app/src/components/**` (thin wrappers)
   - `packages/app/src/context/**`
   - `packages/app/src/pages/**`
