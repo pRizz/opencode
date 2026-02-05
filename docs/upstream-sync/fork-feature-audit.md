@@ -220,8 +220,8 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 - Containers: `packages/containers/**`
 
 ## J. Planning / Internal Docs
-- `.planning/**`
-- `specs/**`
+- `.planning/**` (fork-only)
+- `specs/**` (upstream; no fork-specific changes detected)
 
 ## K. Repo & SSH Management
 
@@ -251,4 +251,3 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 - Docs (content updates)
 - Tests
 - Infra/CI
-- Planning/Spec housekeeping
