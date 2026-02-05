@@ -16,6 +16,8 @@ import {
   getPtyErrorMessage,
   getPtyRequestId,
   handlePtyCreateNoAuth,
+  handlePtyRemove,
+  handlePtyUpdate,
   mapPtyCreateError,
   maybeHandleAuthPtyCreate,
   maybeRequirePtyAuth,
@@ -151,19 +153,17 @@ export const PtyRoutes = lazy(() =>
       validator("json", Pty.UpdateInput),
       async (c) => {
         const authConfig = ServerAuth.get()
-
-        const authResponse = maybeRequirePtyAuth(c, authConfig.enabled)
-        if (authResponse) return authResponse
-
-        ensurePtyExists({
-          info: Pty.get(c.req.valid("param").ptyID),
+        return handlePtyUpdate({
+          c,
+          authEnabled: authConfig.enabled,
+          ptyId: c.req.valid("param").ptyID,
+          input: c.req.valid("json"),
+          getPty: Pty.get,
+          updatePty: Pty.update,
           onNotFound: (message) => {
             throw new Storage.NotFoundError({ message })
           },
         })
-
-        const info = await Pty.update(c.req.valid("param").ptyID, c.req.valid("json"))
-        return c.json(info)
       },
     )
     .delete(
@@ -187,20 +187,17 @@ export const PtyRoutes = lazy(() =>
       validator("param", z.object({ ptyID: z.string() })),
       async (c) => {
         const authConfig = ServerAuth.get()
-
-        const authResponse = maybeRequirePtyAuth(c, authConfig.enabled)
-        if (authResponse) return authResponse
         // Note: Future improvement could verify PTY belongs to this user's session
-
-        ensurePtyExists({
-          info: Pty.get(c.req.valid("param").ptyID),
+        return handlePtyRemove({
+          c,
+          authEnabled: authConfig.enabled,
+          ptyId: c.req.valid("param").ptyID,
+          getPty: Pty.get,
+          removePty: Pty.remove,
           onNotFound: (message) => {
             throw new Storage.NotFoundError({ message })
           },
         })
-
-        await Pty.remove(c.req.valid("param").ptyID)
-        return c.json(true)
       },
     )
     .get(

@@ -49,6 +49,25 @@ type HandlePtyCreateParams<TInput, TInfo> = {
   log: PtyRouteLogger
 }
 
+type HandlePtyUpdateParams<TInput, TInfo> = {
+  c: Context<PtyRouteEnv>
+  authEnabled: boolean
+  ptyId: string
+  input: TInput
+  getPty: (id: string) => TInfo | undefined
+  updatePty: (id: string, input: TInput) => Promise<TInfo | undefined> | TInfo | undefined
+  onNotFound: (message: string) => never
+}
+
+type HandlePtyRemoveParams<TInfo> = {
+  c: Context<PtyRouteEnv>
+  authEnabled: boolean
+  ptyId: string
+  getPty: (id: string) => TInfo | undefined
+  removePty: (id: string) => Promise<void> | void
+  onNotFound: (message: string) => never
+}
+
 export function ensurePtyExists<T>(params: { info: T | undefined; onNotFound: (message: string) => never; message?: string }): T {
   if (!params.info) {
     return params.onNotFound(params.message ?? "Session not found")
@@ -128,6 +147,42 @@ export async function handlePtyCreateNoAuth<TInput, TInfo>({
     log.warn("pty create failed", { requestId, code: mapped.code, error: message })
     return c.json({ error: message, code: mapped.code, requestId }, mapped.status)
   }
+}
+
+export async function handlePtyUpdate<TInput, TInfo>({
+  c,
+  authEnabled,
+  ptyId,
+  input,
+  getPty,
+  updatePty,
+  onNotFound,
+}: HandlePtyUpdateParams<TInput, TInfo>): Promise<Response> {
+  const authResponse = maybeRequirePtyAuth(c, authEnabled)
+  if (authResponse) return authResponse
+
+  ensurePtyExists({ info: getPty(ptyId), onNotFound })
+
+  const updated = await updatePty(ptyId, input)
+  const info = ensurePtyExists({ info: updated, onNotFound })
+  return c.json(info)
+}
+
+export async function handlePtyRemove<TInfo>({
+  c,
+  authEnabled,
+  ptyId,
+  getPty,
+  removePty,
+  onNotFound,
+}: HandlePtyRemoveParams<TInfo>): Promise<Response> {
+  const authResponse = maybeRequirePtyAuth(c, authEnabled)
+  if (authResponse) return authResponse
+
+  ensurePtyExists({ info: getPty(ptyId), onNotFound })
+
+  await removePty(ptyId)
+  return c.json(true)
 }
 
 export async function maybeHandleAuthPtyCreate<TInput, TInfo>({
