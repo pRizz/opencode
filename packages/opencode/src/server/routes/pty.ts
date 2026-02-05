@@ -15,6 +15,7 @@ import {
   ensurePtyConnectSession,
   getPtyErrorMessage,
   getPtyRequestId,
+  handlePtyCreateNoAuth,
   mapPtyCreateError,
   maybeHandleAuthPtyCreate,
   maybeRequirePtyAuth,
@@ -88,17 +89,15 @@ export const PtyRoutes = lazy(() =>
           return authResponse
         }
 
-        // Auth disabled - use existing behavior
-        try {
-          const info = await Pty.create(input, undefined, requestId)
-          log.info("pty created", { requestId, ptyId: info.id })
-          return c.json(info)
-        } catch (error) {
-          const message = getPtyErrorMessage(error)
-          const mapped = mapPtyCreateError(error, message)
-          log.warn("pty create failed", { requestId, code: mapped.code, error: message })
-          return c.json({ error: message, code: mapped.code, requestId }, mapped.status)
-        }
+        return handlePtyCreateNoAuth({
+          c,
+          requestId,
+          input,
+          createPty: (createInput, sessionId, nextRequestId) => Pty.create(createInput, sessionId, nextRequestId),
+          mapCreateError: mapPtyCreateError,
+          getErrorMessage: getPtyErrorMessage,
+          log,
+        })
       },
     )
     .get(

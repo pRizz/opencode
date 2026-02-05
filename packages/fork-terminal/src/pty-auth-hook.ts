@@ -39,6 +39,16 @@ type BrokerSessionInfo = {
   shell?: string
 }
 
+type HandlePtyCreateParams<TInput, TInfo> = {
+  c: Context<PtyRouteEnv>
+  requestId: string
+  input: TInput
+  createPty: (input: TInput, sessionId?: string, requestId?: string) => Promise<TInfo>
+  mapCreateError: CreateErrorMapper
+  getErrorMessage: (error: unknown) => string
+  log: PtyRouteLogger
+}
+
 export function ensurePtyExists<T>(params: { info: T | undefined; onNotFound: (message: string) => never; message?: string }): T {
   if (!params.info) {
     return params.onNotFound(params.message ?? "Session not found")
@@ -97,6 +107,27 @@ export function maybeRequirePtyAuth(c: Context<AuthEnv>, authEnabled: boolean): 
     return c.json({ error: "Authentication required" }, 401)
   }
   return null
+}
+
+export async function handlePtyCreateNoAuth<TInput, TInfo>({
+  c,
+  requestId,
+  input,
+  createPty,
+  mapCreateError,
+  getErrorMessage,
+  log,
+}: HandlePtyCreateParams<TInput, TInfo>): Promise<Response> {
+  try {
+    const info = await createPty(input, undefined, requestId)
+    log.info("pty created", { requestId, ptyId: (info as { id?: string }).id })
+    return c.json(info)
+  } catch (error) {
+    const message = getErrorMessage(error)
+    const mapped = mapCreateError(error, message)
+    log.warn("pty create failed", { requestId, code: mapped.code, error: message })
+    return c.json({ error: message, code: mapped.code, requestId }, mapped.status)
+  }
 }
 
 export async function maybeHandleAuthPtyCreate<TInput, TInfo>({
