@@ -109,9 +109,12 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 
 ### B5. TUI updates for auth and permissions
 - Files:
+  - `packages/fork-cli/src/tui.ts`
+  - `packages/opencode/src/cli/cmd/tui/worker.ts` (hook usage)
   - `packages/opencode/src/cli/cmd/tui/**`
 - Behavior:
   - Auth status hints, permissions dialogs, updated UX.
+  - Injects Basic auth header for internal TUI requests.
 
 ## C. UI/UX & Branding (Web/App)
 

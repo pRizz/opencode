@@ -17,4 +17,5 @@ export {
   resolveForkRunSessionCreateInput,
   validateForkRunCommand,
 } from "./run"
+export { getForkTuiAuthorizationHeader } from "./tui"
 export { formatForkWebMdnsLabel, resolveForkWebUiDir } from "./web"
