@@ -93,6 +93,7 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
   - `packages/fork-ui/src/http-warning-banner.tsx`
   - `packages/fork-ui/src/session-expiration-warning.ts`
   - `packages/fork-ui/src/csrf-fetch.ts`
+  - `packages/fork-ui/src/use-clone-progress.ts`
   - `packages/app/src/components/**` (thin wrappers)
   - `packages/app/src/context/**`
   - `packages/app/src/pages/**`

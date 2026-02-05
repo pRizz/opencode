@@ -18,3 +18,11 @@ export { createSessionExpirationWarning } from "./session-expiration-warning"
 export { AuthGate, AuthRedirect } from "./auth-gate"
 export { createCsrfFetch } from "./csrf-fetch"
 export { formatAuthInitError } from "./auth-error"
+export {
+  useCloneProgress,
+  type CloneAuthType,
+  type UseCloneProgressOptions,
+  type UseCloneProgressReturn,
+  type CloneProgressServer,
+  type CloneProgressPlatform,
+} from "./use-clone-progress"
