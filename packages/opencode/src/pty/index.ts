@@ -7,10 +7,11 @@ import { Log } from "../util/log"
 import type { WSContext } from "hono/ws"
 import { Instance } from "../project/instance"
 import { lazy } from "@opencode-ai/util/lazy"
-import { Shell } from "@/shell/shell"
 import { ServerAuth } from "@/config/server-auth"
 import { createBrokerPtyManager } from "@opencode-ai/fork-terminal/broker-pty-manager"
 import { createTerminal } from "@opencode-ai/fork-terminal/server"
+import { createPtyViaBroker } from "@opencode-ai/fork-terminal/server-pty"
+import { Shell } from "@/shell/shell"
 
 // Re-export broker PTY module for authenticated sessions
 export * as BrokerPty from "./broker-pty"
@@ -147,36 +148,12 @@ export namespace Pty {
    * will be implemented in Plan 05-08.
    */
   async function createViaBroker(input: CreateInput, sessionId: string, requestId?: string): Promise<Info> {
-    const command = input.command || Shell.preferred()
-    const args = input.args ? [...input.args] : []
-    if (command.endsWith("sh")) {
-      args.push("-l")
-    }
-    const cwd = input.cwd || Instance.directory
-
-    const brokerInfo = await brokerState().create(
-      sessionId,
-      {
-        term: input.env?.TERM ?? "xterm-256color",
-        cols: 80, // Could get from input if added
-        rows: 24,
-        env: input.env,
-      },
-      requestId,
-    )
-
-    const info: Info = {
-      id: brokerInfo.ptyId,
-      title: input.title || `Terminal ${brokerInfo.ptyId.slice(-4)}`,
-      command,
-      args,
-      cwd,
-      status: "running",
-      pid: brokerInfo.pid,
-    }
-
-    brokerState().set(info)
-    log.info("broker PTY spawned", { sessionId, requestId, method: "spawnpty", ptyId: brokerInfo.ptyId, pid: brokerInfo.pid })
+    const info = await createPtyViaBroker(input, sessionId, requestId, {
+      brokerManager: brokerState(),
+      shellPreferred: Shell.preferred,
+      instanceDirectory: Instance.directory,
+      log,
+    })
     Bus.publish(Event.Created, { info })
     return info
   }
