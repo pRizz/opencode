@@ -39,6 +39,13 @@ type BrokerSessionInfo = {
   shell?: string
 }
 
+export function ensurePtyExists<T>(params: { info: T | undefined; onNotFound: (message: string) => never; message?: string }): T {
+  if (!params.info) {
+    return params.onNotFound(params.message ?? "Session not found")
+  }
+  return params.info
+}
+
 export function getPtyErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message
   if (typeof error === "string") return error
