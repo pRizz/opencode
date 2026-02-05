@@ -112,11 +112,10 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
   - Fork-specific run output formatting, permission prompts, and idle handling.
 
 ### B5. TUI updates for auth and permissions
-- Files:
-  - `packages/fork-cli/src/tui.ts`
-  - `packages/opencode/src/cli/cmd/tui/worker.ts` (hook usage)
-- Behavior:
-  - Injects Basic auth header for internal TUI requests.
+- Upstream/no fork-specific changes detected.
+- Notes:
+  - TUI worker auth-header injection uses the upstream-local helper in `packages/opencode/src/cli/cmd/tui/worker.ts`.
+  - Fork TUI hook surface has been removed.
 
 ## C. UI/UX & Branding (Web/App)
 
@@ -260,4 +259,4 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 - Fork hook packages: `packages/fork-auth`, `packages/fork-ui`, `packages/fork-terminal`, `packages/fork-cli`, `packages/fork-security`, `packages/fork-provider`, `packages/fork-config`.
 
 ## Remaining Areas
-- TUI decoupling (`packages/opencode/src/cli/cmd/tui/worker.ts` still carries hook integration)
+- None (current decoupling checklist complete)
