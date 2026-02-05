@@ -3,6 +3,7 @@ import { render } from "solid-js/web"
 import { AppBaseProviders, AppInterface } from "@/app"
 import { Platform, PlatformProvider } from "@/context/platform"
 import pkg from "../package.json"
+import { createCsrfFetch } from "@opencode-ai/fork-ui"
 
 const root = document.getElementById("root")
 if (import.meta.env.DEV && !(root instanceof HTMLElement)) {
@@ -11,39 +12,7 @@ if (import.meta.env.DEV && !(root instanceof HTMLElement)) {
   )
 }
 
-function getCsrfToken(): string | undefined {
-  const match = document.cookie.match(/opencode_csrf=([^;]+)/)
-  if (match) return match[1]
-  const stored = sessionStorage.getItem("opencode_csrf_token")
-  return stored ?? undefined
-}
-
-const csrfFetch: typeof fetch = Object.assign(
-  (input: RequestInfo | URL, init?: RequestInit) => {
-    const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase()
-    if (method === "GET" || method === "HEAD" || method === "OPTIONS") {
-      return fetch(input, init)
-    }
-
-    const headers = new Headers(input instanceof Request ? input.headers : undefined)
-    if (init?.headers) {
-      const initHeaders = new Headers(init.headers)
-      initHeaders.forEach((value, key) => headers.set(key, value))
-    }
-
-    const csrfToken = getCsrfToken()
-    if (csrfToken) headers.set("X-CSRF-Token", csrfToken)
-
-    return fetch(input, { ...init, headers })
-  },
-  {
-    preconnect: (url: string | URL) => {
-      if ("preconnect" in fetch) {
-        fetch.preconnect(url)
-      }
-    },
-  },
-)
+const csrfFetch = createCsrfFetch()
 
 const platform: Platform = {
   platform: "web",
