@@ -9,11 +9,11 @@ import { Instance } from "../project/instance"
 import { lazy } from "@opencode-ai/util/lazy"
 import { Shell } from "@/shell/shell"
 import { ServerAuth } from "@/config/server-auth"
-import * as BrokerPty from "./broker-pty"
+import { createBrokerPtyManager } from "@opencode-ai/fork-terminal/broker-pty-manager"
 import { createTerminal } from "@opencode-ai/fork-terminal/server"
 
 // Re-export broker PTY module for authenticated sessions
-export { BrokerPty }
+export * as BrokerPty from "./broker-pty"
 
 export namespace Pty {
   const log = Log.create({ service: "pty" })
@@ -93,27 +93,20 @@ export namespace Pty {
   )
 
   const brokerState = Instance.state(
-    () => new Map<string, Info>(),
-    async (sessions) => {
-      for (const id of sessions.keys()) {
-        try {
-          await BrokerPty.kill(id)
-        } catch {}
-      }
-      sessions.clear()
+    () =>
+      createBrokerPtyManager<Info>({
+        onExit: (info) => {
+          info.status = "exited"
+          void Bus.publish(Event.Exited, { id: info.id, exitCode: 0 })
+        },
+      }),
+    async (manager) => {
+      await manager.cleanup()
     },
   )
 
-  BrokerPty.onExit((info) => {
-    const brokerInfo = brokerState().get(info.id)
-    if (!brokerInfo) return
-    brokerInfo.status = "exited"
-    void Bus.publish(Event.Exited, { id: info.id, exitCode: 0 })
-    brokerState().delete(info.id)
-  })
-
   export function list() {
-    return [...Array.from(state().values()).map((s) => s.info), ...Array.from(brokerState().values())]
+    return [...Array.from(state().values()).map((s) => s.info), ...brokerState().list()]
   }
 
   export function get(id: string) {
@@ -161,7 +154,7 @@ export namespace Pty {
     }
     const cwd = input.cwd || Instance.directory
 
-    const brokerInfo = await BrokerPty.create(
+    const brokerInfo = await brokerState().create(
       sessionId,
       {
         term: input.env?.TERM ?? "xterm-256color",
@@ -182,7 +175,7 @@ export namespace Pty {
       pid: brokerInfo.pid,
     }
 
-    brokerState().set(info.id, info)
+    brokerState().set(info)
     log.info("broker PTY spawned", { sessionId, requestId, method: "spawnpty", ptyId: brokerInfo.ptyId, pid: brokerInfo.pid })
     Bus.publish(Event.Created, { info })
     return info
@@ -281,7 +274,7 @@ export namespace Pty {
       brokerInfo.title = input.title
     }
     if (input.size) {
-      await BrokerPty.resize(id, input.size.cols, input.size.rows)
+      await brokerState().resize(id, input.size.cols, input.size.rows)
     }
     Bus.publish(Event.Updated, { info: brokerInfo })
     return brokerInfo
@@ -304,8 +297,7 @@ export namespace Pty {
 
     const brokerInfo = brokerState().get(id)
     if (!brokerInfo) return
-    await BrokerPty.kill(id)
-    brokerState().delete(id)
+    await brokerState().kill(id)
     Bus.publish(Event.Deleted, { id })
   }
 
@@ -317,7 +309,7 @@ export namespace Pty {
     }
 
     if (brokerState().has(id)) {
-      void BrokerPty.resize(id, cols, rows)
+      void brokerState().resize(id, cols, rows)
     }
   }
 
@@ -329,7 +321,7 @@ export namespace Pty {
     }
 
     if (brokerState().has(id)) {
-      void BrokerPty.write(id, data)
+      void brokerState().write(id, data)
     }
   }
 
@@ -337,7 +329,7 @@ export namespace Pty {
     const session = state().get(id)
     if (!session) {
       if (brokerState().has(id)) {
-        return BrokerPty.connect(id, ws, options)
+        return brokerState().connect(id, ws, options)
       }
       ws.close()
       return
