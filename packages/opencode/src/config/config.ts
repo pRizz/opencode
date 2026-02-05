@@ -1065,6 +1065,12 @@ export namespace Config {
           },
         ),
       instructions: z.array(z.string()).optional().describe("Additional instruction files or patterns to include"),
+      skills: z
+        .object({
+          paths: z.array(z.string()).optional().describe("Additional directories to scan for skills"),
+        })
+        .optional()
+        .describe("Skill discovery configuration"),
       layout: Layout.optional().describe("@deprecated Always uses stretch layout."),
       permission: Permission.optional(),
       tools: z.record(z.string(), z.boolean()).optional(),
@@ -1305,6 +1311,19 @@ export namespace Config {
     const existing = await loadFile(filepath)
     await Bun.write(filepath, JSON.stringify(mergeDeep(existing, config), null, 2))
     await Instance.dispose()
+  }
+
+  export async function getGlobal() {
+    return global()
+  }
+
+  export async function updateGlobal(config: Info) {
+    const filepath = path.join(Global.Path.config, "config.json")
+    const existing = await global()
+    await Bun.write(filepath, JSON.stringify(mergeDeep(existing, config), null, 2))
+    global.reset()
+    await Instance.disposeAll()
+    return global()
   }
 
   export async function directories() {
