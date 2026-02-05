@@ -12,14 +12,18 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 ### A0. Server auth config loader
 - Files:
   - `packages/fork-auth/src/server-auth.ts`
+  - `packages/fork-auth/src/index.ts` (validateAuthConfig)
+  - `packages/opencode/src/config/config.ts` (hook usage)
   - `packages/opencode/src/config/server-auth.ts` (re-export)
 - Behavior:
   - Loads auth config at server startup without Instance context.
+  - Validates auth config during config parsing.
 
 ### A1. Auth broker (PAM, setuid root)
 - Files:
   - `packages/fork-auth/src/auth/**`
   - `packages/fork-auth/src/routes/auth.ts`
+  - `packages/opencode/src/server/routes/auth.ts` (re-export)
   - `packages/opencode-broker/**`
   - `docs/pam-config.md`
 - Behavior:
@@ -37,6 +41,8 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 - Files:
   - `packages/fork-auth/src/middleware/auth.ts`
   - `packages/fork-auth/src/middleware/csrf.ts`
+  - `packages/opencode/src/server/middleware/auth.ts` (re-export)
+  - `packages/opencode/src/server/middleware/csrf.ts` (re-export)
 - Behavior:
   - Session cookies, CSRF protection, auth-required gating.
 - Tests:
@@ -55,6 +61,11 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 - Files:
   - `packages/fork-auth/src/security/https-detection.ts`
   - `packages/fork-auth/src/security/rate-limit.ts`
+  - `packages/fork-security/src/index.ts`
+  - `packages/opencode/src/server/security/https-detection.ts` (re-export)
+  - `packages/opencode/src/server/security/rate-limit.ts` (re-export)
+  - `packages/opencode/src/server/security/csrf.ts` (re-export)
+  - `packages/opencode/src/server/security/token-secret.ts` (re-export)
 - Behavior:
   - HTTPS detection (trust proxy), insecure login warning/block, rate limiting.
 - Tests:
@@ -76,6 +87,8 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 - Files:
   - `packages/fork-cli/src/web.ts`
   - `packages/opencode/src/cli/cmd/web.ts` (hook usage)
+  - `packages/opencode/src/server/server.ts` (uiDir hook usage)
+  - `packages/opencode/src/server/ui-dir.ts`
 - Behavior:
   - Builds and serves local web UI when needed; uses `opencode.local` for mDNS display.
 
@@ -219,6 +232,8 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 - Containers: `packages/containers/**`
 
 ## J. Planning / Internal Docs
+- `.planning/**`
+- `specs/**`
 
 ## K. Repo & SSH Management
 
@@ -226,6 +241,7 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 - Files:
   - `packages/fork-auth/src/routes/repo.ts`
   - `packages/opencode/src/server/routes/repo.ts` (re-export)
+  - `packages/opencode/src/server/server.ts` (route wiring)
 - Behavior:
   - Auth-aware repo cloning/branch management.
 
@@ -233,12 +249,19 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 - Files:
   - `packages/fork-auth/src/routes/ssh-keys.ts`
   - `packages/opencode/src/server/routes/ssh-keys.ts` (re-export)
+  - `packages/opencode/src/server/server.ts` (route wiring)
 - Behavior:
   - Auth-aware SSH key CRUD endpoints.
-
-- `.planning/**`
-- `specs/**`
 
 ## Notes
 - This is an initial inventory. As decoupling progresses, move items into fork packages and update this checklist with the new home and entrypoints.
 - Fork hook packages: `packages/fork-auth`, `packages/fork-ui`, `packages/fork-terminal`, `packages/fork-cli`, `packages/fork-security`.
+
+## Remaining Areas
+- TUI decoupling (`packages/opencode/src/cli/cmd/tui/**`)
+- Providers/Integrations
+- Assets/I18n
+- Docs (content updates)
+- Tests
+- Infra/CI
+- Planning/Spec housekeeping
