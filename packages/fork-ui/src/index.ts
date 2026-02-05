@@ -9,3 +9,5 @@ export function wrapRoutes<T>(routes: T): T {
 export { LoginApp } from "./login"
 export { TwoFactorApp } from "./two-factor"
 export { TwoFactorSetupApp } from "./two-factor-setup"
+export { ManageTwoFactorDialog } from "./manage-2fa-dialog"
+export { SessionIndicator } from "./session-indicator"

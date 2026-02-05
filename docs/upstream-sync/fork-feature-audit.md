@@ -84,7 +84,9 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 
 ### C2. App UI changes
 - Files:
-  - `packages/app/src/components/**`
+  - `packages/fork-ui/src/session-indicator.tsx`
+  - `packages/fork-ui/src/manage-2fa-dialog.tsx`
+  - `packages/app/src/components/**` (thin wrappers)
   - `packages/app/src/context/**`
   - `packages/app/src/pages/**`
 - Behavior:
