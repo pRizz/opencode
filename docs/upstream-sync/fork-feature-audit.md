@@ -196,22 +196,8 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 
 ## F. Internationalization & UI Assets
 
-### F1. App/UI/desktop i18n
-- Files:
-  - `packages/app/src/i18n/**`
-  - `packages/ui/src/i18n/**`
-  - `packages/desktop/src/i18n/**`
-- Behavior:
-  - Localized strings and language switching support.
-
-### F2. Audio/fonts/theme assets
-- Files:
-  - `packages/ui/src/assets/audio/**`
-  - `packages/ui/src/assets/fonts/**`
-  - `packages/ui/src/assets/favicon/**`
-  - `packages/ui/src/theme/**`
-- Behavior:
-  - UI sound cues, bundled fonts, theme definitions, and favicon assets.
+### F0. Upstream-only items (reference)
+- i18n + assets (upstream; no fork-specific changes detected).
 
 ## G. Docs & Operational Guidance
 
@@ -260,7 +246,6 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 ## Remaining Areas
 - TUI decoupling (`packages/opencode/src/cli/cmd/tui/**`)
 - Providers/Integrations
-- Assets/I18n
 - Docs (content updates)
 - Tests
 - Infra/CI
