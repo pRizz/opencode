@@ -1,7 +1,14 @@
 import type { Context } from "hono"
+import type { WSContext } from "hono/ws"
 import type { AuthEnv } from "@opencode-ai/fork-auth/middleware/auth"
 import { getAuthContext } from "@opencode-ai/fork-auth/middleware/auth"
 import { BrokerClient } from "@opencode-ai/fork-auth/auth/broker-client"
+
+export type PtyRouteEnv = AuthEnv & {
+  Variables: AuthEnv["Variables"] & {
+    ptyRequestId?: string
+  }
+}
 
 type PtyRouteLogger = {
   info(message?: any, extra?: Record<string, any>): void
@@ -62,9 +69,17 @@ export function createPtyRequestId(): string {
   return crypto.randomUUID()
 }
 
-export function resolvePtyConnectRequestId(c: Context<AuthEnv>): string {
-  const requestId = c.req.query("requestId") ?? createPtyRequestId()
+export function setPtyRequestId(c: Context<PtyRouteEnv>, requestId: string): void {
   c.set("ptyRequestId", requestId)
+}
+
+export function getPtyRequestId(c: Context<PtyRouteEnv>): string | undefined {
+  return c.get("ptyRequestId") as string | undefined
+}
+
+export function resolvePtyConnectRequestId(c: Context<PtyRouteEnv>): string {
+  const requestId = c.req.query("requestId") ?? createPtyRequestId()
+  setPtyRequestId(c, requestId)
   return requestId
 }
 
@@ -135,5 +150,51 @@ export async function maybeHandleAuthPtyCreate<TInput, TInfo>({
       error: message,
     })
     return c.json({ error: message, code: mapped.code, requestId }, mapped.status)
+  }
+}
+
+export function ensurePtyConnectSession<TInfo>(
+  c: Context<PtyRouteEnv>,
+  params: {
+    ptyId: string
+    requestId: string
+    getPty: (id: string) => TInfo | undefined
+    log: PtyRouteLogger
+  },
+): Response | null {
+  if (!params.getPty(params.ptyId)) {
+    params.log.warn("pty connect session not found", {
+      requestId: params.requestId,
+      ptyId: params.ptyId,
+      code: "pty_session_not_found",
+    })
+    return c.json({ error: "Session not found", code: "pty_session_not_found", requestId: params.requestId }, 404)
+  }
+  return null
+}
+
+export function createPtyWebSocketHandlers(params: {
+  id: string
+  requestId?: string
+  connect: (
+    id: string,
+    ws: WSContext,
+    options?: { requestId?: string },
+  ) => { onMessage: (msg: string | ArrayBuffer) => void; onClose: () => void } | undefined
+  log: PtyRouteLogger
+}) {
+  let handler: ReturnType<typeof params.connect>
+  return {
+    onOpen(_event: Event, ws: WSContext) {
+      params.log.info("pty websocket opened", { requestId: params.requestId, ptyId: params.id })
+      handler = params.connect(params.id, ws, { requestId: params.requestId })
+    },
+    onMessage(event: MessageEvent) {
+      handler?.onMessage(String(event.data))
+    },
+    onClose() {
+      params.log.info("pty websocket closed", { requestId: params.requestId, ptyId: params.id })
+      handler?.onClose()
+    },
   }
 }

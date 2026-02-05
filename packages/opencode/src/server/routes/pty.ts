@@ -6,25 +6,24 @@ import { Pty } from "@/pty"
 import { Storage } from "../../storage/storage"
 import { errors } from "../error"
 import { lazy } from "../../util/lazy"
-import { type AuthEnv } from "../middleware/auth"
 import { ServerAuth } from "@/config/server-auth"
 import { Log } from "@/util/log"
 import {
   createPtyRequestId,
+  createPtyWebSocketHandlers,
+  ensurePtyConnectSession,
   getPtyErrorMessage,
+  getPtyRequestId,
   mapPtyCreateError,
   maybeHandleAuthPtyCreate,
   maybeRequirePtyAuth,
   resolvePtyConnectRequestId,
+  type PtyRouteEnv,
 } from "@opencode-ai/fork-terminal/pty-auth-hook"
 
 const log = Log.create({ service: "pty-routes" })
 
-type PtyEnv = AuthEnv & {
-  Variables: AuthEnv["Variables"] & {
-    ptyRequestId?: string
-  }
-}
+type PtyEnv = PtyRouteEnv
 
 export const PtyRoutes = lazy(() =>
   new Hono<PtyEnv>()
@@ -213,29 +212,14 @@ export const PtyRoutes = lazy(() =>
         if (authResponse) return authResponse
         const requestId = resolvePtyConnectRequestId(c)
         const ptyId = c.req.param("ptyID")
-        if (!Pty.get(ptyId)) {
-          log.warn("pty connect session not found", { requestId, ptyId, code: "pty_session_not_found" })
-          return c.json({ error: "Session not found", code: "pty_session_not_found", requestId }, 404)
-        }
+        const connectResponse = ensurePtyConnectSession(c, { ptyId, requestId, getPty: Pty.get, log })
+        if (connectResponse) return connectResponse
         return next()
       },
       upgradeWebSocket((c) => {
-        const requestId = c.get("ptyRequestId") as string | undefined
+        const requestId = getPtyRequestId(c)
         const id = c.req.param("ptyID")
-        let handler: ReturnType<typeof Pty.connect>
-        return {
-          onOpen(_event, ws) {
-            log.info("pty websocket opened", { requestId, ptyId: id })
-            handler = Pty.connect(id, ws, { requestId })
-          },
-          onMessage(event) {
-            handler?.onMessage(String(event.data))
-          },
-          onClose() {
-            log.info("pty websocket closed", { requestId, ptyId: id })
-            handler?.onClose()
-          },
-        }
+        return createPtyWebSocketHandlers({ id, requestId, connect: Pty.connect, log })
       }),
     ),
 )
