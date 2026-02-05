@@ -181,30 +181,18 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 
 ## E. Providers & Integrations
 
-### E1. Copilot/OpenAI-compatible provider support
+### E0. Upstream-only items (reference)
+- MCP auth enhancements (upstream; no fork-specific changes detected)
+- Scheduler/automation module (upstream; no fork-specific changes detected)
+
+### E1. OpenRouter free model support (fork-only)
 - Files:
   - `packages/fork-provider/src/openrouter.ts`
   - `packages/fork-provider/src/index.ts` (provider hooks)
-  - `packages/opencode/src/provider/sdk/copilot/**`
-  - `packages/opencode/src/provider/transform.ts`
   - `packages/opencode/src/provider/provider.ts` (hook usage)
   - `packages/opencode/src/config/config.ts` (OpenRouter config schema via fork-provider)
 - Behavior:
-  - Copilot provider integration and OpenAI-compatible response handling.
   - OpenRouter free router/variant augmentation and default selection.
-
-### E2. MCP auth enhancements
-- Files:
-  - `packages/opencode/src/cli/cmd/mcp.ts`
-  - `packages/opencode/src/mcp/**`
-- Behavior:
-  - OAuth-capable MCP server auth flows and status display.
-
-### E3. Scheduler/automation module
-- Files:
-  - `packages/opencode/src/scheduler/**`
-- Behavior:
-  - Scheduler module used for planned automation features.
 
 ## F. Internationalization & UI Assets
 
