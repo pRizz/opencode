@@ -72,7 +72,22 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 - Behavior:
   - Builds and serves local web UI when needed; uses `opencode.local` for mDNS display.
 
-### B3. TUI updates for auth and permissions
+### B3. CLI branding override
+- Files:
+  - `packages/fork-cli/src/logo.ts`
+  - `packages/opencode/src/cli/ui.ts` (hook usage)
+  - `packages/opencode/src/cli/logo.ts` (upstream glyphs)
+- Behavior:
+  - Custom fork ASCII logo in CLI.
+
+### B4. Run command behavior
+- Files:
+  - `packages/fork-cli/src/run.ts`
+  - `packages/opencode/src/cli/cmd/run.ts` (hook usage)
+- Behavior:
+  - Fork-specific run output formatting, permission prompts, and idle handling.
+
+### B5. TUI updates for auth and permissions
 - Files:
   - `packages/opencode/src/cli/cmd/tui/**`
 - Behavior:

@@ -63,7 +63,8 @@ export const WebCommand = cmd({
 
       if (opts.mdns) {
         const mdnsLabel =
-          formatForkWebMdnsLabel({ port: server.port, hostname: opts.hostname }) ?? `opencode.local:${server.port}`
+          formatForkWebMdnsLabel({ port: server.port, hostname: opts.hostname }) ??
+          `${opts.mdnsDomain ?? "opencode.local"}:${server.port}`
         UI.println(
           UI.Style.TEXT_INFO_BOLD + "  mDNS:              ",
           UI.Style.TEXT_NORMAL,
