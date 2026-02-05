@@ -9,7 +9,7 @@ import { CSRF_COOKIE_NAME, getCSRFSecret, validateCSRFToken } from "../security/
 import { lazy } from "../../../opencode/src/util/lazy"
 import { BrokerClient, type UserInfo } from "../auth/broker-client"
 import { getUserInfo } from "../auth/user-info"
-import { ServerAuth } from "../../../opencode/src/config/server-auth"
+import { ServerAuth } from "../server-auth"
 import { Log } from "../../../opencode/src/util/log"
 import { createManualRateLimiter, getClientIP, type ManualRateLimiter } from "../security/rate-limit"
 import { parseDuration } from "../../../opencode/src/util/duration"

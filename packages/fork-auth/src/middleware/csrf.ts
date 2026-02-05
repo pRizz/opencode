@@ -8,7 +8,7 @@ import {
   CSRF_COOKIE_NAME,
   CSRF_HEADER_NAME,
 } from "../security/csrf"
-import { ServerAuth } from "../../../opencode/src/config/server-auth"
+import { ServerAuth } from "../server-auth"
 import { Log } from "../../../opencode/src/util/log"
 
 const log = Log.create({ service: "csrf-middleware" })

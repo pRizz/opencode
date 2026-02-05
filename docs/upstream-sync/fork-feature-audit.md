@@ -9,6 +9,13 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 
 ## A. System Authentication & Security (Core Runtime)
 
+### A0. Server auth config loader
+- Files:
+  - `packages/fork-auth/src/server-auth.ts`
+  - `packages/opencode/src/config/server-auth.ts` (re-export)
+- Behavior:
+  - Loads auth config at server startup without Instance context.
+
 ### A1. Auth broker (PAM, setuid root)
 - Files:
   - `packages/fork-auth/src/auth/**`
@@ -212,6 +219,22 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 - Containers: `packages/containers/**`
 
 ## J. Planning / Internal Docs
+
+## K. Repo & SSH Management
+
+### K1. Repo clone and management routes
+- Files:
+  - `packages/fork-auth/src/routes/repo.ts`
+  - `packages/opencode/src/server/routes/repo.ts` (re-export)
+- Behavior:
+  - Auth-aware repo cloning/branch management.
+
+### K2. SSH key management routes
+- Files:
+  - `packages/fork-auth/src/routes/ssh-keys.ts`
+  - `packages/opencode/src/server/routes/ssh-keys.ts` (re-export)
+- Behavior:
+  - Auth-aware SSH key CRUD endpoints.
 
 - `.planning/**`
 - `specs/**`
