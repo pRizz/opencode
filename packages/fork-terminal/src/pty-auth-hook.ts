@@ -32,6 +32,15 @@ type BrokerSessionInfo = {
   shell?: string
 }
 
+export function maybeRequirePtyAuth(c: Context<AuthEnv>, authEnabled: boolean): Response | null {
+  if (!authEnabled) return null
+  const auth = getAuthContext(c)
+  if (!auth) {
+    return c.json({ error: "Authentication required" }, 401)
+  }
+  return null
+}
+
 export async function maybeHandleAuthPtyCreate<TInput, TInfo>({
   c,
   requestId,
