@@ -8,7 +8,7 @@ type PtyRouteLogger = {
   warn(message?: any, extra?: Record<string, any>): void
 }
 
-type CreateErrorStatus = 404 | 500 | 503
+export type CreateErrorStatus = 404 | 500 | 503
 
 type CreateErrorMapper = (error: unknown, message: string) => { code: string; status: CreateErrorStatus }
 
@@ -30,6 +30,42 @@ type BrokerSessionInfo = {
   gid?: number
   home?: string
   shell?: string
+}
+
+export function getPtyErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message
+  if (typeof error === "string") return error
+  return "Unknown error"
+}
+
+export function mapPtyCreateError(error: unknown, message: string): { code: string; status: CreateErrorStatus } {
+  if (error && typeof error === "object") {
+    const code = typeof (error as { code?: string }).code === "string" ? (error as { code: string }).code : undefined
+    if (code === "broker_session_not_found") {
+      return { code, status: 404 }
+    }
+    if (code === "broker_unavailable") {
+      return { code, status: 503 }
+    }
+  }
+  const normalized = message.toLowerCase()
+  if (normalized.includes("session not found")) {
+    return { code: "broker_session_not_found", status: 404 }
+  }
+  if (normalized.includes("broker unavailable")) {
+    return { code: "broker_unavailable", status: 503 }
+  }
+  return { code: "pty_create_failed", status: 500 }
+}
+
+export function createPtyRequestId(): string {
+  return crypto.randomUUID()
+}
+
+export function resolvePtyConnectRequestId(c: Context<AuthEnv>): string {
+  const requestId = c.req.query("requestId") ?? createPtyRequestId()
+  c.set("ptyRequestId", requestId)
+  return requestId
 }
 
 export function maybeRequirePtyAuth(c: Context<AuthEnv>, authEnabled: boolean): Response | null {

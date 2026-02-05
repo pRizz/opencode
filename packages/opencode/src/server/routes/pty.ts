@@ -9,37 +9,16 @@ import { lazy } from "../../util/lazy"
 import { type AuthEnv } from "../middleware/auth"
 import { ServerAuth } from "@/config/server-auth"
 import { Log } from "@/util/log"
-import { maybeHandleAuthPtyCreate, maybeRequirePtyAuth } from "@opencode-ai/fork-terminal/pty-auth-hook"
+import {
+  createPtyRequestId,
+  getPtyErrorMessage,
+  mapPtyCreateError,
+  maybeHandleAuthPtyCreate,
+  maybeRequirePtyAuth,
+  resolvePtyConnectRequestId,
+} from "@opencode-ai/fork-terminal/pty-auth-hook"
 
 const log = Log.create({ service: "pty-routes" })
-
-const getErrorMessage = (error: unknown) => {
-  if (error instanceof Error) return error.message
-  if (typeof error === "string") return error
-  return "Unknown error"
-}
-
-type CreateErrorStatus = 404 | 500 | 503
-
-const mapCreateError = (error: unknown, message: string): { code: string; status: CreateErrorStatus } => {
-  if (error && typeof error === "object") {
-    const code = typeof (error as { code?: string }).code === "string" ? (error as { code: string }).code : undefined
-    if (code === "broker_session_not_found") {
-      return { code, status: 404 }
-    }
-    if (code === "broker_unavailable") {
-      return { code, status: 503 }
-    }
-  }
-  const normalized = message.toLowerCase()
-  if (normalized.includes("session not found")) {
-    return { code: "broker_session_not_found", status: 404 }
-  }
-  if (normalized.includes("broker unavailable")) {
-    return { code: "broker_unavailable", status: 503 }
-  }
-  return { code: "pty_create_failed", status: 500 }
-}
 
 type PtyEnv = AuthEnv & {
   Variables: AuthEnv["Variables"] & {
@@ -90,7 +69,7 @@ export const PtyRoutes = lazy(() =>
       }),
       validator("json", Pty.CreateInput),
       async (c) => {
-        const requestId = crypto.randomUUID()
+        const requestId = createPtyRequestId()
         const authConfig = ServerAuth.get()
         const input = c.req.valid("json")
 
@@ -100,8 +79,8 @@ export const PtyRoutes = lazy(() =>
           authEnabled: authConfig.enabled,
           input,
           createPty: (createInput, sessionId, nextRequestId) => Pty.create(createInput, sessionId, nextRequestId),
-          mapCreateError,
-          getErrorMessage,
+          mapCreateError: mapPtyCreateError,
+          getErrorMessage: getPtyErrorMessage,
           log,
         })
 
@@ -115,8 +94,8 @@ export const PtyRoutes = lazy(() =>
           log.info("pty created", { requestId, ptyId: info.id })
           return c.json(info)
         } catch (error) {
-          const message = getErrorMessage(error)
-          const mapped = mapCreateError(error, message)
+          const message = getPtyErrorMessage(error)
+          const mapped = mapPtyCreateError(error, message)
           log.warn("pty create failed", { requestId, code: mapped.code, error: message })
           return c.json({ error: message, code: mapped.code, requestId }, mapped.status)
         }
@@ -232,9 +211,8 @@ export const PtyRoutes = lazy(() =>
         const authConfig = ServerAuth.get()
         const authResponse = maybeRequirePtyAuth(c, authConfig.enabled)
         if (authResponse) return authResponse
-        const requestId = c.req.query("requestId") ?? crypto.randomUUID()
+        const requestId = resolvePtyConnectRequestId(c)
         const ptyId = c.req.param("ptyID")
-        c.set("ptyRequestId", requestId)
         if (!Pty.get(ptyId)) {
           log.warn("pty connect session not found", { requestId, ptyId, code: "pty_session_not_found" })
           return c.json({ error: "Session not found", code: "pty_session_not_found", requestId }, 404)
