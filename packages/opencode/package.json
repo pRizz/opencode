@@ -85,6 +85,7 @@
     "@openauthjs/openauth": "catalog:",
     "@opencode-ai/fork-auth": "workspace:*",
     "@opencode-ai/fork-cli": "workspace:*",
+    "@opencode-ai/fork-config": "workspace:*",
     "@opencode-ai/fork-provider": "workspace:*",
     "@opencode-ai/fork-security": "workspace:*",
     "@opencode-ai/fork-terminal": "workspace:*",

@@ -11,13 +11,17 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 
 ### A0. Server auth config loader
 - Files:
+  - `packages/fork-auth/src/config.ts`
   - `packages/fork-auth/src/server-auth.ts`
   - `packages/fork-auth/src/index.ts` (validateAuthConfig)
+  - `packages/fork-config/src/index.ts`
+  - `packages/opencode/src/config/auth.ts` (re-export)
   - `packages/opencode/src/config/config.ts` (hook usage)
   - `packages/opencode/src/config/server-auth.ts` (re-export)
 - Behavior:
   - Loads auth config at server startup without Instance context.
   - Validates auth config during config parsing.
+  - Extends config schema for auth/workspace/uiUrl and applies workspace defaults.
 
 ### A1. Auth broker (PAM, setuid root)
 - Files:
@@ -263,7 +267,7 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 
 ## Notes
 - This is an initial inventory. As decoupling progresses, move items into fork packages and update this checklist with the new home and entrypoints.
-- Fork hook packages: `packages/fork-auth`, `packages/fork-ui`, `packages/fork-terminal`, `packages/fork-cli`, `packages/fork-security`, `packages/fork-provider`.
+- Fork hook packages: `packages/fork-auth`, `packages/fork-ui`, `packages/fork-terminal`, `packages/fork-cli`, `packages/fork-security`, `packages/fork-provider`, `packages/fork-config`.
 
 ## Remaining Areas
 - TUI decoupling (`packages/opencode/src/cli/cmd/tui/**`)

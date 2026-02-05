@@ -1,6 +1,6 @@
 import path from "path"
 import { parse as parseJsonc } from "jsonc-parser"
-import { AuthConfig, type AuthConfig as AuthConfigType } from "../../opencode/src/config/auth"
+import { AuthConfig, type AuthConfig as AuthConfigType } from "./config"
 import { Filesystem } from "../../opencode/src/util/filesystem"
 import { Global } from "../../opencode/src/global"
 

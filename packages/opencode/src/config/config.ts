@@ -20,8 +20,12 @@ import { Installation } from "@/installation"
 import { ConfigMarkdown } from "./markdown"
 import { existsSync } from "fs"
 import { Bus } from "@/bus"
-import { AuthConfig } from "./auth"
-import { validateAuthConfig } from "@opencode-ai/fork-auth"
+import {
+  applyForkConfigDefaults,
+  extendForkInfoConfig,
+  extendForkServerConfig,
+  validateForkConfig,
+} from "@opencode-ai/fork-config"
 import { OpenRouterConfig } from "@opencode-ai/fork-provider/config"
 
 export namespace Config {
@@ -91,10 +95,7 @@ export namespace Config {
     result.agent = result.agent || {}
     result.mode = result.mode || {}
     result.plugin = result.plugin || []
-    result.workspace = result.workspace || {}
-    if (!result.workspace.root) {
-      result.workspace.root = path.join(Global.Path.home, "opencode")
-    }
+    applyForkConfigDefaults(result, { home: Global.Path.home })
 
     const directories = [
       Global.Path.config,
@@ -188,7 +189,7 @@ export namespace Config {
 
     result.plugin = deduplicatePlugins(result.plugin ?? [])
 
-    await validateAuthConfig({
+    await validateForkConfig({
       auth: result.auth,
       filesystem: Filesystem,
       log: {
@@ -818,22 +819,20 @@ export namespace Config {
       .describe("Control diff rendering style: 'auto' adapts to terminal width, 'stacked' always shows single column"),
   })
 
-  export const Server = z
+  const ServerBase = z
     .object({
       port: z.number().int().positive().optional().describe("Port to listen on"),
       hostname: z.string().optional().describe("Hostname to listen on"),
       mdns: z.boolean().optional().describe("Enable mDNS service discovery"),
       cors: z.array(z.string()).optional().describe("Additional domains to allow for CORS"),
-      uiUrl: z
-        .string()
-        .url()
-        .optional()
-        .describe("Base URL for the web UI proxy (defaults to https://app.opencode.ai)"),
     })
     .strict()
     .meta({
       ref: "ServerConfig",
     })
+  export const Server = extendForkServerConfig(ServerBase).meta({
+    ref: "ServerConfig",
+  })
 
   export const Layout = z.enum(["auto", "stretch"]).meta({
     ref: "LayoutConfig",
@@ -893,7 +892,7 @@ export namespace Config {
     })
   export type Provider = z.infer<typeof Provider>
 
-  export const Info = z
+  const InfoBase = z
     .object({
       $schema: z.string().optional().describe("JSON schema reference for configuration validation"),
       theme: z.string().optional().describe("Theme name to use for the interface"),
@@ -901,11 +900,6 @@ export namespace Config {
       logLevel: Log.Level.optional().describe("Log level"),
       tui: TUI.optional().describe("TUI specific settings"),
       server: Server.optional().describe("Server configuration for opencode serve and web commands"),
-      workspace: z
-        .object({
-          root: z.string().optional().describe("Workspace root for cloning repositories"),
-        })
-        .optional(),
       command: z
         .record(z.string(), Command)
         .optional()
@@ -1105,12 +1099,14 @@ export namespace Config {
             .describe("Timeout in milliseconds for model context protocol (MCP) requests"),
         })
         .optional(),
-      auth: AuthConfig.optional().describe("Authentication configuration for multi-user access"),
     })
     .strict()
     .meta({
       ref: "Config",
     })
+  export const Info = extendForkInfoConfig(InfoBase).meta({
+    ref: "Config",
+  })
 
   export type Info = z.output<typeof Info>
 
