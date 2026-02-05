@@ -58,8 +58,10 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 
 ### B1. Auth broker CLI commands
 - Files:
-  - `packages/opencode/src/cli/cmd/auth.ts`
-  - `packages/opencode/src/cli/error.ts`
+  - `packages/fork-cli/src/auth-broker.ts`
+  - `packages/fork-cli/src/error.ts`
+  - `packages/opencode/src/cli/cmd/auth.ts` (hook registration)
+  - `packages/opencode/src/cli/error.ts` (fork error hook)
 - Behavior:
   - `opencode auth broker setup/status` (PAM file installation, broker status).
 
