@@ -11,7 +11,7 @@ import { Shell } from "@/shell/shell"
 import { BrokerClient } from "@/auth/broker-client"
 import { ServerAuth } from "@/config/server-auth"
 import * as BrokerPty from "./broker-pty"
-import { createTerminal } from "@opencode-ai/fork-terminal"
+import { createTerminal } from "@opencode-ai/fork-terminal/server"
 
 // Re-export broker PTY module for authenticated sessions
 export { BrokerPty }

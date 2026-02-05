@@ -107,8 +107,21 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 - Files:
   - `packages/opencode/src/pty/**`
   - `packages/opencode/src/server/routes/pty.ts`
+  - `packages/fork-terminal/src/server.ts`
 - Behavior:
   - Broker PTY creation for authenticated sessions.
+
+### D2. Terminal UI + addons
+- Files:
+  - `packages/fork-terminal/src/terminal.tsx`
+  - `packages/fork-terminal/src/sortable-terminal-tab.tsx`
+  - `packages/fork-terminal/src/serialize-addon.ts`
+  - `packages/fork-terminal/src/terminal-types.ts`
+  - `packages/app/src/components/terminal.tsx` (wrapper)
+  - `packages/app/src/components/session/session-sortable-terminal-tab.tsx` (wrapper)
+  - `packages/app/src/addons/serialize.ts` (re-export)
+- Behavior:
+  - Terminal rendering, tab drag/drop, and buffer serialization moved into fork package with thin app wrappers.
 
 ## E. Providers & Integrations
 
