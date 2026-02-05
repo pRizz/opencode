@@ -38,8 +38,8 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
   - `packages/fork-auth/src/routes/auth.ts`
   - `packages/opencode/src/server/routes/pty.ts`
 - Tests:
-  - `packages/opencode/test/server/routes/pty-broker.test.ts`
-  - `packages/opencode/test/integration/user-process.test.ts`
+  - `packages/fork-tests/server/routes/pty-broker.test.ts`
+  - `packages/fork-tests/integration/user-process.test.ts`
 
 ### A2. Session auth middleware + cookies
 - Files:
@@ -50,7 +50,7 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 - Behavior:
   - Session cookies, CSRF protection, auth-required gating.
 - Tests:
-  - `packages/opencode/test/server/middleware/csrf.test.ts`
+  - `packages/fork-tests/server/middleware/csrf.test.ts`
 
 ### A3. 2FA/TOTP (PAM OTP)
 - Files:
@@ -59,7 +59,7 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
   - `packages/fork-auth/src/routes/auth.ts`
   - `packages/opencode-broker/service/opencode-otp.pam*`
 - Tests:
-  - `packages/opencode/test/server/routes/auth.test.ts`
+  - `packages/fork-tests/server/routes/auth.test.ts`
 
 ### A4. Security hardening
 - Files:
@@ -73,8 +73,8 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 - Behavior:
   - HTTPS detection (trust proxy), insecure login warning/block, rate limiting.
 - Tests:
-  - `packages/opencode/test/server/security/https-detection.test.ts`
-  - `packages/opencode/test/server/security/rate-limit.test.ts`
+  - `packages/fork-tests/server/security/https-detection.test.ts`
+  - `packages/fork-tests/server/security/rate-limit.test.ts`
 
 ## B. CLI & TUI Additions
 
@@ -115,9 +115,7 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 - Files:
   - `packages/fork-cli/src/tui.ts`
   - `packages/opencode/src/cli/cmd/tui/worker.ts` (hook usage)
-  - `packages/opencode/src/cli/cmd/tui/**`
 - Behavior:
-  - Auth status hints, permissions dialogs, updated UX.
   - Injects Basic auth header for internal TUI requests.
 
 ## C. UI/UX & Branding (Web/App)
@@ -191,8 +189,13 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
   - `packages/fork-provider/src/index.ts` (provider hooks)
   - `packages/opencode/src/provider/provider.ts` (hook usage)
   - `packages/opencode/src/config/config.ts` (OpenRouter config schema via fork-provider)
+  - `packages/console/core/script/update-models.ts` (OpenRouter defaults/free model patching)
+  - `packages/console/core/src/model.ts` (OpenRouter byok provider + headers schema)
+  - `packages/console/app/src/routes/workspace/[id]/provider-section.tsx` (OpenRouter provider entry)
+  - `packages/console/app/src/routes/zen/util/handler.ts` (OpenRouter custom headers passthrough)
 - Behavior:
-  - OpenRouter free router/variant augmentation and default selection.
+  - OpenRouter free router/variant augmentation and default selection in opencode runtime.
+  - Console model-management support for OpenRouter defaults and custom header passthrough.
 
 ## F. Internationalization & UI Assets
 
@@ -205,17 +208,21 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 - `docs/reverse-proxy.md` and `docs/reverse-proxy/*` (TLS/reverse proxy)
 - `docs/docker-install-fork.md` (fork install guidance)
 - `FORK.md` (fork-specific README notes)
-- README variants (localized)
+- `README.md` (kept aligned to upstream with minimal fork edits)
+- `packages/web/src/content/docs/{agents,cli,config,permissions}.mdx` (fork permission-default docs)
 
 ## H. Tests
 
-- Fork auth/security/PTY tests under `packages/fork-tests/**`
-- App E2E smoke tests under `packages/app/e2e/**`
+- Fork auth/security/PTY/integration tests under `packages/fork-tests/**`
+- Upstream test tree remains mostly clean; two fork tests were moved out of opencode test tree:
+  - `packages/opencode/test/server/session-list.test.ts` (deleted, moved to fork-tests)
+  - `packages/opencode/test/server/session-select.test.ts` (deleted, moved to fork-tests)
 
 ## I. Infra / CI / Workflows
 
 - Workflows under `.github/workflows/**`
 - Fork upstream sync automation: `.github/workflows/fork-sync-upstream.yml`
+- Fork sync orchestrator script: `script/sync-upstream.ts`
 - Nix/flake updates: `flake.nix`, `flake.lock`, `nix/**`
 - Containers: `packages/containers/**`
 
@@ -241,13 +248,16 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 - Behavior:
   - Auth-aware SSH key CRUD endpoints.
 
+## L. Repo Tooling / Fork Defaults
+
+- `AGENTS.md` (fork alignment and workflow rules for contributors/agents)
+- `.opencode/opencode.jsonc` (fork runtime defaults and policy)
+- `.cursor/rules/*.mdc` (fork editor/agent policy defaults)
+- Root metadata/config deltas: `.gitignore`, `package.json`, `bun.lock`, `tsconfig.json`
+
 ## Notes
 - This is an initial inventory. As decoupling progresses, move items into fork packages and update this checklist with the new home and entrypoints.
 - Fork hook packages: `packages/fork-auth`, `packages/fork-ui`, `packages/fork-terminal`, `packages/fork-cli`, `packages/fork-security`, `packages/fork-provider`, `packages/fork-config`.
 
 ## Remaining Areas
-- TUI decoupling (`packages/opencode/src/cli/cmd/tui/**`)
-- Providers/Integrations
-- Docs (content updates)
-- Tests
-- Infra/CI
+- TUI decoupling (`packages/opencode/src/cli/cmd/tui/worker.ts` still carries hook integration)
