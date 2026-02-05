@@ -215,6 +215,7 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 ## I. Infra / CI / Workflows
 
 - Workflows under `.github/workflows/**`
+- Fork upstream sync automation: `.github/workflows/fork-sync-upstream.yml`
 - Nix/flake updates: `flake.nix`, `flake.lock`, `nix/**`
 - Containers: `packages/containers/**`
 
