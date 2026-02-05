@@ -5,6 +5,7 @@ import { Component, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { usePlatform } from "@/context/platform"
 import { Icon } from "@opencode-ai/ui/icon"
+import { formatAuthInitError } from "@opencode-ai/fork-ui"
 
 export type InitError = {
   name: string
@@ -39,15 +40,10 @@ function safeJson(value: unknown): string {
 }
 
 function formatInitError(error: InitError): string {
+  const authMessage = formatAuthInitError(error)
+  if (authMessage) return authMessage
   const data = error.data
   switch (error.name) {
-    case "MCPFailed":
-      return `MCP server "${data.name}" failed. Note, opencode does not support MCP authentication yet.`
-    case "ProviderAuthError": {
-      const providerID = typeof data.providerID === "string" ? data.providerID : "unknown"
-      const message = typeof data.message === "string" ? data.message : safeJson(data.message)
-      return `Provider authentication failed (${providerID}): ${message}`
-    }
     case "APIError": {
       const message = typeof data.message === "string" ? data.message : "API error"
       const lines: string[] = [message]
