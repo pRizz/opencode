@@ -1,8 +1,8 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test"
 import { Hono } from "hono"
-import { ServerAuth } from "../../../src/config/server-auth"
-import { UserSession } from "../../../src/session/user-session"
-import { getAuthContext, type AuthContext, type AuthEnv } from "../../../src/server/middleware/auth"
+import { ServerAuth } from "../../../../opencode/src/config/server-auth"
+import { UserSession } from "../../../../opencode/src/session/user-session"
+import { getAuthContext, type AuthContext, type AuthEnv } from "../../../../opencode/src/server/middleware/auth"
 
 /**
  * Tests for PTY route auth enforcement.

@@ -209,7 +209,7 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 
 ## H. Tests
 
-- Auth/security/PTY tests under `packages/opencode/test/**`
+- Fork auth/security/PTY tests under `packages/fork-tests/**`
 - App E2E smoke tests under `packages/app/e2e/**`
 
 ## I. Infra / CI / Workflows

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "bun:test"
 import { Hono } from "hono"
-import { createLoginRateLimiter, getClientIP } from "../../../src/server/security/rate-limit"
+import { createLoginRateLimiter, getClientIP } from "../../../../opencode/src/server/security/rate-limit"
 
 describe("rate-limit", () => {
   describe("getClientIP", () => {

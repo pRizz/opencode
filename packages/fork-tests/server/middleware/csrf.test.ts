@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test"
 import { Hono } from "hono"
-import { csrfMiddleware, setCSRFCookie, clearCSRFCookie } from "../../../src/server/middleware/csrf"
+import { csrfMiddleware, setCSRFCookie, clearCSRFCookie } from "../../../../opencode/src/server/middleware/csrf"
 import { getCookie } from "hono/cookie"
-import { ServerAuth } from "../../../src/config/server-auth"
-import type { AuthConfig } from "../../../src/config/auth"
-import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from "../../../src/server/security/csrf"
+import { ServerAuth } from "../../../../opencode/src/config/server-auth"
+import type { AuthConfig } from "../../../../opencode/src/config/auth"
+import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from "../../../../opencode/src/server/security/csrf"
 
 // Type for test context with sessionId variable
 type TestEnv = { Variables: { sessionId: string } }

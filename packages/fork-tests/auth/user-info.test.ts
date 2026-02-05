@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test"
-import { getUserInfo } from "../../src/auth/user-info"
+import { getUserInfo } from "../../../opencode/src/auth/user-info"
 
 describe("getUserInfo", () => {
   test("returns user info for current user", async () => {

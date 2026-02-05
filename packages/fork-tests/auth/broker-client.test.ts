@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { BrokerClient } from "../../src/auth/broker-client"
+import { BrokerClient } from "../../../opencode/src/auth/broker-client"
 
 describe("BrokerClient PTY error mapping", () => {
   const client = new BrokerClient()

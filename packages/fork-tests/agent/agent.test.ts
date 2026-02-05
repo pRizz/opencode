@@ -1,8 +1,8 @@
 import { test, expect } from "bun:test"
 import { tmpdir } from "../fixture/fixture"
-import { Instance } from "../../src/project/instance"
-import { Agent } from "../../src/agent/agent"
-import { PermissionNext } from "../../src/permission/next"
+import { Instance } from "../../../opencode/src/project/instance"
+import { Agent } from "../../../opencode/src/agent/agent"
+import { PermissionNext } from "../../../opencode/src/permission/next"
 
 // Helper to evaluate permission for a tool with wildcard pattern
 function evalPerm(agent: Agent.Info | undefined, permission: string): PermissionNext.Action | undefined {

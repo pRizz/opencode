@@ -1,9 +1,9 @@
 import { describe, test, expect, mock, beforeEach } from "bun:test"
 import { Hono } from "hono"
 import path from "path"
-import type { AuthResult } from "../../../src/auth/broker-client"
-import type { UnixUserInfo } from "../../../src/auth/user-info"
-import type { AuthConfig } from "../../../src/config/auth"
+import type { AuthResult } from "../../../../opencode/src/auth/broker-client"
+import type { UnixUserInfo } from "../../../../opencode/src/auth/user-info"
+import type { AuthConfig } from "../../../../opencode/src/config/auth"
 
 // Mock state with explicit types
 const mockAuthenticate = mock<() => Promise<AuthResult>>(() => Promise.resolve({ success: true }))

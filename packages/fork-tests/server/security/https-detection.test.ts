@@ -5,7 +5,7 @@ import {
   isSecureConnection,
   shouldBlockInsecureLogin,
   getConnectionSecurityInfo,
-} from "../../../src/server/security/https-detection"
+} from "../../../../opencode/src/server/security/https-detection"
 
 /**
  * Mock Hono Context for testing.

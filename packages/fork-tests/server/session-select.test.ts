@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test"
 import path from "path"
-import { Session } from "../../src/session"
-import { Log } from "../../src/util/log"
-import { Instance } from "../../src/project/instance"
-import { Server } from "../../src/server/server"
-import { AuthConfig } from "../../src/config/auth"
-import { ServerAuth } from "../../src/config/server-auth"
+import { Session } from "../../../opencode/src/session"
+import { Log } from "../../../opencode/src/util/log"
+import { Instance } from "../../../opencode/src/project/instance"
+import { Server } from "../../../opencode/src/server/server"
+import { AuthConfig } from "../../../opencode/src/config/auth"
+import { ServerAuth } from "../../../opencode/src/config/server-auth"
 
 const projectRoot = path.join(__dirname, "../..")
 Log.init({ print: false })

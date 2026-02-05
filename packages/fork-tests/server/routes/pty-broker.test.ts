@@ -1,8 +1,8 @@
 import { describe, test, expect, beforeEach, mock } from "bun:test"
 import { Hono } from "hono"
 import z from "zod"
-import type { AuthConfig } from "../../../src/config/auth"
-import type { AuthContext, AuthEnv } from "../../../src/server/middleware/auth"
+import type { AuthConfig } from "../../../../opencode/src/config/auth"
+import type { AuthContext, AuthEnv } from "../../../../opencode/src/server/middleware/auth"
 
 const mockCreate = mock(async () => ({
   id: "pty-test",
@@ -75,7 +75,7 @@ mock.module("../../../src/config/server-auth", () => ({
   },
 }))
 
-import { PtyRoutes } from "../../../src/server/routes/pty"
+import { PtyRoutes } from "../../../../opencode/src/server/routes/pty"
 
 const createAuthApp = () => {
   const session = {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test"
-import { UserSession } from "../../src/session/user-session"
+import { UserSession } from "../../../opencode/src/session/user-session"
 
 // UUID regex pattern for validation
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
