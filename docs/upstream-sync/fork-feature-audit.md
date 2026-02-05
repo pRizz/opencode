@@ -11,14 +11,16 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 
 ### A1. Auth broker (PAM, setuid root)
 - Files:
+  - `packages/fork-auth/src/auth/**`
+  - `packages/fork-auth/src/routes/auth.ts`
   - `packages/opencode-broker/**`
   - `docs/pam-config.md`
 - Behavior:
   - PAM authentication via privileged broker.
   - Broker spawns user processes with UID/GID and manages PTY allocation.
 - Entrypoints:
-  - `packages/opencode/src/auth/broker-client.ts`
-  - `packages/opencode/src/server/routes/auth.ts`
+  - `packages/fork-auth/src/auth/broker-client.ts`
+  - `packages/fork-auth/src/routes/auth.ts`
   - `packages/opencode/src/server/routes/pty.ts`
 - Tests:
   - `packages/opencode/test/server/routes/pty-broker.test.ts`
@@ -26,8 +28,8 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 
 ### A2. Session auth middleware + cookies
 - Files:
-  - `packages/opencode/src/server/middleware/auth.ts`
-  - `packages/opencode/src/server/middleware/csrf.ts`
+  - `packages/fork-auth/src/middleware/auth.ts`
+  - `packages/fork-auth/src/middleware/csrf.ts`
 - Behavior:
   - Session cookies, CSRF protection, auth-required gating.
 - Tests:
@@ -35,17 +37,17 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 
 ### A3. 2FA/TOTP (PAM OTP)
 - Files:
-  - `packages/opencode/src/auth/totp-setup.ts`
-  - `packages/opencode/src/auth/two-factor-token.ts`
-  - `packages/opencode/src/server/routes/auth.ts`
+  - `packages/fork-auth/src/auth/totp-setup.ts`
+  - `packages/fork-auth/src/auth/two-factor-token.ts`
+  - `packages/fork-auth/src/routes/auth.ts`
   - `packages/opencode-broker/service/opencode-otp.pam*`
 - Tests:
   - `packages/opencode/test/server/routes/auth.test.ts`
 
 ### A4. Security hardening
 - Files:
-  - `packages/opencode/src/server/security/https-detection.ts`
-  - `packages/opencode/src/server/security/rate-limit.ts`
+  - `packages/fork-auth/src/security/https-detection.ts`
+  - `packages/fork-auth/src/security/rate-limit.ts`
 - Behavior:
   - HTTPS detection (trust proxy), insecure login warning/block, rate limiting.
 - Tests:
