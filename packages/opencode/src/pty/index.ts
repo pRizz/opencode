@@ -8,7 +8,6 @@ import type { WSContext } from "hono/ws"
 import { Instance } from "../project/instance"
 import { lazy } from "@opencode-ai/util/lazy"
 import { Shell } from "@/shell/shell"
-import { BrokerClient } from "@/auth/broker-client"
 import { ServerAuth } from "@/config/server-auth"
 import * as BrokerPty from "./broker-pty"
 import { createTerminal } from "@opencode-ai/fork-terminal/server"
@@ -330,8 +329,7 @@ export namespace Pty {
     }
 
     if (brokerState().has(id)) {
-      const brokerClient = new BrokerClient()
-      void brokerClient.ptyWrite(id, data)
+      void BrokerPty.write(id, data)
     }
   }
 

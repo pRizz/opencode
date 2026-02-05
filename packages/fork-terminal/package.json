@@ -11,12 +11,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@opencode-ai/fork-auth": "workspace:*",
     "@opencode-ai/ui": "workspace:*",
     "@thisbeyond/solid-dnd": "0.7.5",
     "ghostty-web": "0.3.0",
     "solid-js": "catalog:"
   },
   "devDependencies": {
+    "hono": "catalog:",
     "typescript": "catalog:",
     "@types/bun": "catalog:"
   }

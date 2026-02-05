@@ -105,7 +105,9 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 
 ### D1. Broker-backed PTY
 - Files:
-  - `packages/opencode/src/pty/**`
+  - `packages/opencode/src/pty/index.ts`
+  - `packages/opencode/src/pty/broker-pty.ts` (wrapper)
+  - `packages/fork-terminal/src/broker-pty.ts`
   - `packages/opencode/src/server/routes/pty.ts`
   - `packages/fork-terminal/src/server.ts`
 - Behavior:
