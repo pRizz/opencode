@@ -73,7 +73,10 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 
 ### C1. Login UI + security badges
 - Files:
-  - `packages/app/src/login/**`
+  - `packages/fork-ui/src/login.tsx`
+  - `packages/fork-ui/src/two-factor.tsx`
+  - `packages/fork-ui/src/two-factor-setup.tsx`
+  - `packages/app/src/login/**` (thin wrappers + HTML entrypoints)
   - `packages/app/src/pages/**`
   - `packages/app/src/components/**`
 - Behavior:
