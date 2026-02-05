@@ -68,6 +68,13 @@ type HandlePtyRemoveParams<TInfo> = {
   onNotFound: (message: string) => never
 }
 
+type HandlePtyGetParams<TInfo> = {
+  c: Context<PtyRouteEnv>
+  ptyId: string
+  getPty: (id: string) => TInfo | undefined
+  onNotFound: (message: string) => never
+}
+
 export function ensurePtyExists<T>(params: { info: T | undefined; onNotFound: (message: string) => never; message?: string }): T {
   if (!params.info) {
     return params.onNotFound(params.message ?? "Session not found")
@@ -183,6 +190,11 @@ export async function handlePtyRemove<TInfo>({
 
   await removePty(ptyId)
   return c.json(true)
+}
+
+export function handlePtyGet<TInfo>({ c, ptyId, getPty, onNotFound }: HandlePtyGetParams<TInfo>): Response {
+  const info = ensurePtyExists({ info: getPty(ptyId), onNotFound })
+  return c.json(info)
 }
 
 export async function maybeHandleAuthPtyCreate<TInput, TInfo>({

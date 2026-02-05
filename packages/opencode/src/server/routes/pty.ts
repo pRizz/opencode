@@ -16,6 +16,7 @@ import {
   getPtyErrorMessage,
   getPtyRequestId,
   handlePtyCreateNoAuth,
+  handlePtyGet,
   handlePtyRemove,
   handlePtyUpdate,
   mapPtyCreateError,
@@ -122,13 +123,14 @@ export const PtyRoutes = lazy(() =>
       }),
       validator("param", z.object({ ptyID: z.string() })),
       async (c) => {
-        const info = ensurePtyExists({
-          info: Pty.get(c.req.valid("param").ptyID),
+        return handlePtyGet({
+          c,
+          ptyId: c.req.valid("param").ptyID,
+          getPty: Pty.get,
           onNotFound: (message) => {
             throw new Storage.NotFoundError({ message })
           },
         })
-        return c.json(info)
       },
     )
     .put(
