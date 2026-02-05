@@ -28,7 +28,7 @@ import DirectoryLayout from "@/pages/directory-layout"
 import { ErrorPage } from "./pages/error"
 import { iife } from "@opencode-ai/util/iife"
 import { Suspense } from "solid-js"
-import { wrapLayout, wrapRoutes } from "@opencode-ai/fork-ui"
+import { wrapLayout, wrapRoutes, AuthGate as ForkAuthGate } from "@opencode-ai/fork-ui"
 
 const Home = lazy(() => import("@/pages/home"))
 const Session = lazy(() => import("@/pages/session"))
@@ -68,34 +68,14 @@ function ServerKey(props: ParentProps) {
   )
 }
 
-/**
- * Auth gate that waits for session check and redirects to login if needed.
- */
 function AuthGate(props: ParentProps) {
   const session = useSession()
   const server = useServer()
-
-  // Wait for initial session check
-  // If auth is required but not authenticated, redirect to login
   return (
-    <Show when={session.ready()} fallback={<Loading />}>
-      <Show when={!session.authRequired()} fallback={<AuthRedirect url={server.url} />}>
-        {props.children}
-      </Show>
-    </Show>
+    <ForkAuthGate session={session} server={server}>
+      {props.children}
+    </ForkAuthGate>
   )
-}
-
-/**
- * Component that redirects to the login page.
- * Passes current URL as returnUrl so user is redirected back after login.
- */
-function AuthRedirect(props: { url: string | undefined }) {
-  if (props.url) {
-    const returnUrl = encodeURIComponent(window.location.href)
-    window.location.href = `${props.url}/auth/login?returnUrl=${returnUrl}`
-  }
-  return <Loading />
 }
 
 export function AppInterface(props: { defaultUrl?: string }) {

@@ -84,6 +84,7 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 
 ### C2. App UI changes
 - Files:
+  - `packages/fork-ui/src/auth-gate.tsx`
   - `packages/fork-ui/src/session-indicator.tsx`
   - `packages/fork-ui/src/manage-2fa-dialog.tsx`
   - `packages/fork-ui/src/session-expired-overlay.tsx`
