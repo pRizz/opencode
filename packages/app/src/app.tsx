@@ -28,11 +28,13 @@ import DirectoryLayout from "@/pages/directory-layout"
 import { ErrorPage } from "./pages/error"
 import { iife } from "@opencode-ai/util/iife"
 import { Suspense } from "solid-js"
-import { wrapLayout, wrapRoutes, AuthGate as ForkAuthGate } from "@opencode-ai/fork-ui"
+import { wrapLayout, wrapRoutes, AuthGate as ForkAuthGate, injectSecurityBadgeStyles } from "@opencode-ai/fork-ui"
 
 const Home = lazy(() => import("@/pages/home"))
 const Session = lazy(() => import("@/pages/session"))
 const Loading = () => <div class="size-full" />
+
+injectSecurityBadgeStyles()
 
 declare global {
   interface Window {

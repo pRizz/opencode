@@ -26,3 +26,4 @@ export {
   type CloneProgressServer,
   type CloneProgressPlatform,
 } from "./use-clone-progress"
+export { injectSecurityBadgeStyles } from "./security-badge-style"
