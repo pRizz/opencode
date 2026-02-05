@@ -176,10 +176,15 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 
 ### E1. Copilot/OpenAI-compatible provider support
 - Files:
+  - `packages/fork-provider/src/openrouter.ts`
+  - `packages/fork-provider/src/index.ts` (provider hooks)
   - `packages/opencode/src/provider/sdk/copilot/**`
   - `packages/opencode/src/provider/transform.ts`
+  - `packages/opencode/src/provider/provider.ts` (hook usage)
+  - `packages/opencode/src/config/config.ts` (OpenRouter config schema via fork-provider)
 - Behavior:
   - Copilot provider integration and OpenAI-compatible response handling.
+  - OpenRouter free router/variant augmentation and default selection.
 
 ### E2. MCP auth enhancements
 - Files:
@@ -255,7 +260,7 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 
 ## Notes
 - This is an initial inventory. As decoupling progresses, move items into fork packages and update this checklist with the new home and entrypoints.
-- Fork hook packages: `packages/fork-auth`, `packages/fork-ui`, `packages/fork-terminal`, `packages/fork-cli`, `packages/fork-security`.
+- Fork hook packages: `packages/fork-auth`, `packages/fork-ui`, `packages/fork-terminal`, `packages/fork-cli`, `packages/fork-security`, `packages/fork-provider`.
 
 ## Remaining Areas
 - TUI decoupling (`packages/opencode/src/cli/cmd/tui/**`)
