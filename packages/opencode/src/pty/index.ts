@@ -11,6 +11,7 @@ import { Shell } from "@/shell/shell"
 import { BrokerClient } from "@/auth/broker-client"
 import { ServerAuth } from "@/config/server-auth"
 import * as BrokerPty from "./broker-pty"
+import { createTerminal } from "@opencode-ai/fork-terminal"
 
 // Re-export broker PTY module for authenticated sessions
 export { BrokerPty }
@@ -130,15 +131,18 @@ export namespace Pty {
    * @param maybeSessionId - Optional session ID for broker-based creation
    */
   export async function create(input: CreateInput, maybeSessionId?: string, requestId?: string): Promise<Info> {
-    const authConfig = ServerAuth.get()
-
-    // If auth is enabled and session ID provided, use broker
-    if (authConfig.enabled && maybeSessionId) {
-      return createViaBroker(input, maybeSessionId, requestId)
-    }
-
-    // Otherwise use existing bun-pty (runs as server user)
-    return createLocal(input, requestId)
+    return createTerminal(
+      input,
+      {
+        sessionId: maybeSessionId,
+        requestId,
+      },
+      {
+        isAuthEnabled: () => ServerAuth.get().enabled,
+        createLocal,
+        createViaBroker,
+      },
+    )
   }
 
   /**

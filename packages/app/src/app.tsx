@@ -28,6 +28,7 @@ import DirectoryLayout from "@/pages/directory-layout"
 import { ErrorPage } from "./pages/error"
 import { iife } from "@opencode-ai/util/iife"
 import { Suspense } from "solid-js"
+import { wrapLayout, wrapRoutes } from "@opencode-ai/fork-ui"
 
 const Home = lazy(() => import("@/pages/home"))
 const Session = lazy(() => import("@/pages/session"))
@@ -120,42 +121,48 @@ export function AppInterface(props: { defaultUrl?: string }) {
               <GlobalSyncProvider>
                 <Router
                   root={(props) => (
-                    <PermissionProvider>
-                      <LayoutProvider>
-                        <NotificationProvider>
-                          <CommandProvider>
-                            <Layout>{props.children}</Layout>
-                          </CommandProvider>
-                        </NotificationProvider>
-                      </LayoutProvider>
-                    </PermissionProvider>
+                    wrapLayout(
+                      <PermissionProvider>
+                        <LayoutProvider>
+                          <NotificationProvider>
+                            <CommandProvider>
+                              <Layout>{props.children}</Layout>
+                            </CommandProvider>
+                          </NotificationProvider>
+                        </LayoutProvider>
+                      </PermissionProvider>,
+                    )
                   )}
                 >
-                  <Route
-                    path="/"
-                    component={() => (
-                      <Suspense fallback={<Loading />}>
-                        <Home />
-                      </Suspense>
-                    )}
-                  />
-                  <Route path="/:dir" component={DirectoryLayout}>
-                    <Route path="/" component={() => <Navigate href="session" />} />
-                    <Route
-                      path="/session/:id?"
-                      component={() => (
-                        <TerminalProvider>
-                          <FileProvider>
-                            <PromptProvider>
-                              <Suspense fallback={<Loading />}>
-                                <Session />
-                              </Suspense>
-                            </PromptProvider>
-                          </FileProvider>
-                        </TerminalProvider>
-                      )}
-                    />
-                  </Route>
+                  {wrapRoutes(
+                    <>
+                      <Route
+                        path="/"
+                        component={() => (
+                          <Suspense fallback={<Loading />}>
+                            <Home />
+                          </Suspense>
+                        )}
+                      />
+                      <Route path="/:dir" component={DirectoryLayout}>
+                        <Route path="/" component={() => <Navigate href="session" />} />
+                        <Route
+                          path="/session/:id?"
+                          component={() => (
+                            <TerminalProvider>
+                              <FileProvider>
+                                <PromptProvider>
+                                  <Suspense fallback={<Loading />}>
+                                    <Session />
+                                  </Suspense>
+                                </PromptProvider>
+                              </FileProvider>
+                            </TerminalProvider>
+                          )}
+                        />
+                      </Route>
+                    </>,
+                  )}
                 </Router>
               </GlobalSyncProvider>
             </GlobalSDKProvider>

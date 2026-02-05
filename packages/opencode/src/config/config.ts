@@ -21,6 +21,7 @@ import { ConfigMarkdown } from "./markdown"
 import { existsSync } from "fs"
 import { Bus } from "@/bus"
 import { AuthConfig } from "./auth"
+import { validateAuthConfig } from "@opencode-ai/fork-auth"
 
 export namespace Config {
   const log = Log.create({ service: "config" })
@@ -186,19 +187,18 @@ export namespace Config {
 
     result.plugin = deduplicatePlugins(result.plugin ?? [])
 
-    // Validate PAM service file exists when auth is enabled
-    if (result.auth?.enabled) {
-      const pamService = result.auth.pam?.service ?? "opencode"
-      const pamPath = `/etc/pam.d/${pamService}`
-      const pamExists = await Filesystem.exists(pamPath)
-      if (!pamExists) {
-        throw new PamServiceNotFoundError({
-          service: pamService,
-          path: pamPath,
-        })
-      }
-      log.info("PAM service file validated", { service: pamService, path: pamPath })
-    }
+    await validateAuthConfig({
+      auth: result.auth,
+      filesystem: Filesystem,
+      log: {
+        info: (message, data) => log.info(message, data),
+      },
+      onMissingPam: ({ service, path }) =>
+        new PamServiceNotFoundError({
+          service,
+          path,
+        }),
+    })
 
     return {
       config: result,
