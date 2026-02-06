@@ -100,25 +100,9 @@ jobs:
             --model claude-opus-4-6
             --allowedTools "Edit,Write,Bash(*)"
 
-      - name: Log Claude usage (conflict resolution)
+      - name: Save Claude output (conflict resolution)
         if: always() && steps.sync.outputs.has_conflicts == 'true'
-        run: |
-          FILE="/home/runner/work/_temp/claude-execution-output.json"
-          if [ ! -f "$FILE" ]; then
-            echo "No execution output file found."
-            exit 0
-          fi
-          INPUT=$(jq '[.[] | select(.type == "assistant") | .message.usage.input_tokens // 0] | add // 0' "$FILE")
-          OUTPUT=$(jq '[.[] | select(.type == "assistant") | .message.usage.output_tokens // 0] | add // 0' "$FILE")
-          CACHE_WRITE=$(jq '[.[] | select(.type == "assistant") | .message.usage.cache_creation_input_tokens // 0] | add // 0' "$FILE")
-          CACHE_READ=$(jq '[.[] | select(.type == "assistant") | .message.usage.cache_read_input_tokens // 0] | add // 0' "$FILE")
-          COST=$(echo "scale=4; ($INPUT * 15 / 1000000) + ($OUTPUT * 75 / 1000000) + ($CACHE_WRITE * 18.75 / 1000000) + ($CACHE_READ * 1.50 / 1000000)" | bc)
-          echo "── Claude Usage (conflict resolution) ──"
-          echo "Input tokens:       $INPUT"
-          echo "Output tokens:      $OUTPUT"
-          echo "Cache write tokens: $CACHE_WRITE"
-          echo "Cache read tokens:  $CACHE_READ"
-          echo "Estimated cost:     \$$COST"
+        run: cp -f "$RUNNER_TEMP/claude-execution-output.json" "$RUNNER_TEMP/claude-resolve.json" 2>/dev/null || true
 
       # ── Phase 3: Run tests ────────────────────────────────
       - name: Run tests after merge/resolution
@@ -155,25 +139,9 @@ jobs:
             --model claude-opus-4-6
             --allowedTools "Edit,Write,Bash(*)"
 
-      - name: Log Claude usage (fix attempt 1)
+      - name: Save Claude output (fix attempt 1)
         if: always() && steps.test1.outputs.tests_passed == 'false'
-        run: |
-          FILE="/home/runner/work/_temp/claude-execution-output.json"
-          if [ ! -f "$FILE" ]; then
-            echo "No execution output file found."
-            exit 0
-          fi
-          INPUT=$(jq '[.[] | select(.type == "assistant") | .message.usage.input_tokens // 0] | add // 0' "$FILE")
-          OUTPUT=$(jq '[.[] | select(.type == "assistant") | .message.usage.output_tokens // 0] | add // 0' "$FILE")
-          CACHE_WRITE=$(jq '[.[] | select(.type == "assistant") | .message.usage.cache_creation_input_tokens // 0] | add // 0' "$FILE")
-          CACHE_READ=$(jq '[.[] | select(.type == "assistant") | .message.usage.cache_read_input_tokens // 0] | add // 0' "$FILE")
-          COST=$(echo "scale=4; ($INPUT * 15 / 1000000) + ($OUTPUT * 75 / 1000000) + ($CACHE_WRITE * 18.75 / 1000000) + ($CACHE_READ * 1.50 / 1000000)" | bc)
-          echo "── Claude Usage (fix attempt 1) ──"
-          echo "Input tokens:       $INPUT"
-          echo "Output tokens:      $OUTPUT"
-          echo "Cache write tokens: $CACHE_WRITE"
-          echo "Cache read tokens:  $CACHE_READ"
-          echo "Estimated cost:     \$$COST"
+        run: cp -f "$RUNNER_TEMP/claude-execution-output.json" "$RUNNER_TEMP/claude-fix1.json" 2>/dev/null || true
 
       - name: Run tests (attempt 2)
         id: test2
@@ -206,25 +174,9 @@ jobs:
             --model claude-opus-4-6
             --allowedTools "Edit,Write,Bash(*)"
 
-      - name: Log Claude usage (fix attempt 2)
+      - name: Save Claude output (fix attempt 2)
         if: always() && steps.test2.outputs.tests_passed == 'false'
-        run: |
-          FILE="/home/runner/work/_temp/claude-execution-output.json"
-          if [ ! -f "$FILE" ]; then
-            echo "No execution output file found."
-            exit 0
-          fi
-          INPUT=$(jq '[.[] | select(.type == "assistant") | .message.usage.input_tokens // 0] | add // 0' "$FILE")
-          OUTPUT=$(jq '[.[] | select(.type == "assistant") | .message.usage.output_tokens // 0] | add // 0' "$FILE")
-          CACHE_WRITE=$(jq '[.[] | select(.type == "assistant") | .message.usage.cache_creation_input_tokens // 0] | add // 0' "$FILE")
-          CACHE_READ=$(jq '[.[] | select(.type == "assistant") | .message.usage.cache_read_input_tokens // 0] | add // 0' "$FILE")
-          COST=$(echo "scale=4; ($INPUT * 15 / 1000000) + ($OUTPUT * 75 / 1000000) + ($CACHE_WRITE * 18.75 / 1000000) + ($CACHE_READ * 1.50 / 1000000)" | bc)
-          echo "── Claude Usage (fix attempt 2) ──"
-          echo "Input tokens:       $INPUT"
-          echo "Output tokens:      $OUTPUT"
-          echo "Cache write tokens: $CACHE_WRITE"
-          echo "Cache read tokens:  $CACHE_READ"
-          echo "Estimated cost:     \$$COST"
+        run: cp -f "$RUNNER_TEMP/claude-execution-output.json" "$RUNNER_TEMP/claude-fix2.json" 2>/dev/null || true
 
       - name: Run tests (attempt 3)
         id: test3
@@ -235,6 +187,96 @@ jobs:
           GH_REPO: ${{ github.repository }}
           UPSTREAM_SYNC_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
         continue-on-error: true
+
+      # ── Claude usage summary ──────────────────────────────
+      - name: Claude usage summary
+        if: always() && steps.sync.outputs.sync_branch != ''
+        run: |
+          declare -A phase_labels=( [resolve]="conflict resolution" [fix1]="fix attempt 1" [fix2]="fix attempt 2" )
+          declare -A phase_files=( [resolve]="$RUNNER_TEMP/claude-resolve.json" [fix1]="$RUNNER_TEMP/claude-fix1.json" [fix2]="$RUNNER_TEMP/claude-fix2.json" )
+
+          total_turns=0 total_tool_calls=0 total_duration_ms=0 total_api_duration_ms=0
+          total_input_tokens=0 total_output_tokens=0 total_cache_write_tokens=0 total_cache_read_tokens=0 total_cost=0
+          any_phase_ran=false
+
+          format_duration() {
+            local milliseconds=$1
+            local seconds=$(( milliseconds / 1000 ))
+            printf '%dm %ds' $(( seconds / 60 )) $(( seconds % 60 ))
+          }
+
+          format_number() {
+            printf "%'d" "$1"
+          }
+
+          echo "══════════════════════════════════════════"
+          echo "  Claude Usage Summary"
+          echo "══════════════════════════════════════════"
+
+          for phase_key in resolve fix1 fix2; do
+            phase_file="${phase_files[$phase_key]}"
+            phase_label="${phase_labels[$phase_key]}"
+            echo ""
+            echo "── $phase_label ──"
+
+            if [ ! -f "$phase_file" ]; then
+              echo "  (skipped)"
+              continue
+            fi
+
+            any_phase_ran=true
+            result_message=$(jq -r '.[] | select(.type == "result")' "$phase_file")
+            if [ -z "$result_message" ] || [ "$result_message" = "null" ]; then
+              echo "  (no result data)"
+              continue
+            fi
+
+            turns=$(echo "$result_message" | jq -r '.num_turns // 0')
+            cost=$(echo "$result_message" | jq -r '.total_cost_usd // 0')
+            duration_ms=$(echo "$result_message" | jq -r '.duration_ms // 0')
+            api_duration_ms=$(echo "$result_message" | jq -r '.duration_api_ms // 0')
+            input_tokens=$(echo "$result_message" | jq -r '.usage.input_tokens // 0')
+            output_tokens=$(echo "$result_message" | jq -r '.usage.output_tokens // 0')
+            cache_write_tokens=$(echo "$result_message" | jq -r '.usage.cache_creation_input_tokens // 0')
+            cache_read_tokens=$(echo "$result_message" | jq -r '.usage.cache_read_input_tokens // 0')
+            tool_calls=$(jq '[.[] | select(.type == "assistant") | .message.content[]? | select(.type == "tool_use")] | length' "$phase_file")
+
+            echo "  Turns:        $turns"
+            echo "  Tool calls:   $tool_calls"
+            echo "  Duration:     $(format_duration "$duration_ms") (API: $(format_duration "$api_duration_ms"))"
+            echo "  Input:        $(format_number "$input_tokens")"
+            echo "  Output:       $(format_number "$output_tokens")"
+            echo "  Cache write:  $(format_number "$cache_write_tokens")"
+            echo "  Cache read:   $(format_number "$cache_read_tokens")"
+            printf '  Cost:         $%.4f\n' "$cost"
+
+            total_turns=$((total_turns + turns))
+            total_tool_calls=$((total_tool_calls + tool_calls))
+            total_duration_ms=$((total_duration_ms + duration_ms))
+            total_api_duration_ms=$((total_api_duration_ms + api_duration_ms))
+            total_input_tokens=$((total_input_tokens + input_tokens))
+            total_output_tokens=$((total_output_tokens + output_tokens))
+            total_cache_write_tokens=$((total_cache_write_tokens + cache_write_tokens))
+            total_cache_read_tokens=$((total_cache_read_tokens + cache_read_tokens))
+            total_cost=$(echo "$total_cost + $cost" | bc)
+          done
+
+          if [ "$any_phase_ran" = true ]; then
+            echo ""
+            echo "── TOTALS ──"
+            echo "  Turns:        $total_turns"
+            echo "  Tool calls:   $total_tool_calls"
+            echo "  Duration:     $(format_duration "$total_duration_ms") (API: $(format_duration "$total_api_duration_ms"))"
+            echo "  Input:        $(format_number "$total_input_tokens")"
+            echo "  Output:       $(format_number "$total_output_tokens")"
+            echo "  Cache write:  $(format_number "$total_cache_write_tokens")"
+            echo "  Cache read:   $(format_number "$total_cache_read_tokens")"
+            printf '  Cost:         $%.4f\n' "$total_cost"
+          else
+            echo ""
+            echo "  No Claude steps ran."
+          fi
+          echo "══════════════════════════════════════════"
 
       # ── Determine final test result ───────────────────────
       - name: Determine final test status
