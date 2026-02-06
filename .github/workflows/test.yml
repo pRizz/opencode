@@ -36,10 +36,6 @@ jobs:
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
 
-      - name: Install Playwright browsers
-        working-directory: packages/app
-        run: ${{ matrix.settings.playwright }}
-
       - name: Set OS-specific paths
         run: |
           if [ "${{ runner.os }}" = "Windows" ]; then
@@ -57,6 +53,12 @@ jobs:
             printf '%s\n' "XDG_CONFIG_HOME=${{ runner.temp }}/opencode-e2e/config" >> "$GITHUB_ENV"
             printf '%s\n' "XDG_STATE_HOME=${{ runner.temp }}/opencode-e2e/state" >> "$GITHUB_ENV"
           fi
+
+      - name: Install Playwright browsers
+        working-directory: packages/app
+        run: ${{ matrix.settings.playwright }}
+        env:
+          XDG_CACHE_HOME: ${{ env.XDG_CACHE_HOME }}
 
       - name: Seed opencode data
         if: matrix.settings.name != 'windows'
