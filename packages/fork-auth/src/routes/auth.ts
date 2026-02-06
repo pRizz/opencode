@@ -19,6 +19,12 @@ import { verifyDeviceTrustToken, createDeviceTrustToken, createDeviceFingerprint
 import { getTokenSecret } from "../security/token-secret"
 import { generateTotpSetup, getGoogleAuthenticatorSetupCommand, verifyTotpCode } from "../auth/totp-setup"
 import { getTwoFactorPreference, setTwoFactorPreference } from "../auth/two-factor-preference"
+import { createBootstrapUser, getBootstrapStatus, verifyBootstrapOtp } from "../auth/bootstrap"
+import {
+  PASSWORD_POLICY_MESSAGE,
+  validateBootstrapPassword,
+  validateBootstrapUsername,
+} from "../auth/password-policy"
 import { getUiDir } from "../../../opencode/src/server/ui-dir"
 import {
   createPasskeyAuthenticationOptions,
@@ -102,6 +108,24 @@ function maskUsername(username: string): string {
   return username.slice(0, 2) + "***" + username.slice(-1)
 }
 
+function getRequestIP(c: Parameters<ManualRateLimiter["checkRateLimit"]>[0]): string {
+  const authConfig = ServerAuth.get()
+  return getClientIP(c, authConfig.trustProxy ?? false)
+}
+
+type ApiStatusCode = 400 | 401 | 403 | 409 | 429 | 500 | 503
+
+function normalizeApiStatus(status: number | undefined, fallback: ApiStatusCode): ApiStatusCode {
+  if (status === 400) return 400
+  if (status === 401) return 401
+  if (status === 403) return 403
+  if (status === 409) return 409
+  if (status === 429) return 429
+  if (status === 500) return 500
+  if (status === 503) return 503
+  return fallback
+}
+
 /**
  * Login request schema - accepts username, password, and optional rememberMe.
  */
@@ -136,6 +160,16 @@ const passkeyRemoveRequestSchema = z.object({
   credentialId: z.string().min(1),
 })
 
+const bootstrapVerifyRequestSchema = z.object({
+  otp: z.string().min(1).max(256),
+})
+
+const bootstrapSignupRequestSchema = z.object({
+  otp: z.string().min(1).max(256),
+  username: z.string().min(1).max(32),
+  password: z.string().min(1).max(256),
+})
+
 /**
  * Lazy-initialized manual rate limiter for login endpoint.
  * Only counts failed attempts - successful logins don't increment counter.
@@ -149,6 +183,7 @@ const loginRateLimiter = lazy((): ManualRateLimiter | undefined => {
   return createManualRateLimiter({
     windowMs,
     limit: authConfig.rateLimitMax ?? 5,
+    keyGenerator: (c) => getClientIP(c, authConfig.trustProxy ?? false),
   })
 })
 
@@ -165,6 +200,21 @@ const otpRateLimiter = lazy((): ManualRateLimiter | undefined => {
   return createManualRateLimiter({
     windowMs,
     limit: authConfig.otpRateLimitMax ?? 5,
+    keyGenerator: (c) => getClientIP(c, authConfig.trustProxy ?? false),
+  })
+})
+
+/**
+ * Dedicated limiter for bootstrap OTP brute-force protection.
+ * Counts failed verify/signup attempts per client IP.
+ */
+const bootstrapRateLimiter = lazy((): ManualRateLimiter | undefined => {
+  const authConfig = ServerAuth.get()
+  if (!authConfig.enabled) return undefined
+  return createManualRateLimiter({
+    windowMs: 15 * 60 * 1000,
+    limit: 3,
+    keyGenerator: (c) => getClientIP(c, authConfig.trustProxy ?? false),
   })
 })
 
@@ -239,7 +289,17 @@ async function loadLoginTemplate(uiDir: string): Promise<string> {
   return cachedLoginTemplate
 }
 
-function injectLoginBootstrap(template: string, securityContext: { shouldBlock: boolean }): string {
+function injectLoginBootstrap(
+  template: string,
+  securityContext: {
+    shouldBlock: boolean
+    bootstrap: {
+      active: boolean
+      available: boolean
+      passwordPolicyMessage: string
+    }
+  },
+): string {
   const bootstrap = `<script>window.__OPENCODE_LOGIN__ = ${JSON.stringify(securityContext)};</script>`
   if (template.includes("</head>")) {
     return template.replace("</head>", `${bootstrap}\n</head>`)
@@ -331,6 +391,8 @@ function injectTwoFactorSetupBootstrap(
  * Auth routes for session management.
  *
  * - GET /login - Login page (HTML)
+ * - POST /bootstrap/verify - Verify first-boot one-time password
+ * - POST /bootstrap/signup - Create first Linux user from one-time password flow
  * - POST /login - Login with username and password
  * - POST /passkey/auth/options - Get passkey authentication options
  * - POST /passkey/auth/verify - Verify passkey authentication response
@@ -353,6 +415,7 @@ export const AuthRoutes = lazy(() =>
         requireHttps: authConfig.requireHttps,
         trustProxy: authConfig.trustProxy,
       })
+      const bootstrapStatus = await getBootstrapStatus()
 
       const uiDir = getUiDir()
       if (!uiDir) {
@@ -361,11 +424,312 @@ export const AuthRoutes = lazy(() =>
 
       try {
         const template = await loadLoginTemplate(uiDir)
-        return c.html(injectLoginBootstrap(template, { shouldBlock }))
+        return c.html(
+          injectLoginBootstrap(template, {
+            shouldBlock,
+            bootstrap: {
+              active: bootstrapStatus.active,
+              available: bootstrapStatus.available,
+              passwordPolicyMessage: PASSWORD_POLICY_MESSAGE,
+            },
+          }),
+        )
       } catch (error) {
         log.error("Failed to load login HTML", { error })
         return c.text("Login UI is missing. Run the app build to generate login.html.", 500)
       }
+    })
+    .post("/bootstrap/verify", async (c) => {
+      const authConfig = ServerAuth.get()
+      if (!authConfig.enabled) {
+        return c.json({ error: "auth_disabled", message: "Authentication is not enabled" }, 403)
+      }
+      if (
+        shouldBlockInsecureLogin(c, {
+          requireHttps: authConfig.requireHttps,
+          trustProxy: authConfig.trustProxy,
+        })
+      ) {
+        return c.json({ error: "https_required", message: "HTTPS is required for login" }, 403)
+      }
+
+      const limiter = bootstrapRateLimiter()
+      if (limiter) {
+        const rateLimitResult = limiter.checkRateLimit(c)
+        if (rateLimitResult) {
+          return rateLimitResult
+        }
+      }
+
+      const xrw = c.req.header("X-Requested-With")
+      if (!xrw) {
+        logSecurityEvent({
+          type: "csrf_violation",
+          ip: getRequestIP(c),
+          timestamp: new Date().toISOString(),
+          userAgent: c.req.header("User-Agent"),
+        })
+        return c.json({ error: "csrf_missing", message: "X-Requested-With header required" }, 400)
+      }
+
+      const body = await c.req.json().catch(() => ({}))
+      const parsed = bootstrapVerifyRequestSchema.safeParse(body)
+      if (!parsed.success) {
+        return c.json({ error: "invalid_request", message: "Initial one-time password is required." }, 400)
+      }
+
+      const verifyResult = await verifyBootstrapOtp(parsed.data.otp)
+      if (verifyResult.ok) {
+        return c.json({ success: true as const })
+      }
+
+      if (verifyResult.code === "otp_invalid") {
+        limiter?.recordFailure(c)
+        logSecurityEvent({
+          type: "login_failed",
+          ip: getRequestIP(c),
+          reason: "bootstrap_otp_invalid",
+          timestamp: new Date().toISOString(),
+          userAgent: c.req.header("User-Agent"),
+        })
+        return c.json({ error: "otp_invalid", message: "Initial one-time password is invalid." }, 401)
+      }
+
+      if (verifyResult.code === "inactive") {
+        return c.json(
+          {
+            error: "bootstrap_inactive",
+            message: "Initial setup is not active. A user may already be configured.",
+          },
+          403,
+        )
+      }
+
+      const status = normalizeApiStatus(verifyResult.status, 500)
+      return c.json(
+        {
+          error: verifyResult.code,
+          message: verifyResult.message,
+        },
+        status,
+      )
+    })
+    .post("/bootstrap/signup", async (c) => {
+      const authConfig = ServerAuth.get()
+      if (!authConfig.enabled) {
+        return c.json({ error: "auth_disabled", message: "Authentication is not enabled" }, 403)
+      }
+      if (
+        shouldBlockInsecureLogin(c, {
+          requireHttps: authConfig.requireHttps,
+          trustProxy: authConfig.trustProxy,
+        })
+      ) {
+        return c.json({ error: "https_required", message: "HTTPS is required for login" }, 403)
+      }
+
+      const limiter = bootstrapRateLimiter()
+      if (limiter) {
+        const rateLimitResult = limiter.checkRateLimit(c)
+        if (rateLimitResult) {
+          return rateLimitResult
+        }
+      }
+
+      const xrw = c.req.header("X-Requested-With")
+      if (!xrw) {
+        logSecurityEvent({
+          type: "csrf_violation",
+          ip: getRequestIP(c),
+          timestamp: new Date().toISOString(),
+          userAgent: c.req.header("User-Agent"),
+        })
+        return c.json({ error: "csrf_missing", message: "X-Requested-With header required" }, 400)
+      }
+
+      const body = await c.req.json().catch(() => ({}))
+      const parsed = bootstrapSignupRequestSchema.safeParse(body)
+      if (!parsed.success) {
+        return c.json(
+          {
+            error: "invalid_request",
+            message: "otp, username, and password are required.",
+          },
+          400,
+        )
+      }
+
+      const usernameResult = validateBootstrapUsername(parsed.data.username)
+      if (!usernameResult.valid) {
+        return c.json(
+          {
+            error: "invalid_username",
+            message: usernameResult.errors[0] ?? "Invalid username.",
+          },
+          400,
+        )
+      }
+
+      const passwordResult = validateBootstrapPassword(parsed.data.password)
+      if (!passwordResult.valid) {
+        return c.json(
+          {
+            error: "invalid_password",
+            message: passwordResult.errors[0] ?? "Invalid password.",
+            requirements: PASSWORD_POLICY_MESSAGE,
+          },
+          400,
+        )
+      }
+
+      const signupResult = await createBootstrapUser({
+        otp: parsed.data.otp,
+        username: parsed.data.username,
+        password: parsed.data.password,
+      })
+
+      if (!signupResult.ok) {
+        if (signupResult.code === "otp_invalid") {
+          limiter?.recordFailure(c)
+          logSecurityEvent({
+            type: "login_failed",
+            ip: getRequestIP(c),
+            username: parsed.data.username,
+            reason: "bootstrap_otp_invalid",
+            timestamp: new Date().toISOString(),
+            userAgent: c.req.header("User-Agent"),
+          })
+          return c.json(
+            {
+              error: "otp_invalid",
+              message: "Initial one-time password is invalid.",
+            },
+            401,
+          )
+        }
+
+        if (signupResult.code === "inactive") {
+          return c.json(
+            {
+              error: "bootstrap_inactive",
+              message: "Initial setup is no longer active. Sign in with an existing account.",
+            },
+            403,
+          )
+        }
+
+        if (signupResult.code === "username_exists") {
+          return c.json(
+            {
+              error: "username_exists",
+              message: "That username already exists. Choose another username.",
+            },
+            409,
+          )
+        }
+
+        if (signupResult.code === "unsupported_platform") {
+          return c.json(
+            {
+              error: "unsupported_platform",
+              message:
+                "Initial signup can only create Linux users on Ubuntu containers right now. " +
+                "Use `occ user add <username>` as an administrative fallback.",
+            },
+            400,
+          )
+        }
+
+        if (signupResult.code === "invalid_username") {
+          return c.json(
+            {
+              error: "invalid_username",
+              message: signupResult.message,
+            },
+            400,
+          )
+        }
+
+        if (signupResult.code === "invalid_password") {
+          return c.json(
+            {
+              error: "invalid_password",
+              message: signupResult.message,
+              requirements: PASSWORD_POLICY_MESSAGE,
+            },
+            400,
+          )
+        }
+
+        return c.json(
+          {
+            error: signupResult.code,
+            message:
+              "Failed to create the Linux user account. Check container logs and retry. " +
+              "As a fallback, run `occ user add <username>` from the host.",
+            details: signupResult.message,
+          },
+          normalizeApiStatus(signupResult.status, 500),
+        )
+      }
+
+      const userInfo = await getUserInfo(signupResult.username)
+      if (!userInfo) {
+        return c.json(
+          {
+            error: "create_failed",
+            message: "User was created but could not be loaded for session setup. Please sign in manually.",
+          },
+          500,
+        )
+      }
+
+      const session = UserSession.create(
+        signupResult.username,
+        c.req.header("User-Agent"),
+        {
+          uid: userInfo.uid,
+          gid: userInfo.gid,
+          home: userInfo.home,
+          shell: userInfo.shell,
+        },
+        false,
+      )
+      setSessionCookie(c, session.id, false)
+      setCSRFCookie(c, session.id)
+
+      const userInfoForBroker: UserInfo = {
+        username: signupResult.username,
+        uid: userInfo.uid,
+        gid: userInfo.gid,
+        home: userInfo.home,
+        shell: userInfo.shell,
+      }
+      const broker = new BrokerClient()
+      broker.registerSession(session.id, userInfoForBroker).catch((error) => {
+        log.warn("Failed to register bootstrap signup session with broker", { error })
+      })
+
+      logSecurityEvent({
+        type: "login_success",
+        ip: getRequestIP(c),
+        username: signupResult.username,
+        reason: "bootstrap_signup",
+        timestamp: new Date().toISOString(),
+        userAgent: c.req.header("User-Agent"),
+      })
+
+      return c.json({
+        success: true as const,
+        redirectTo: "/",
+        user: {
+          username: signupResult.username,
+          uid: userInfo.uid,
+          gid: userInfo.gid,
+          home: userInfo.home,
+          shell: userInfo.shell,
+        },
+      })
     })
     .get("/2fa", async (c) => {
       // Get token, username, timeout from query params
@@ -483,7 +847,7 @@ export const AuthRoutes = lazy(() =>
             trustProxy: authConfig.trustProxy,
           })
         ) {
-          const ip = getClientIP(c)
+          const ip = getRequestIP(c)
           logSecurityEvent({
             type: "login_failed",
             ip,
@@ -506,7 +870,7 @@ export const AuthRoutes = lazy(() =>
         // 3. Check X-Requested-With header for basic CSRF protection
         const xrw = c.req.header("X-Requested-With")
         if (!xrw) {
-          const ip = getClientIP(c)
+          const ip = getRequestIP(c)
           logSecurityEvent({
             type: "csrf_violation",
             ip,
@@ -556,7 +920,7 @@ export const AuthRoutes = lazy(() =>
         const broker = new BrokerClient()
         const authResult = await broker.authenticate(username, password)
 
-        const ip = getClientIP(c)
+        const ip = getRequestIP(c)
         const timestamp = new Date().toISOString()
         const userAgent = c.req.header("User-Agent")
 
@@ -820,7 +1184,7 @@ export const AuthRoutes = lazy(() =>
         // Check X-Requested-With for CSRF
         const xrw = c.req.header("X-Requested-With")
         if (!xrw) {
-          const ip = getClientIP(c)
+          const ip = getRequestIP(c)
           logSecurityEvent({
             type: "csrf_violation",
             ip,
@@ -843,7 +1207,7 @@ export const AuthRoutes = lazy(() =>
         }
 
         // Verify 2FA token
-        const ip = getClientIP(c)
+        const ip = getRequestIP(c)
         const userInfo = await verify2FAToken(twoFactorToken, getTokenSecret(), ip)
         if (!userInfo) {
           return c.json({ error: "token_expired", message: "2FA session expired, please login again" }, 401)

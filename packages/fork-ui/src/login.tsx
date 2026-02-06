@@ -3,6 +3,11 @@ import { createStore } from "solid-js/store"
 
 type LoginBootstrap = {
   shouldBlock?: boolean
+  bootstrap?: {
+    active?: boolean
+    available?: boolean
+    passwordPolicyMessage?: string
+  }
 }
 
 type PasskeyRequestOptionsJSON = {
@@ -43,6 +48,34 @@ function shouldWarnForHttpConnection(): boolean {
   const hostname = window.location.hostname
   const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1"
   return window.location.protocol === "http:" && !isLocalhost
+}
+
+function validateBootstrapUsername(username: string): string | undefined {
+  if (!/^[a-z_][a-z0-9_-]{0,31}$/.test(username)) {
+    return "Username must match ^[a-z_][a-z0-9_-]{0,31}$."
+  }
+  if (username === "opencode") {
+    return "Username 'opencode' is reserved."
+  }
+  return undefined
+}
+
+function validateBootstrapPassword(password: string): string | undefined {
+  if (password.length < 12) {
+    return "Password must be at least 12 characters."
+  }
+
+  let classes = 0
+  if (/[A-Z]/.test(password)) classes += 1
+  if (/[a-z]/.test(password)) classes += 1
+  if (/[0-9]/.test(password)) classes += 1
+  if (/[^A-Za-z0-9]/.test(password)) classes += 1
+
+  if (classes < 3) {
+    return "Password must include at least 3 of 4 classes: uppercase, lowercase, number, symbol."
+  }
+
+  return undefined
 }
 
 function base64urlToArrayBuffer(value: string): ArrayBuffer {
@@ -126,6 +159,10 @@ export function LoginApp() {
   const bootstrap = window.__OPENCODE_LOGIN__ ?? {}
   const shouldWarn = shouldWarnForHttpConnection()
   const shouldBlock = Boolean(bootstrap.shouldBlock)
+  const bootstrapActive = Boolean(bootstrap.bootstrap?.active)
+  const bootstrapPasswordPolicy =
+    bootstrap.bootstrap?.passwordPolicyMessage ??
+    "Use at least 12 characters and include at least 3 of these: uppercase, lowercase, number, symbol."
 
   const [state, setState] = createStore({
     username: "",
@@ -141,6 +178,18 @@ export function LoginApp() {
     invalidUsername: false,
     invalidPassword: false,
     warningDismissed: false,
+
+    bootstrapOtp: "",
+    bootstrapOtpVerifying: false,
+    bootstrapOtpVerified: false,
+    bootstrapOtpError: "",
+    bootstrapSignupError: "",
+    bootstrapUsername: "",
+    bootstrapPassword: "",
+    bootstrapConfirmPassword: "",
+    bootstrapSignupSubmitting: false,
+    bootstrapShowPassword: false,
+    bootstrapShowConfirmPassword: false,
   })
 
   let conditionalController: AbortController | undefined
@@ -409,6 +458,119 @@ export function LoginApp() {
     }
   }
 
+  const handleBootstrapVerify = async (event: Event) => {
+    event.preventDefault()
+    if (shouldBlock || state.bootstrapOtpVerifying || state.bootstrapOtpVerified) return
+
+    const otp = state.bootstrapOtp.trim()
+    if (!otp) {
+      setState("bootstrapOtpError", "Initial one-time password is required.")
+      return
+    }
+
+    setState({
+      bootstrapOtpVerifying: true,
+      bootstrapOtpError: "",
+      bootstrapSignupError: "",
+    })
+
+    try {
+      const res = await fetch("/auth/bootstrap/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+        body: JSON.stringify({ otp }),
+      })
+      const data = await res.json().catch(() => ({}))
+
+      if (res.ok && data.success) {
+        setState({
+          bootstrapOtpVerified: true,
+          bootstrapOtpVerifying: false,
+          bootstrapOtpError: "",
+        })
+        return
+      }
+
+      setState({
+        bootstrapOtpVerifying: false,
+        bootstrapOtpError:
+          typeof data?.message === "string" ? data.message : "Could not verify initial one-time password.",
+      })
+    } catch {
+      setState({
+        bootstrapOtpVerifying: false,
+        bootstrapOtpError: "Connection error while verifying initial one-time password.",
+      })
+    }
+  }
+
+  const handleBootstrapSignup = async (event: Event) => {
+    event.preventDefault()
+    if (shouldBlock || state.bootstrapSignupSubmitting || !state.bootstrapOtpVerified) return
+
+    setState({
+      bootstrapSignupError: "",
+    })
+
+    const username = state.bootstrapUsername.trim()
+    const password = state.bootstrapPassword
+    const confirmPassword = state.bootstrapConfirmPassword
+
+    const usernameError = validateBootstrapUsername(username)
+    if (usernameError) {
+      setState("bootstrapSignupError", usernameError)
+      return
+    }
+
+    const passwordError = validateBootstrapPassword(password)
+    if (passwordError) {
+      setState("bootstrapSignupError", passwordError)
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setState("bootstrapSignupError", "Password confirmation does not match.")
+      return
+    }
+
+    setState("bootstrapSignupSubmitting", true)
+
+    try {
+      const res = await fetch("/auth/bootstrap/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+        body: JSON.stringify({
+          otp: state.bootstrapOtp,
+          username,
+          password,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+
+      if (res.ok && data.success) {
+        window.location.href = typeof data.redirectTo === "string" && data.redirectTo ? data.redirectTo : "/"
+        return
+      }
+
+      setState({
+        bootstrapSignupSubmitting: false,
+        bootstrapSignupError:
+          typeof data?.message === "string" ? data.message : "Failed to create account from initial setup.",
+      })
+    } catch {
+      setState({
+        bootstrapSignupSubmitting: false,
+        bootstrapSignupError: "Connection error while creating account.",
+      })
+    }
+  }
+
   return (
     <>
       <style>{`
@@ -432,7 +594,7 @@ export function LoginApp() {
         }
         .card {
           width: 100%;
-          max-width: 360px;
+          max-width: 420px;
           padding: 2rem;
           background: #141414;
           border: 1px solid #262626;
@@ -441,6 +603,21 @@ export function LoginApp() {
         }
         form { display: flex; flex-direction: column; gap: 1.25rem; }
         .field { display: flex; flex-direction: column; gap: 0.5rem; }
+        .label-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.5rem;
+        }
+        .verified-pill {
+          font-size: 0.65rem;
+          color: #10b981;
+          border: 1px solid rgba(16,185,129,0.4);
+          border-radius: 999px;
+          padding: 0.125rem 0.5rem;
+          text-transform: uppercase;
+          letter-spacing: 0.03em;
+        }
         label {
           font-size: 0.75rem;
           font-weight: 500;
@@ -533,7 +710,7 @@ export function LoginApp() {
           display: none;
         }
         .error.visible { display: block; }
-        button[type="submit"], .passkey-button {
+        button {
           height: 40px;
           border: none;
           border-radius: 8px;
@@ -543,10 +720,10 @@ export function LoginApp() {
           font-weight: 600;
           cursor: pointer;
           transition: background-color 0.15s;
-          margin-top: 0.5rem;
+          margin-top: 0.25rem;
         }
-        button[type="submit"]:hover, .passkey-button:hover { background: #d4d4d4; }
-        button[type="submit"]:disabled, .passkey-button:disabled {
+        button:hover { background: #d4d4d4; }
+        button:disabled {
           background: #404040;
           color: #737373;
           cursor: not-allowed;
@@ -564,7 +741,7 @@ export function LoginApp() {
           text-align: center;
           margin-top: -0.5rem;
         }
-        .divider {
+        div.divider {
           display: flex;
           align-items: center;
           gap: 0.75rem;
@@ -573,12 +750,79 @@ export function LoginApp() {
           text-transform: uppercase;
           letter-spacing: 0.08em;
         }
-        .divider::before,
-        .divider::after {
+        div.divider::before,
+        div.divider::after {
           content: "";
           flex: 1;
           height: 1px;
           background: #2a2a2a;
+        }
+        hr.divider {
+          margin: 1.25rem 0;
+          border: 0;
+          height: 1px;
+          background: rgba(163,163,163,0.2);
+        }
+        .section-title {
+          font-size: 0.78rem;
+          color: #a3a3a3;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          margin-bottom: 0.9rem;
+        }
+        .bootstrap-panel {
+          border: 1px solid rgba(14,165,233,0.4);
+          border-radius: 10px;
+          padding: 1rem;
+          background: rgba(14,165,233,0.08);
+          margin-bottom: 1.25rem;
+        }
+        .bootstrap-title {
+          font-size: 0.95rem;
+          font-weight: 700;
+          color: #bae6fd;
+          margin-bottom: 0.5rem;
+        }
+        .bootstrap-text {
+          color: #bfdbfe;
+          font-size: 0.75rem;
+          line-height: 1.5;
+          margin-bottom: 0.9rem;
+        }
+        .bootstrap-step {
+          border-top: 1px solid rgba(148,163,184,0.25);
+          padding-top: 0.85rem;
+          margin-top: 0.85rem;
+        }
+        .bootstrap-step:first-of-type {
+          border-top: none;
+          padding-top: 0;
+          margin-top: 0;
+        }
+        .bootstrap-step-title {
+          font-size: 0.78rem;
+          font-weight: 600;
+          color: #cbd5e1;
+          margin-bottom: 0.55rem;
+        }
+        .bootstrap-hint {
+          color: #93c5fd;
+          font-size: 0.72rem;
+          line-height: 1.4;
+          margin-top: -0.55rem;
+        }
+        .bootstrap-hint code {
+          background: rgba(2, 132, 199, 0.2);
+          color: #bae6fd;
+          border-radius: 4px;
+          padding: 0 0.35rem;
+        }
+        .bootstrap-policy {
+          color: #93c5fd;
+          font-size: 0.72rem;
+          line-height: 1.4;
+          margin-top: -0.45rem;
+        }
         }
         .http-warning {
           background: rgba(234, 179, 8, 0.15);
@@ -604,6 +848,8 @@ export function LoginApp() {
           border-radius: 6px;
           cursor: pointer;
           align-self: flex-start;
+          height: auto;
+          margin-top: 0;
         }
         .http-warning-dismiss:hover {
           background: rgba(234, 179, 8, 0.1);
@@ -620,7 +866,7 @@ export function LoginApp() {
           line-height: 1.5;
         }
         @media (max-width: 480px) {
-          .card { padding: 1.5rem; border-radius: 8px; }
+          .card { padding: 1.2rem; border-radius: 8px; }
           .logo { width: 60px; height: 75px; margin-bottom: 1.5rem; }
         }
       `}</style>
@@ -630,26 +876,193 @@ export function LoginApp() {
       </svg>
 
       <div class="card">
-        <form onSubmit={handleSubmit}>
-          <Show when={shouldBlock}>
-            <div class="blocked-message">
-              <strong>HTTPS is required to log in.</strong>
-              <br />
-              Please access this page over a secure connection.
-            </div>
-          </Show>
+        <Show when={shouldBlock}>
+          <div class="blocked-message">
+            <strong>HTTPS is required to log in.</strong>
+            <br />
+            Please access this page over a secure connection.
+          </div>
+        </Show>
 
-          <Show when={shouldWarn && !state.warningDismissed}>
-            <div class="http-warning">
-              <div class="http-warning-text">
-                ⚠️ You are connecting over HTTP. Your credentials may be visible to attackers on this network.
+        <Show when={shouldWarn && !state.warningDismissed}>
+          <div class="http-warning">
+            <div class="http-warning-text">
+              ⚠️ You are connecting over HTTP. Your credentials may be visible to attackers on this network.
+            </div>
+            <button type="button" class="http-warning-dismiss" onClick={dismissWarning}>
+              I understand the risks
+            </button>
+          </div>
+        </Show>
+
+        <Show when={bootstrapActive}>
+          <div class="bootstrap-panel">
+            <div class="bootstrap-title">Initial One-Time Password Setup</div>
+            <div class="bootstrap-text">
+              For first-time containers with no users: find the Initial One-Time Password (IOTP) in your Docker
+              container logs. It is invalidated after the first successful signup.
+            </div>
+
+            <form onSubmit={handleBootstrapVerify} class="bootstrap-step">
+              <div class="bootstrap-step-title">Step 1: Verify Initial One-Time Password</div>
+              <div class="field">
+                <div class="label-row">
+                  <label for="bootstrapOtp">Initial One-Time Password</label>
+                  <Show when={state.bootstrapOtpVerified}>
+                    <span class="verified-pill">Verified</span>
+                  </Show>
+                </div>
+                <div class="input-wrapper">
+                  <input
+                    id="bootstrapOtp"
+                    type="text"
+                    disabled={shouldBlock || state.bootstrapOtpVerified}
+                    value={state.bootstrapOtp}
+                    onInput={(event) => {
+                      const value = event.currentTarget.value
+                      setState({
+                        bootstrapOtp: value,
+                        bootstrapOtpError: "",
+                      })
+                    }}
+                  />
+                </div>
+                <div class="bootstrap-hint">
+                  Run <code>docker logs &lt;container&gt;</code> and copy the IOTP value shown at startup.
+                </div>
               </div>
-              <button type="button" class="http-warning-dismiss" onClick={dismissWarning}>
-                I understand the risks
-              </button>
-            </div>
-          </Show>
+              <Show when={!state.bootstrapOtpVerified && !shouldBlock}>
+                <button type="submit" disabled={state.bootstrapOtpVerifying}>
+                  {state.bootstrapOtpVerifying ? "Verifying..." : "Verify One-Time Password"}
+                </button>
+              </Show>
+            </form>
 
+            <Show when={Boolean(state.bootstrapOtpError)}>
+              <div class="error visible">{state.bootstrapOtpError}</div>
+            </Show>
+
+            <Show when={state.bootstrapOtpVerified}>
+              <form onSubmit={handleBootstrapSignup} class="bootstrap-step">
+                <div class="bootstrap-step-title">Step 2: Create First Account</div>
+                <div class="field">
+                  <label for="bootstrapUsername">Username</label>
+                  <div class="input-wrapper">
+                    <input
+                      id="bootstrapUsername"
+                      type="text"
+                      disabled={shouldBlock || state.bootstrapSignupSubmitting}
+                      value={state.bootstrapUsername}
+                      onInput={(event) => {
+                        setState({
+                          bootstrapUsername: event.currentTarget.value,
+                          bootstrapSignupError: "",
+                        })
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label for="bootstrapPassword">Password</label>
+                  <div class="input-wrapper">
+                    <input
+                      id="bootstrapPassword"
+                      type={state.bootstrapShowPassword ? "text" : "password"}
+                      autocomplete="new-password"
+                      class="password-input"
+                      disabled={shouldBlock || state.bootstrapSignupSubmitting}
+                      value={state.bootstrapPassword}
+                      onInput={(event) => {
+                        setState({
+                          bootstrapPassword: event.currentTarget.value,
+                          bootstrapSignupError: "",
+                        })
+                      }}
+                    />
+                    <button
+                      type="button"
+                      class="password-toggle"
+                      classList={{ active: state.bootstrapShowPassword }}
+                      aria-label={state.bootstrapShowPassword ? "Hide password" : "Show password"}
+                      aria-pressed={state.bootstrapShowPassword}
+                      disabled={shouldBlock || state.bootstrapSignupSubmitting}
+                      onClick={() => setState("bootstrapShowPassword", !state.bootstrapShowPassword)}
+                    >
+                      <svg
+                        viewBox="0 0 20 20"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M10 4.58325C5.83333 4.58325 2.5 9.99992 2.5 9.99992C2.5 9.99992 5.83333 15.4166 10 15.4166C14.1667 15.4166 17.5 9.99992 17.5 9.99992C17.5 9.99992 14.1667 4.58325 10 4.58325Z" />
+                        <circle cx="10" cy="10" r="2.5" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label for="bootstrapConfirmPassword">Confirm password</label>
+                  <div class="input-wrapper">
+                    <input
+                      id="bootstrapConfirmPassword"
+                      type={state.bootstrapShowConfirmPassword ? "text" : "password"}
+                      autocomplete="new-password"
+                      class="password-input"
+                      disabled={shouldBlock || state.bootstrapSignupSubmitting}
+                      value={state.bootstrapConfirmPassword}
+                      onInput={(event) => {
+                        setState({
+                          bootstrapConfirmPassword: event.currentTarget.value,
+                          bootstrapSignupError: "",
+                        })
+                      }}
+                    />
+                    <button
+                      type="button"
+                      class="password-toggle"
+                      classList={{ active: state.bootstrapShowConfirmPassword }}
+                      aria-label={state.bootstrapShowConfirmPassword ? "Hide password" : "Show password"}
+                      aria-pressed={state.bootstrapShowConfirmPassword}
+                      disabled={shouldBlock || state.bootstrapSignupSubmitting}
+                      onClick={() => setState("bootstrapShowConfirmPassword", !state.bootstrapShowConfirmPassword)}
+                    >
+                      <svg
+                        viewBox="0 0 20 20"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M10 4.58325C5.83333 4.58325 2.5 9.99992 2.5 9.99992C2.5 9.99992 5.83333 15.4166 10 15.4166C14.1667 15.4166 17.5 9.99992 17.5 9.99992C17.5 9.99992 14.1667 4.58325 10 4.58325Z" />
+                        <circle cx="10" cy="10" r="2.5" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="bootstrap-policy">{bootstrapPasswordPolicy}</div>
+
+                <Show when={!shouldBlock}>
+                  <button type="submit" disabled={state.bootstrapSignupSubmitting}>
+                    {state.bootstrapSignupSubmitting ? "Creating account..." : "Create first account"}
+                  </button>
+                </Show>
+              </form>
+            </Show>
+
+            <Show when={Boolean(state.bootstrapSignupError)}>
+              <div class="error visible">{state.bootstrapSignupError}</div>
+            </Show>
+          </div>
+        </Show>
+
+        <hr class="divider" />
+        <div class="section-title">Sign in with existing account</div>
+
+        <form onSubmit={handleSubmit}>
           <div class="error" classList={{ visible: Boolean(state.error) }}>
             {state.error}
           </div>

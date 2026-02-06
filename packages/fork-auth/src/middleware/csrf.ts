@@ -83,6 +83,8 @@ export const csrfMiddleware = createMiddleware(async (c, next) => {
     "/auth/status",
     "/auth/passkey/auth/options",
     "/auth/passkey/auth/verify",
+    "/auth/bootstrap/verify",
+    "/auth/bootstrap/signup",
   ]
   const customAllowlist = authConfig.csrfAllowlist ?? []
   const allowlist = [...defaultAllowlist, ...customAllowlist]
