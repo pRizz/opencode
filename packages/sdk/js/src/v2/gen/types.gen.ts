@@ -1632,7 +1632,7 @@ export type AuthPamConfig = {
 }
 
 /**
- * OTP rate limit window duration
+ * How long passkey challenge tokens remain valid
  */
 export type DurationString = string
 
@@ -1703,6 +1703,27 @@ export type AuthConfig = {
    */
   otpRateLimitMax?: number
   otpRateLimitWindow?: DurationString
+  /**
+   * Enable WebAuthn passkey authentication
+   */
+  passkeysEnabled?: boolean
+  /**
+   * Relying party name for passkeys
+   */
+  passkeyRpName?: string
+  /**
+   * Override relying party ID for passkeys
+   */
+  passkeyRpId?: string
+  /**
+   * Allowed origins for WebAuthn assertions. Empty means current origin only
+   */
+  passkeyAllowedOrigins?: Array<string>
+  passkeyChallengeTimeout?: DurationString
+  /**
+   * Require authenticator user verification for passkeys
+   */
+  passkeyRequireUserVerification?: boolean
 }
 
 export type Config = {
@@ -2627,6 +2648,182 @@ export type AuthLogin2FaResponses = {
 
 export type AuthLogin2FaResponse = AuthLogin2FaResponses[keyof AuthLogin2FaResponses]
 
+export type AuthPasskeyAuthOptionsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/auth/passkey/auth/options"
+}
+
+export type AuthPasskeyAuthOptionsErrors = {
+  /**
+   * Bad request
+   */
+  400: unknown
+  /**
+   * Passkeys disabled or HTTPS required
+   */
+  403: unknown
+}
+
+export type AuthPasskeyAuthOptionsResponses = {
+  /**
+   * Authentication options
+   */
+  200: {
+    success: true
+    challengeToken: string
+    options: unknown
+  }
+}
+
+export type AuthPasskeyAuthOptionsResponse = AuthPasskeyAuthOptionsResponses[keyof AuthPasskeyAuthOptionsResponses]
+
+export type AuthPasskeyAuthVerifyData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/auth/passkey/auth/verify"
+}
+
+export type AuthPasskeyAuthVerifyErrors = {
+  /**
+   * Bad request
+   */
+  400: unknown
+  /**
+   * Authentication failed
+   */
+  401: unknown
+  /**
+   * Passkeys disabled or HTTPS required
+   */
+  403: unknown
+}
+
+export type AuthPasskeyAuthVerifyResponses = {
+  /**
+   * Passkey login successful
+   */
+  200: unknown
+}
+
+export type AuthPasskeyRegisterOptionsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/auth/passkey/register/options"
+}
+
+export type AuthPasskeyRegisterOptionsErrors = {
+  /**
+   * Bad request
+   */
+  400: unknown
+  /**
+   * Not authenticated
+   */
+  401: unknown
+  /**
+   * Passkeys disabled or HTTPS required
+   */
+  403: unknown
+}
+
+export type AuthPasskeyRegisterOptionsResponses = {
+  /**
+   * Registration options
+   */
+  200: unknown
+}
+
+export type AuthPasskeyRegisterVerifyData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/auth/passkey/register/verify"
+}
+
+export type AuthPasskeyRegisterVerifyErrors = {
+  /**
+   * Bad request
+   */
+  400: unknown
+  /**
+   * Verification failed
+   */
+  401: unknown
+  /**
+   * Passkeys disabled or HTTPS required
+   */
+  403: unknown
+}
+
+export type AuthPasskeyRegisterVerifyResponses = {
+  /**
+   * Registration successful
+   */
+  200: unknown
+}
+
+export type AuthPasskeyListData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/auth/passkey/list"
+}
+
+export type AuthPasskeyListErrors = {
+  /**
+   * Not authenticated
+   */
+  401: unknown
+  /**
+   * Passkeys disabled
+   */
+  403: unknown
+}
+
+export type AuthPasskeyListResponses = {
+  /**
+   * Passkeys
+   */
+  200: unknown
+}
+
+export type AuthPasskeyRemoveData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/auth/passkey/remove"
+}
+
+export type AuthPasskeyRemoveErrors = {
+  /**
+   * Bad request
+   */
+  400: unknown
+  /**
+   * Not authenticated
+   */
+  401: unknown
+  /**
+   * Passkeys disabled
+   */
+  403: unknown
+  /**
+   * Passkey not found
+   */
+  404: unknown
+}
+
+export type AuthPasskeyRemoveResponses = {
+  /**
+   * Passkey removed
+   */
+  200: unknown
+}
+
 export type AuthStatusData = {
   body?: never
   path?: never
@@ -2641,6 +2838,7 @@ export type AuthStatusResponses = {
   200: {
     enabled: boolean
     method?: string
+    passkeysEnabled: boolean
   }
 }
 

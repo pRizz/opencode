@@ -125,6 +125,32 @@ describe("CSRF middleware", () => {
       expect(res.status).toBe(200)
     })
 
+    it("allows /auth/passkey/auth/options without CSRF validation", async () => {
+      app.use(csrfMiddleware)
+      app.post("/auth/passkey/auth/options", (c) => c.json({ success: true }))
+
+      const res = await app.request("/auth/passkey/auth/options", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      })
+
+      expect(res.status).toBe(200)
+    })
+
+    it("allows /auth/passkey/auth/verify without CSRF validation", async () => {
+      app.use(csrfMiddleware)
+      app.post("/auth/passkey/auth/verify", (c) => c.json({ success: true }))
+
+      const res = await app.request("/auth/passkey/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      })
+
+      expect(res.status).toBe(200)
+    })
+
     it("allows custom allowlist routes", async () => {
       mockAuthConfig.csrfAllowlist = ["/api/webhook"]
 

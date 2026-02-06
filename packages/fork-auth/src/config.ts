@@ -78,6 +78,22 @@ export const AuthConfig = z
     deviceTrustDuration: Duration.optional().default("30d").describe("How long 'remember this device' lasts for 2FA"),
     otpRateLimitMax: z.number().optional().default(5).describe("Maximum OTP attempts per rate limit window"),
     otpRateLimitWindow: Duration.optional().default("15m").describe("OTP rate limit window duration"),
+    passkeysEnabled: z.boolean().optional().default(false).describe("Enable WebAuthn passkey authentication"),
+    passkeyRpName: z.string().optional().default("opencode").describe("Relying party name for passkeys"),
+    passkeyRpId: z.string().optional().describe("Override relying party ID for passkeys"),
+    passkeyAllowedOrigins: z
+      .array(z.string())
+      .optional()
+      .default([])
+      .describe("Allowed origins for WebAuthn assertions. Empty means current origin only"),
+    passkeyChallengeTimeout: Duration.optional()
+      .default("5m")
+      .describe("How long passkey challenge tokens remain valid"),
+    passkeyRequireUserVerification: z
+      .boolean()
+      .optional()
+      .default(true)
+      .describe("Require authenticator user verification for passkeys"),
   })
   .strict()
   .meta({ ref: "AuthConfig" })
