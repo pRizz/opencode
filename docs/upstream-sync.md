@@ -57,7 +57,8 @@ wc -l docs/upstream-sync/upstream-first-parent.txt > docs/upstream-sync/upstream
     - fails only if `origin/parent-dev` has commits not in `upstream/dev` (unsafe drift)
     - allows upstream-ahead stale state and lets sync refresh `parent-dev` via force update
   - Updates `parent-dev` to match `upstream/dev` (force push).
-  - Attempts merge and runs typecheck + e2e gate:
+  - Attempts merge and runs SDK generation + typecheck + e2e gate:
+    - `bun ./packages/sdk/js/script/build.ts` (regenerates SDK types from OpenAPI spec)
     - `bun turbo typecheck`
     - installs Playwright dependencies
     - runs `bun run test:e2e:local -- --workers=2` in `packages/app`
@@ -94,10 +95,11 @@ Conflict handling (manual fallback):
 3. Resolve conflicts with `docs/upstream-sync/fork-feature-audit.md` as ownership source of truth.
 4. Regenerate SDK, run typecheck/smoke, and merge immediately.
 
-Post-merge validation order:
-1. `./packages/sdk/js/script/build.ts`
+Post-merge validation order (automated by `runTestGate()`, manual fallback listed here):
+1. `bun ./packages/sdk/js/script/build.ts` (regenerate SDK types)
 2. `bun turbo typecheck`
-3. Smoke in `packages/opencode`: `bun run dev:web` then `bun dev`
+3. `bun run test:e2e:local` in `packages/app`
+4. Smoke in `packages/opencode`: `bun run dev:web` then `bun dev`
 
 ## Steady-State Verification Cadence
 - Daily quick check:
