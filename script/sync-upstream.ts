@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
 import { $ } from "bun"
+import { appendFileSync } from "node:fs"
 import path from "node:path"
 
 const UPSTREAM_REPO = "anomalyco/opencode"
@@ -12,6 +13,33 @@ const REMOTE_ORIGIN = "origin"
 const SYNC_LABEL = "sync"
 const CONFLICT_LABEL = "sync-conflict"
 const SYNC_E2E_FAILURE_LABEL = "sync-e2e-failure"
+
+// ── CLI argument helpers ──────────────────────────────────
+
+function getArg(args: string[], flag: string): string | undefined {
+  const idx = args.indexOf(flag)
+  return idx !== -1 ? args[idx + 1] : undefined
+}
+
+function requireArg(args: string[], flag: string): string {
+  const value = getArg(args, flag)
+  if (!value) throw new Error(`Missing required argument: ${flag}`)
+  return value
+}
+
+// ── GitHub Actions output helper ──────────────────────────
+
+function setOutput(key: string, value: string) {
+  const file = process.env.GITHUB_OUTPUT
+  if (!file) return
+  if (value.includes("\n")) {
+    appendFileSync(file, `${key}<<EOF\n${value}\nEOF\n`)
+  } else {
+    appendFileSync(file, `${key}=${value}\n`)
+  }
+}
+
+// ── Utility functions ─────────────────────────────────────
 
 function utcStamp(date = new Date()): string {
   const pad = (value: number) => String(value).padStart(2, "0")
@@ -54,13 +82,6 @@ async function ensureLabel(repo: string, name: string, color: string, descriptio
 function tailLog(text: string, limit = 12_000): string {
   if (text.length <= limit) return text
   return `...[truncated, showing last ${limit} chars]\n${text.slice(-limit)}`
-}
-
-function githubRunUrl(repo: string): string | undefined {
-  const runId = process.env.GITHUB_RUN_ID
-  const serverUrl = process.env.GITHUB_SERVER_URL ?? "https://github.com"
-  if (!runId) return undefined
-  return `${serverUrl}/${repo}/actions/runs/${runId}`
 }
 
 async function createIssueWithOptionalLabel(params: {
@@ -124,85 +145,26 @@ async function ensureUpstreamRemote() {
   }
 }
 
-async function handleConflict(params: {
-  repo: string
-  branch: string
-  mergeBase: string
-  behind: number
-  ahead: number
-}) {
-  await $`git merge --abort`.nothrow()
-  const title = `Upstream sync conflict (${utcHuman()})`
-  const body = [
-    "Automated upstream sync failed due to merge conflicts.",
-    "",
-    `Branch: ${params.branch}`,
-    `Merge base: ${params.mergeBase}`,
-    `Upstream commits behind: ${params.behind}`,
-    `Fork commits ahead: ${params.ahead}`,
-    "",
-    "Next steps:",
-    "- Checkout the branch and resolve conflicts.",
-    "- Consult docs/upstream-sync.md for known conflict notes.",
-    "- Push the fix and enable auto-merge once CI is green.",
-  ].join("\n")
+// ── Test gate ─────────────────────────────────────────────
 
-  const created = await createIssueWithOptionalLabel({
-    repo: params.repo,
-    title,
-    body,
-    label: CONFLICT_LABEL,
-  })
-  if (!created) {
-    throw new Error("Merge conflicts detected. Failed to create conflict issue.")
+async function runTestGate(): Promise<{ passed: boolean; summary: string }> {
+  console.log("Running typecheck...")
+  const typecheck = await $`bun turbo typecheck`.nothrow()
+  if (typecheck.exitCode !== 0) {
+    const log = `${typecheck.stdout.toString()}\n${typecheck.stderr.toString()}`
+    return { passed: false, summary: `Typecheck failed:\n${tailLog(log, 4000)}` }
   }
+  console.log("Typecheck passed.")
 
-  throw new Error("Merge conflicts detected. Conflict issue created.")
-}
-
-async function runLinuxE2EGate(params: {
-  repo: string
-  branch: string
-  mergeBase: string
-  behind: number
-  ahead: number
-}) {
-  console.log("Running linux e2e gate before opening sync PR...")
-  const modelsPath = path.resolve("packages/opencode/test/tool/fixtures/models-api.json")
-
+  console.log("Installing Playwright...")
   const install = await $`bunx playwright install --with-deps`.cwd("packages/app").nothrow()
   if (install.exitCode !== 0) {
     const log = `${install.stdout.toString()}\n${install.stderr.toString()}`
-    const title = `Upstream sync e2e setup failed (${utcHuman()})`
-    const body = [
-      "Automated upstream sync failed before PR creation.",
-      "",
-      `Branch: ${params.branch}`,
-      `Merge base: ${params.mergeBase}`,
-      `Upstream commits behind: ${params.behind}`,
-      `Fork commits ahead: ${params.ahead}`,
-      "",
-      "Stage: Playwright install",
-      "Command: `bunx playwright install --with-deps` (cwd: `packages/app`)",
-      githubRunUrl(params.repo) ? `Run: ${githubRunUrl(params.repo)}` : "",
-      "",
-      "Log excerpt:",
-      "```text",
-      tailLog(log),
-      "```",
-    ]
-      .filter(Boolean)
-      .join("\n")
-
-    await createIssueWithOptionalLabel({
-      repo: params.repo,
-      title,
-      body,
-      label: SYNC_E2E_FAILURE_LABEL,
-    })
-    throw new Error("Linux e2e gate failed during Playwright setup.")
+    return { passed: false, summary: `Playwright install failed:\n${tailLog(log, 4000)}` }
   }
 
+  console.log("Running e2e tests...")
+  const modelsPath = path.resolve("packages/opencode/test/tool/fixtures/models-api.json")
   const test = await $`bun run test:e2e:local -- --workers=2`
     .cwd("packages/app")
     .env({
@@ -211,43 +173,57 @@ async function runLinuxE2EGate(params: {
       OPENCODE_MODELS_PATH: modelsPath,
     })
     .nothrow()
-  if (test.exitCode === 0) {
-    console.log("Linux e2e gate passed.")
-    return
+
+  if (test.exitCode !== 0) {
+    const log = `${test.stdout.toString()}\n${test.stderr.toString()}`
+    return { passed: false, summary: `E2e tests failed:\n${tailLog(log, 4000)}` }
   }
 
-  const log = `${test.stdout.toString()}\n${test.stderr.toString()}`
-  const title = `Upstream sync e2e failed (${utcHuman()})`
-  const body = [
-    "Automated upstream sync failed before PR creation due to linux e2e test failures.",
-    "",
-    `Branch: ${params.branch}`,
-    `Merge base: ${params.mergeBase}`,
-    `Upstream commits behind: ${params.behind}`,
-    `Fork commits ahead: ${params.ahead}`,
-    "",
-    "Stage: Linux e2e gate",
-    "Command: `bun run test:e2e:local -- --workers=2` (cwd: `packages/app`)",
-    githubRunUrl(params.repo) ? `Run: ${githubRunUrl(params.repo)}` : "",
-    "",
-    "Log excerpt:",
-    "```text",
-    tailLog(log),
-    "```",
-  ]
-    .filter(Boolean)
-    .join("\n")
-
-  await createIssueWithOptionalLabel({
-    repo: params.repo,
-    title,
-    body,
-    label: SYNC_E2E_FAILURE_LABEL,
-  })
-  throw new Error("Linux e2e gate failed. Issue created.")
+  console.log("All tests passed.")
+  return { passed: true, summary: "" }
 }
 
-async function main() {
+// ── PR creation helper ────────────────────────────────────
+
+async function createSyncPR(params: {
+  repo: string
+  branch: string
+  mergeBase: string
+  behind: number
+  ahead: number
+  title: string
+  body: string
+}) {
+  const hasSyncLabel = await ensureLabel(params.repo, SYNC_LABEL, "0366D6", "Automated upstream syncs")
+
+  let pr = hasSyncLabel
+    ? await $`gh pr create --repo ${params.repo} --base ${DEV_BRANCH} --head ${params.branch} --title ${params.title} --body ${params.body} --label ${SYNC_LABEL}`.nothrow()
+    : await $`gh pr create --repo ${params.repo} --base ${DEV_BRANCH} --head ${params.branch} --title ${params.title} --body ${params.body}`.nothrow()
+
+  if (pr.exitCode !== 0 && hasSyncLabel) {
+    const stderr = pr.stderr.toString().trim()
+    console.warn(`Failed to create labeled sync PR, retrying without label: ${stderr || "unknown error"}`)
+    pr = await $`gh pr create --repo ${params.repo} --base ${DEV_BRANCH} --head ${params.branch} --title ${params.title} --body ${params.body}`.nothrow()
+  }
+
+  if (pr.exitCode !== 0) {
+    console.error("Failed to create PR:", pr.stderr.toString())
+    process.exit(1)
+  }
+
+  const prUrl = pr.stdout.toString().trim()
+  const merge = await $`gh pr merge --repo ${params.repo} --auto --merge ${prUrl}`.nothrow()
+  if (merge.exitCode !== 0) {
+    console.error("Failed to enable auto-merge:", merge.stderr.toString())
+    process.exit(1)
+  }
+
+  console.log(`Sync PR created and auto-merge enabled: ${prUrl}`)
+}
+
+// ── Phase: merge ──────────────────────────────────────────
+
+async function runMergePhase() {
   await ensureGhToken()
   await ensureCleanTree()
   const repo = await resolveOriginRepo()
@@ -288,15 +264,43 @@ async function main() {
 
   await $`git checkout -b ${branch}`
   const mergeResult = await $`git merge --no-edit ${PARENT_BRANCH}`.nothrow()
+
   if (mergeResult.exitCode !== 0) {
-    await handleConflict({ repo, branch, mergeBase, behind, ahead })
+    // Conflict — leave markers in place for Claude to resolve
+    const conflicted = (await $`git diff --name-only --diff-filter=U`.text()).trim()
+    if (!conflicted) {
+      throw new Error("Merge failed but no conflicted files detected")
+    }
+    setOutput("needs_claude", "true")
+    setOutput("has_conflicts", "true")
+    setOutput("conflicted_files", conflicted)
+    setOutput("sync_branch", branch)
+    setOutput("merge_base", mergeBase)
+    setOutput("behind", String(behind))
+    setOutput("ahead", String(ahead))
+    console.log(`Merge has conflicts in:\n${conflicted}\nHanding off to Claude Code Action.`)
+    return
   }
 
-  await runLinuxE2EGate({ repo, branch, mergeBase, behind, ahead })
+  // Clean merge — run tests
+  const testResult = await runTestGate()
+  if (!testResult.passed) {
+    // Tests failed on clean merge — hand off to Claude to fix
+    setOutput("needs_claude", "true")
+    setOutput("has_conflicts", "false")
+    setOutput("test_failures", testResult.summary)
+    setOutput("sync_branch", branch)
+    setOutput("merge_base", mergeBase)
+    setOutput("behind", String(behind))
+    setOutput("ahead", String(ahead))
+    console.log("Clean merge succeeded but tests failed. Handing off to Claude Code Action.")
+    return
+  }
+
+  // All good — push + create PR
+  setOutput("needs_claude", "false")
 
   await $`git push ${REMOTE_ORIGIN} ${branch}`
-
-  const hasSyncLabel = await ensureLabel(repo, SYNC_LABEL, "0366D6", "Automated upstream syncs")
 
   const title = `Sync upstream dev (${utcHuman()})`
   const body = [
@@ -309,32 +313,137 @@ async function main() {
     "Generated by script/sync-upstream.ts.",
   ].join("\n")
 
-  let pr = hasSyncLabel
-    ? await $`gh pr create --repo ${repo} --base ${DEV_BRANCH} --head ${branch} --title ${title} --body ${body} --label ${SYNC_LABEL}`.nothrow()
-    : await $`gh pr create --repo ${repo} --base ${DEV_BRANCH} --head ${branch} --title ${title} --body ${body}`.nothrow()
+  await createSyncPR({ repo, branch, mergeBase, behind, ahead, title, body })
+}
 
-  if (pr.exitCode !== 0 && hasSyncLabel) {
-    const stderr = pr.stderr.toString().trim()
-    console.warn(`Failed to create labeled sync PR, retrying without label: ${stderr || "unknown error"}`)
-    pr = await $`gh pr create --repo ${repo} --base ${DEV_BRANCH} --head ${branch} --title ${title} --body ${body}`.nothrow()
+// ── Phase: test ───────────────────────────────────────────
+
+async function runTestPhase() {
+  const result = await runTestGate()
+  setOutput("tests_passed", result.passed ? "true" : "false")
+  if (!result.passed) {
+    setOutput("test_failures", result.summary)
+    console.log(`Tests failed:\n${result.summary}`)
+  } else {
+    console.log("All tests passed.")
   }
+}
 
-  if (pr.exitCode !== 0) {
-    console.error("Failed to create PR:", pr.stderr.toString())
-    process.exit(1)
+// ── Phase: post-resolve ───────────────────────────────────
+
+async function runPostResolvePhase(opts: {
+  branch: string
+  mergeBase: string
+  behind: number
+  ahead: number
+  claudeResolved: boolean
+}) {
+  await ensureGhToken()
+  const repo = await resolveOriginRepo()
+
+  await $`git push ${REMOTE_ORIGIN} ${opts.branch}`
+
+  const title = opts.claudeResolved
+    ? `Sync upstream dev — fixed by Claude (${utcHuman()})`
+    : `Sync upstream dev (${utcHuman()})`
+
+  const bodyLines = [
+    `Automated sync from ${UPSTREAM_REPO}:${UPSTREAM_BRANCH}.`,
+    "",
+    `Merge base: ${opts.mergeBase}`,
+    `Upstream commits behind: ${opts.behind}`,
+    `Fork commits ahead: ${opts.ahead}`,
+  ]
+  if (opts.claudeResolved) {
+    bodyLines.push(
+      "",
+      "**Issues were resolved automatically by Claude Code.**",
+      "**Typecheck and e2e tests passed after resolution.**",
+      "Please review the changes carefully before merging.",
+    )
   }
+  bodyLines.push("", "Generated by script/sync-upstream.ts.")
+  const body = bodyLines.join("\n")
 
-  const prUrl = pr.stdout.toString().trim()
-  const merge = await $`gh pr merge --repo ${repo} --auto --merge ${prUrl}`.nothrow()
-  if (merge.exitCode !== 0) {
-    console.error("Failed to enable auto-merge:", merge.stderr.toString())
-    process.exit(1)
+  await createSyncPR({ repo, branch: opts.branch, mergeBase: opts.mergeBase, behind: opts.behind, ahead: opts.ahead, title, body })
+}
+
+// ── Phase: create-issue ───────────────────────────────────
+
+async function runCreateIssue(opts: {
+  branch: string
+  mergeBase: string
+  behind: number
+  ahead: number
+  hadConflicts: boolean
+}) {
+  await ensureGhToken()
+  const repo = await resolveOriginRepo()
+
+  const reason = opts.hadConflicts
+    ? "merge conflicts"
+    : "typecheck/e2e test failures after clean merge"
+
+  const title = `Upstream sync — Claude unable to fix ${reason} (${utcHuman()})`
+  const body = [
+    `Automated upstream sync failed due to ${reason}.`,
+    "Claude Code attempted to fix the issues but was unable to get typecheck and e2e tests passing.",
+    "",
+    `Branch: ${opts.branch}`,
+    `Merge base: ${opts.mergeBase}`,
+    `Upstream commits behind: ${opts.behind}`,
+    `Fork commits ahead: ${opts.ahead}`,
+    "",
+    "Next steps:",
+    "- Checkout the branch and resolve issues manually.",
+    "- Consult docs/upstream-sync.md for known conflict notes.",
+    "- Push the fix and enable auto-merge once CI is green.",
+  ].join("\n")
+
+  const label = opts.hadConflicts ? CONFLICT_LABEL : SYNC_E2E_FAILURE_LABEL
+  const created = await createIssueWithOptionalLabel({ repo, title, body, label })
+  if (!created) {
+    throw new Error(`Failed to create issue for ${reason}.`)
   }
+}
 
-  console.log(`✅ Sync PR created and auto-merge enabled: ${prUrl}`)
+// ── Main entry point ──────────────────────────────────────
+
+async function main() {
+  const args = process.argv.slice(2)
+  const phase = getArg(args, "--phase") ?? "merge"
+
+  switch (phase) {
+    case "merge":
+      await runMergePhase()
+      break
+    case "test":
+      await runTestPhase()
+      break
+    case "post-resolve":
+      await runPostResolvePhase({
+        branch: requireArg(args, "--branch"),
+        mergeBase: requireArg(args, "--merge-base"),
+        behind: Number(requireArg(args, "--behind")),
+        ahead: Number(requireArg(args, "--ahead")),
+        claudeResolved: getArg(args, "--claude-resolved") === "true",
+      })
+      break
+    case "create-issue":
+      await runCreateIssue({
+        branch: requireArg(args, "--branch"),
+        mergeBase: requireArg(args, "--merge-base"),
+        behind: Number(requireArg(args, "--behind")),
+        ahead: Number(requireArg(args, "--ahead")),
+        hadConflicts: getArg(args, "--had-conflicts") === "true",
+      })
+      break
+    default:
+      throw new Error(`Unknown phase: ${phase}`)
+  }
 }
 
 main().catch((err) => {
-  console.error("❌ Sync failed:", err.message)
+  console.error("Sync failed:", err.message)
   process.exit(1)
 })
