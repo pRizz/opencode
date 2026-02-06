@@ -150,6 +150,15 @@ async function ensureUpstreamRemote() {
   }
 }
 
+async function ensureOriginAuth() {
+  const token = process.env.UPSTREAM_SYNC_TOKEN || process.env.GH_TOKEN
+  if (!token) return
+
+  const repo = await resolveOriginRepo()
+  const authedUrl = `https://x-access-token:${token}@github.com/${repo}.git`
+  await $`git remote set-url ${REMOTE_ORIGIN} ${authedUrl}`
+}
+
 // ── Test gate ─────────────────────────────────────────────
 
 async function runTestGate(): Promise<{ passed: boolean; summary: string }> {
@@ -247,6 +256,7 @@ async function createSyncPR(params: {
 async function runMergePhase() {
   await ensureGhToken()
   await ensureCleanTree()
+  await ensureOriginAuth()
   const repo = await resolveOriginRepo()
 
   await $`git config user.name "opencode-sync-bot"`
@@ -329,6 +339,7 @@ async function runPostResolvePhase(opts: {
   claudeResolved: boolean
 }) {
   await ensureGhToken()
+  await ensureOriginAuth()
   const repo = await resolveOriginRepo()
 
   await $`git push ${REMOTE_ORIGIN} ${opts.branch}`
