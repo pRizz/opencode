@@ -18,7 +18,7 @@ permissions:
 jobs:
   sync:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 240
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -45,7 +45,7 @@ jobs:
       - name: Resolve merge conflicts with Claude
         if: steps.sync.outputs.has_conflicts == 'true'
         uses: anthropics/claude-code-action@v1
-        timeout-minutes: 10
+        timeout-minutes: 60
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           show_full_output: true
@@ -86,7 +86,7 @@ jobs:
 
             Do NOT run tests or push. Do NOT make changes beyond conflict resolution.
           claude_args: >-
-            --max-turns 30
+            --max-turns 300
             --model claude-opus-4-6
             --allowedTools "Edit,Write,Bash(*)"
 
@@ -105,7 +105,7 @@ jobs:
       - name: Fix test failures with Claude (attempt 1)
         if: steps.test1.outputs.tests_passed == 'false'
         uses: anthropics/claude-code-action@v1
-        timeout-minutes: 10
+        timeout-minutes: 60
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           show_full_output: true
@@ -120,7 +120,7 @@ jobs:
 
             Fix the errors. Commit your changes. Do NOT run tests or push.
           claude_args: >-
-            --max-turns 20
+            --max-turns 200
             --model claude-opus-4-6
             --allowedTools "Edit,Write,Bash(*)"
 
@@ -138,7 +138,7 @@ jobs:
       - name: Fix test failures with Claude (attempt 2)
         if: steps.test2.outputs.tests_passed == 'false'
         uses: anthropics/claude-code-action@v1
-        timeout-minutes: 10
+        timeout-minutes: 60
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           show_full_output: true
@@ -150,7 +150,7 @@ jobs:
             Read `docs/upstream-sync/fork-feature-audit.md` for context.
             Fix the errors. Commit your changes. Do NOT run tests or push.
           claude_args: >-
-            --max-turns 20
+            --max-turns 200
             --model claude-opus-4-6
             --allowedTools "Edit,Write,Bash(*)"
 
