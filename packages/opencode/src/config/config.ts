@@ -72,11 +72,14 @@ export namespace Config {
       log.debug("loaded custom config", { path: Flag.OPENCODE_CONFIG })
     }
 
-    // Project config has highest precedence (overrides global and remote)
-    for (const file of ["opencode.jsonc", "opencode.json"]) {
-      const found = await Filesystem.findUp(file, Instance.directory, Instance.worktree)
-      for (const resolved of found.toReversed()) {
-        result = mergeConfigConcatArrays(result, await loadFile(resolved))
+    // Project config has highest precedence (overrides global and remote),
+    // unless explicitly disabled (useful for CI/e2e isolation).
+    if (!Flag.OPENCODE_DISABLE_PROJECT_CONFIG) {
+      for (const file of ["opencode.jsonc", "opencode.json"]) {
+        const found = await Filesystem.findUp(file, Instance.directory, Instance.worktree)
+        for (const resolved of found.toReversed()) {
+          result = mergeConfigConcatArrays(result, await loadFile(resolved))
+        }
       }
     }
 
@@ -94,15 +97,19 @@ export namespace Config {
       result.workspace.root = path.join(Global.Path.home, "opencode")
     }
 
+    const projectDirectories = Flag.OPENCODE_DISABLE_PROJECT_CONFIG
+      ? []
+      : await Array.fromAsync(
+          Filesystem.up({
+            targets: [".opencode"],
+            start: Instance.directory,
+            stop: Instance.worktree,
+          }),
+        )
+
     const directories = [
       Global.Path.config,
-      ...(await Array.fromAsync(
-        Filesystem.up({
-          targets: [".opencode"],
-          start: Instance.directory,
-          stop: Instance.worktree,
-        }),
-      )),
+      ...projectDirectories,
       ...(await Array.fromAsync(
         Filesystem.up({
           targets: [".opencode"],
