@@ -1,6 +1,7 @@
 # Upstream Sync Playbook
 
 ## Baseline Snapshot (2026-02-06)
+
 - Upstream repo/branch: `anomalyco/opencode` `dev`
 - Fork repo/branch: `pRizz/opencode` `dev`
 - Merge base: see `docs/upstream-sync/merge-base.txt`
@@ -10,12 +11,14 @@
 - Post-catch-up snapshot artifact: `docs/upstream-sync/post-catchup-state.txt`
 
 ## Patchset Report
+
 - Restore manifest: `docs/upstream-sync/restore-missing-commits.txt`
 - Restore file map: `docs/upstream-sync/restore-file-map.txt`
 - Upstream first-parent list: `docs/upstream-sync/upstream-first-parent.txt`
 - Boundary commits: `docs/upstream-sync/boundary-commits.txt`
 
 To regenerate:
+
 ```bash
 git fetch upstream --tags
 git branch -f parent-dev upstream/dev
@@ -29,14 +32,17 @@ wc -l docs/upstream-sync/upstream-first-parent.txt > docs/upstream-sync/upstream
 ```
 
 ## Must-Keep Fork Areas (Verify and Extend)
+
 - `docs/upstream-sync/fork-feature-audit.md` (authoritative ownership map)
 - `packages/fork-*` (fork behavior implementation)
 - Hook/stub surfaces under `packages/opencode/src/**` (must stay minimal)
 
 ## Known Conflict Notes
+
 - None recorded yet. Add entries here as they appear during the merge train.
 
 ## Merge Train Procedure (One-Time Catch-Up)
+
 1. Pause new work on `dev` until catch-up completes.
 2. Use `docs/upstream-sync/boundary-commits.txt` to select boundary commits.
 3. For each boundary commit:
@@ -46,6 +52,7 @@ wc -l docs/upstream-sync/upstream-first-parent.txt > docs/upstream-sync/upstream
    - Open a PR to `dev` labeled `sync` and merge after CI passes.
 
 ## Ongoing Sync Automation
+
 - Script: `script/sync-upstream.ts` (phase-based: `--phase merge|test|post-resolve|create-issue`)
 - Workflow: `.github/workflows/sync-upstream.yml` (runs every 30 minutes)
 - Mirror verification script: `script/verify-upstream-mirror.sh`
@@ -63,9 +70,9 @@ wc -l docs/upstream-sync/upstream-first-parent.txt > docs/upstream-sync/upstream
     - `bun turbo typecheck`
     - installs Playwright dependencies
     - runs `bun run test:e2e:local -- --workers=2` in `packages/app`
-  - Opens a sync PR when upstream is ahead and merge + tests succeed.
-  - Creates/uses labels in the fork repository (`sync`, `sync-conflict`) via CLI.
-  - Enables auto-merge once checks pass.
+  - On success, rebases the sync branch onto latest `origin/dev` with `git rebase --rebase-merges origin/dev` and pushes directly to `dev`.
+  - If the direct push is rejected as non-fast-forward, refetches/rebases and retries push once.
+  - Creates/uses labels in the fork repository (`sync-conflict`, `sync-e2e-failure`, `sync-push-failure`) via CLI.
   - On conflict, invokes Claude Code Action (`anthropics/claude-code-action@v1`) to resolve automatically:
     - Claude reads `docs/upstream-sync/fork-feature-audit.md` for ownership context
     - Resolves conflicts per fork ownership rules (upstream-owned vs fork-owned files)
@@ -73,10 +80,11 @@ wc -l docs/upstream-sync/upstream-first-parent.txt > docs/upstream-sync/upstream
   - On test failure (clean merge or post-conflict), invokes Claude to fix errors:
     - Up to 2 fix attempts, each followed by a test re-run
     - Claude receives test failure output and fixes code without running tests itself
-  - On success (tests pass), creates PR with auto-merge enabled
+  - On post-resolve rebase/push failure, pushes backup sync branch and creates issue labeled `sync-push-failure`
   - On failure (Claude exhausts attempts), creates an issue with `sync-conflict` or `sync-e2e-failure` label
 
 Manual dispatch and monitoring:
+
 ```bash
 gh workflow run sync-upstream.yml --ref dev --repo pRizz/opencode
 gh run list --workflow sync-upstream.yml --repo pRizz/opencode --limit 1
@@ -84,25 +92,29 @@ gh run view <run-id> --repo pRizz/opencode --log
 ```
 
 Conflict handling (automated):
+
 1. Claude Code Action resolves conflicts using fork-feature-audit.md as ownership source of truth.
 2. Script runs typecheck + e2e tests after resolution.
 3. If tests fail, Claude attempts fixes (up to 2 retries).
-4. If successful, PR is created with "fixed by Claude" in the title.
-5. PRs with Claude-resolved conflicts should still be reviewed by a human.
+4. If successful, sync rebases onto latest `origin/dev` and pushes directly to `dev`.
+5. If final rebase/push fails, workflow pushes the backup sync branch and files a `sync-push-failure` issue.
 
 Conflict handling (manual fallback):
+
 1. Check the `sync-conflict` issue for merge-base and conflict context.
 2. Create `sync/catchup-hotfix-<date>` from `dev`.
 3. Resolve conflicts with `docs/upstream-sync/fork-feature-audit.md` as ownership source of truth.
 4. Regenerate SDK, run typecheck/smoke, and merge immediately.
 
 Post-merge validation order (automated by `runTestGate()`, manual fallback listed here):
+
 1. `bun ./packages/sdk/js/script/build.ts` (regenerate SDK types)
 2. `bun turbo typecheck`
 3. `bun run test:e2e:local` in `packages/app`
 4. Smoke in `packages/opencode`: `bun run dev:web` then `bun dev`
 
 ## Steady-State Verification Cadence
+
 - Daily quick check:
   - `gh run list --workflow sync-upstream.yml --repo pRizz/opencode --limit 5`
   - confirm recent `sync-upstream` runs are green.
@@ -117,8 +129,8 @@ Post-merge validation order (automated by `runTestGate()`, manual fallback liste
     - `Upstream is already merged. Nothing to sync.` (when no-op)
 
 ## Repo Settings Checklist
-- Enable auto-merge on the repository.
+
 - Require `typecheck` and `test (linux)` checks on `dev`.
 - Allow merge commits.
 - Disable force pushes to `dev`.
-- Require pull requests and up-to-date branches before merge.
+- Allow the sync actor/token (`UPSTREAM_SYNC_TOKEN` or `github.token`) to push directly to `dev`.

@@ -10,9 +10,9 @@ const DEV_BRANCH = "dev"
 const PARENT_BRANCH = "parent-dev"
 const REMOTE_UPSTREAM = "upstream"
 const REMOTE_ORIGIN = "origin"
-const SYNC_LABEL = "sync"
 const CONFLICT_LABEL = "sync-conflict"
 const SYNC_E2E_FAILURE_LABEL = "sync-e2e-failure"
+const SYNC_PUSH_FAILURE_LABEL = "sync-push-failure"
 
 // ── CLI argument helpers ──────────────────────────────────
 
@@ -43,12 +43,7 @@ function setOutput(key: string, value: string) {
 
 function utcStamp(date = new Date()): string {
   const pad = (value: number) => String(value).padStart(2, "0")
-  return [
-    date.getUTCFullYear(),
-    pad(date.getUTCMonth() + 1),
-    pad(date.getUTCDate()),
-    pad(date.getUTCHours()),
-  ].join("")
+  return [date.getUTCFullYear(), pad(date.getUTCMonth() + 1), pad(date.getUTCDate()), pad(date.getUTCHours())].join("")
 }
 
 function utcHuman(date = new Date()): string {
@@ -94,13 +89,10 @@ async function createIssueWithOptionalLabel(params: {
   title: string
   body: string
   label: string
+  color: string
+  description: string
 }) {
-  const hasLabel = await ensureLabel(
-    params.repo,
-    params.label,
-    params.label === CONFLICT_LABEL ? "B60205" : "D93F0B",
-    params.label === CONFLICT_LABEL ? "Upstream sync conflicts" : "Upstream sync e2e failures",
-  )
+  const hasLabel = await ensureLabel(params.repo, params.label, params.color, params.description)
 
   let issue = hasLabel
     ? await $`gh issue create --repo ${params.repo} --title ${params.title} --body ${params.body} --label ${params.label}`.nothrow()
@@ -223,42 +215,63 @@ async function runTestGate(): Promise<{ passed: boolean; summary: string }> {
   return { passed: true, summary: "" }
 }
 
-// ── PR creation helper ────────────────────────────────────
+// ── Finalize helpers ──────────────────────────────────────
 
-async function createSyncPR(params: {
+function isNonFastForward(text: string) {
+  const log = text.toLowerCase()
+  return log.includes("non-fast-forward") || log.includes("[rejected]") || log.includes("fetch first")
+}
+
+async function pushBackupBranch(branch: string) {
+  const result = await $`git push ${REMOTE_ORIGIN} HEAD:${branch}`.nothrow()
+  if (result.exitCode === 0) {
+    return `Backup branch pushed: ${branch}`
+  }
+  const log = `${result.stdout.toString()}\n${result.stderr.toString()}`
+  return `Backup branch push failed:\n${tailLog(log, 3000)}`
+}
+
+async function createPushFailureIssue(params: {
   repo: string
   branch: string
   mergeBase: string
   behind: number
   ahead: number
-  title: string
-  body: string
+  stage: "rebase" | "push"
+  log: string
+  backup: string
+  claudeResolved: boolean
 }) {
-  const hasSyncLabel = await ensureLabel(params.repo, SYNC_LABEL, "0366D6", "Automated upstream syncs")
+  const title = `Upstream sync — unable to push to dev (${utcHuman()})`
+  const body = [
+    "Automated upstream sync passed tests but failed in post-resolve finalization.",
+    "",
+    `Failure stage: ${params.stage}`,
+    `Branch: ${params.branch}`,
+    `Merge base: ${params.mergeBase}`,
+    `Upstream commits behind: ${params.behind}`,
+    `Fork commits ahead: ${params.ahead}`,
+    `Claude resolved conflicts/tests earlier: ${params.claudeResolved ? "yes" : "no"}`,
+    params.backup,
+    "",
+    "Git output tail:",
+    "```text",
+    tailLog(params.log, 4000),
+    "```",
+    "",
+    "Next steps:",
+    "- Inspect the backup branch and resolve any remaining rebase/push blockers.",
+    "- Re-run sync-upstream after branch policy or conflicts are addressed.",
+  ].join("\n")
 
-  let pr = hasSyncLabel
-    ? await $`gh pr create --repo ${params.repo} --base ${DEV_BRANCH} --head ${params.branch} --title ${params.title} --body ${params.body} --label ${SYNC_LABEL}`.nothrow()
-    : await $`gh pr create --repo ${params.repo} --base ${DEV_BRANCH} --head ${params.branch} --title ${params.title} --body ${params.body}`.nothrow()
-
-  if (pr.exitCode !== 0 && hasSyncLabel) {
-    const stderr = pr.stderr.toString().trim()
-    console.warn(`Failed to create labeled sync PR, retrying without label: ${stderr || "unknown error"}`)
-    pr = await $`gh pr create --repo ${params.repo} --base ${DEV_BRANCH} --head ${params.branch} --title ${params.title} --body ${params.body}`.nothrow()
-  }
-
-  if (pr.exitCode !== 0) {
-    console.error("Failed to create PR:", pr.stderr.toString())
-    process.exit(1)
-  }
-
-  const prUrl = pr.stdout.toString().trim()
-  const merge = await $`gh pr merge --repo ${params.repo} --auto --merge ${prUrl}`.nothrow()
-  if (merge.exitCode !== 0) {
-    console.error("Failed to enable auto-merge:", merge.stderr.toString())
-    process.exit(1)
-  }
-
-  console.log(`Sync PR created and auto-merge enabled: ${prUrl}`)
+  return createIssueWithOptionalLabel({
+    repo: params.repo,
+    title,
+    body,
+    label: SYNC_PUSH_FAILURE_LABEL,
+    color: "B60205",
+    description: "Upstream sync direct-push failures",
+  })
 }
 
 // ── Phase: merge ──────────────────────────────────────────
@@ -267,7 +280,6 @@ async function runMergePhase() {
   await ensureGhToken()
   await ensureCleanTree()
   await ensureOriginAuth()
-  const repo = await resolveOriginRepo()
 
   await $`git config user.name "opencode-sync-bot"`
   await $`git config user.email "opencode-sync-bot@users.noreply.github.com"`
@@ -351,32 +363,54 @@ async function runPostResolvePhase(opts: {
   await ensureGhToken()
   await ensureOriginAuth()
   const repo = await resolveOriginRepo()
+  await $`git checkout ${opts.branch}`
 
-  await $`git push ${REMOTE_ORIGIN} ${opts.branch}`
+  let stage: "rebase" | "push" = "push"
+  let log = ""
+  for (let i = 1; i <= 2; i += 1) {
+    await $`git fetch ${REMOTE_ORIGIN} ${DEV_BRANCH}`
+    const rebase = await $`git rebase --rebase-merges ${REMOTE_ORIGIN}/${DEV_BRANCH}`.nothrow()
+    if (rebase.exitCode !== 0) {
+      stage = "rebase"
+      const abort = await $`git rebase --abort`.nothrow()
+      log = `${rebase.stdout.toString()}\n${rebase.stderr.toString()}`
+      if (abort.exitCode !== 0) {
+        log = `${log}\n\nRebase abort failed:\n${abort.stdout.toString()}\n${abort.stderr.toString()}`
+      }
+      break
+    }
 
-  const title = opts.claudeResolved
-    ? `Sync upstream dev — fixed by Claude (${utcHuman()})`
-    : `Sync upstream dev (${utcHuman()})`
+    const push = await $`git push ${REMOTE_ORIGIN} HEAD:${DEV_BRANCH}`.nothrow()
+    log = `${push.stdout.toString()}\n${push.stderr.toString()}`
+    if (push.exitCode === 0) {
+      console.log("Sync pushed directly to dev.")
+      return
+    }
 
-  const bodyLines = [
-    `Automated sync from ${UPSTREAM_REPO}:${UPSTREAM_BRANCH}.`,
-    "",
-    `Merge base: ${opts.mergeBase}`,
-    `Upstream commits behind: ${opts.behind}`,
-    `Fork commits ahead: ${opts.ahead}`,
-  ]
-  if (opts.claudeResolved) {
-    bodyLines.push(
-      "",
-      "**Issues were resolved automatically by Claude Code.**",
-      "**Typecheck and e2e tests passed after resolution.**",
-      "Please review the changes carefully before merging.",
-    )
+    if (i === 1 && isNonFastForward(log)) {
+      console.warn("Push rejected as non-fast-forward. Refetching and retrying once.")
+      continue
+    }
+    stage = "push"
+    break
   }
-  bodyLines.push("", "Generated by script/sync-upstream.ts.")
-  const body = bodyLines.join("\n")
 
-  await createSyncPR({ repo, branch: opts.branch, mergeBase: opts.mergeBase, behind: opts.behind, ahead: opts.ahead, title, body })
+  const backup = await pushBackupBranch(opts.branch)
+  const created = await createPushFailureIssue({
+    repo,
+    branch: opts.branch,
+    mergeBase: opts.mergeBase,
+    behind: opts.behind,
+    ahead: opts.ahead,
+    stage,
+    log,
+    backup,
+    claudeResolved: opts.claudeResolved,
+  })
+  if (!created) {
+    throw new Error(`Failed to create issue for post-resolve ${stage} failure.`)
+  }
+  throw new Error(`Post-resolve ${stage} failed. ${backup}`)
 }
 
 // ── Phase: create-issue ───────────────────────────────────
@@ -391,9 +425,7 @@ async function runCreateIssue(opts: {
   await ensureGhToken()
   const repo = await resolveOriginRepo()
 
-  const reason = opts.hadConflicts
-    ? "merge conflicts"
-    : "typecheck/e2e test failures after clean merge"
+  const reason = opts.hadConflicts ? "merge conflicts" : "typecheck/e2e test failures after clean merge"
 
   const title = `Upstream sync — Claude unable to fix ${reason} (${utcHuman()})`
   const body = [
@@ -408,11 +440,18 @@ async function runCreateIssue(opts: {
     "Next steps:",
     "- Checkout the branch and resolve issues manually.",
     "- Consult docs/upstream-sync.md for known conflict notes.",
-    "- Push the fix and enable auto-merge once CI is green.",
+    "- Push the fix once CI is green.",
   ].join("\n")
 
   const label = opts.hadConflicts ? CONFLICT_LABEL : SYNC_E2E_FAILURE_LABEL
-  const created = await createIssueWithOptionalLabel({ repo, title, body, label })
+  const created = await createIssueWithOptionalLabel({
+    repo,
+    title,
+    body,
+    label,
+    color: opts.hadConflicts ? "B60205" : "D93F0B",
+    description: opts.hadConflicts ? "Upstream sync conflicts" : "Upstream sync e2e failures",
+  })
   if (!created) {
     throw new Error(`Failed to create issue for ${reason}.`)
   }
