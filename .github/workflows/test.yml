@@ -16,11 +16,8 @@ jobs:
           - name: linux
             host: ubuntu-24.04
             playwright: bunx playwright install --with-deps
-            workdir: .
-            command: |
-              git config --global user.email "bot@opencode.ai"
-              git config --global user.name "opencode"
-              bun turbo test
+            workdir: packages/app
+            command: bun test:e2e
           - name: windows
             host: windows-latest
             playwright: bunx playwright install
