@@ -43,7 +43,7 @@ jobs:
 
       # ── Phase 2: Resolve conflicts (Claude) ───────────────
       - name: Resolve merge conflicts with Claude
-        if: steps.sync.outputs.needs_claude == 'true' && steps.sync.outputs.has_conflicts == 'true'
+        if: steps.sync.outputs.has_conflicts == 'true'
         uses: anthropics/claude-code-action@v1
         timeout-minutes: 10
         with:
@@ -93,7 +93,7 @@ jobs:
       # ── Phase 3: Run tests ────────────────────────────────
       - name: Run tests after merge/resolution
         id: test1
-        if: steps.sync.outputs.needs_claude == 'true'
+        if: steps.sync.outputs.sync_branch != ''
         run: ./script/sync-upstream.ts --phase test
         env:
           GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
@@ -103,7 +103,7 @@ jobs:
 
       # ── Fix attempt 1 ────────────────────────────────────
       - name: Fix test failures with Claude (attempt 1)
-        if: steps.sync.outputs.needs_claude == 'true' && steps.test1.outputs.tests_passed == 'false'
+        if: steps.test1.outputs.tests_passed == 'false'
         uses: anthropics/claude-code-action@v1
         timeout-minutes: 10
         with:
@@ -126,7 +126,7 @@ jobs:
 
       - name: Run tests (attempt 2)
         id: test2
-        if: steps.sync.outputs.needs_claude == 'true' && steps.test1.outputs.tests_passed == 'false'
+        if: steps.test1.outputs.tests_passed == 'false'
         run: ./script/sync-upstream.ts --phase test
         env:
           GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
@@ -136,7 +136,7 @@ jobs:
 
       # ── Fix attempt 2 ────────────────────────────────────
       - name: Fix test failures with Claude (attempt 2)
-        if: steps.test2.outcome == 'success' && steps.test2.outputs.tests_passed == 'false'
+        if: steps.test2.outputs.tests_passed == 'false'
         uses: anthropics/claude-code-action@v1
         timeout-minutes: 10
         with:
@@ -156,7 +156,7 @@ jobs:
 
       - name: Run tests (attempt 3)
         id: test3
-        if: steps.test2.outcome == 'success' && steps.test2.outputs.tests_passed == 'false'
+        if: steps.test2.outputs.tests_passed == 'false'
         run: ./script/sync-upstream.ts --phase test
         env:
           GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
@@ -167,7 +167,7 @@ jobs:
       # ── Determine final test result ───────────────────────
       - name: Determine final test status
         id: final
-        if: steps.sync.outputs.needs_claude == 'true'
+        if: steps.sync.outputs.sync_branch != ''
         run: |
           # Find the last test step that actually ran (priority: test3 > test2 > test1)
           for result in \
@@ -183,7 +183,7 @@ jobs:
 
       # ── Push + PR (success path) ──────────────────────────
       - name: Post-resolve sync (push + PR)
-        if: steps.sync.outputs.needs_claude == 'true' && steps.final.outputs.tests_passed == 'true'
+        if: steps.final.outputs.tests_passed == 'true'
         run: |
           ./script/sync-upstream.ts \
             --phase post-resolve \
@@ -191,7 +191,7 @@ jobs:
             --merge-base "${{ steps.sync.outputs.merge_base }}" \
             --behind "${{ steps.sync.outputs.behind }}" \
             --ahead "${{ steps.sync.outputs.ahead }}" \
-            --claude-resolved true
+            --claude-resolved "${{ steps.sync.outputs.has_conflicts == 'true' || steps.test1.outputs.tests_passed == 'false' }}"
         env:
           GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
           GH_REPO: ${{ github.repository }}
@@ -199,7 +199,7 @@ jobs:
 
       # ── Fallback: create issue ────────────────────────────
       - name: Create issue (Claude unable to fix)
-        if: steps.sync.outputs.needs_claude == 'true' && steps.final.outputs.tests_passed == 'false'
+        if: steps.final.outputs.tests_passed == 'false'
         run: |
           ./script/sync-upstream.ts \
             --phase create-issue \
