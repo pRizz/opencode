@@ -109,7 +109,7 @@ await log.Log.init({
 
 const servermod = await import("../../opencode/src/server/server")
 const inst = await import("../../opencode/src/project/instance")
-const server = servermod.Server.listen({ port: serverPort, hostname: "127.0.0.1" })
+const server = await servermod.Server.listen({ port: serverPort, hostname: "127.0.0.1" })
 console.log(`opencode server listening on http://127.0.0.1:${serverPort}`)
 
 const result = await (async () => {
