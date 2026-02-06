@@ -43,6 +43,7 @@ jobs:
 
       # ── Phase 2: Resolve conflicts (Claude) ───────────────
       - name: Resolve merge conflicts with Claude
+        id: claude_resolve
         if: steps.sync.outputs.has_conflicts == 'true'
         uses: anthropics/claude-code-action@v1
         timeout-minutes: 60
@@ -90,6 +91,26 @@ jobs:
             --model claude-opus-4-6
             --allowedTools "Edit,Write,Bash(*)"
 
+      - name: Log Claude usage (conflict resolution)
+        if: always() && steps.sync.outputs.has_conflicts == 'true'
+        run: |
+          FILE="/home/runner/work/_temp/claude-execution-output.json"
+          if [ ! -f "$FILE" ]; then
+            echo "No execution output file found."
+            exit 0
+          fi
+          INPUT=$(jq '[.[] | select(.type == "assistant") | .message.usage.input_tokens // 0] | add // 0' "$FILE")
+          OUTPUT=$(jq '[.[] | select(.type == "assistant") | .message.usage.output_tokens // 0] | add // 0' "$FILE")
+          CACHE_WRITE=$(jq '[.[] | select(.type == "assistant") | .message.usage.cache_creation_input_tokens // 0] | add // 0' "$FILE")
+          CACHE_READ=$(jq '[.[] | select(.type == "assistant") | .message.usage.cache_read_input_tokens // 0] | add // 0' "$FILE")
+          COST=$(echo "scale=4; ($INPUT * 15 / 1000000) + ($OUTPUT * 75 / 1000000) + ($CACHE_WRITE * 18.75 / 1000000) + ($CACHE_READ * 1.50 / 1000000)" | bc)
+          echo "── Claude Usage (conflict resolution) ──"
+          echo "Input tokens:       $INPUT"
+          echo "Output tokens:      $OUTPUT"
+          echo "Cache write tokens: $CACHE_WRITE"
+          echo "Cache read tokens:  $CACHE_READ"
+          echo "Estimated cost:     \$$COST"
+
       # ── Phase 3: Run tests ────────────────────────────────
       - name: Run tests after merge/resolution
         id: test1
@@ -103,6 +124,7 @@ jobs:
 
       # ── Fix attempt 1 ────────────────────────────────────
       - name: Fix test failures with Claude (attempt 1)
+        id: claude_fix1
         if: steps.test1.outputs.tests_passed == 'false'
         uses: anthropics/claude-code-action@v1
         timeout-minutes: 60
@@ -124,6 +146,26 @@ jobs:
             --model claude-opus-4-6
             --allowedTools "Edit,Write,Bash(*)"
 
+      - name: Log Claude usage (fix attempt 1)
+        if: always() && steps.test1.outputs.tests_passed == 'false'
+        run: |
+          FILE="/home/runner/work/_temp/claude-execution-output.json"
+          if [ ! -f "$FILE" ]; then
+            echo "No execution output file found."
+            exit 0
+          fi
+          INPUT=$(jq '[.[] | select(.type == "assistant") | .message.usage.input_tokens // 0] | add // 0' "$FILE")
+          OUTPUT=$(jq '[.[] | select(.type == "assistant") | .message.usage.output_tokens // 0] | add // 0' "$FILE")
+          CACHE_WRITE=$(jq '[.[] | select(.type == "assistant") | .message.usage.cache_creation_input_tokens // 0] | add // 0' "$FILE")
+          CACHE_READ=$(jq '[.[] | select(.type == "assistant") | .message.usage.cache_read_input_tokens // 0] | add // 0' "$FILE")
+          COST=$(echo "scale=4; ($INPUT * 15 / 1000000) + ($OUTPUT * 75 / 1000000) + ($CACHE_WRITE * 18.75 / 1000000) + ($CACHE_READ * 1.50 / 1000000)" | bc)
+          echo "── Claude Usage (fix attempt 1) ──"
+          echo "Input tokens:       $INPUT"
+          echo "Output tokens:      $OUTPUT"
+          echo "Cache write tokens: $CACHE_WRITE"
+          echo "Cache read tokens:  $CACHE_READ"
+          echo "Estimated cost:     \$$COST"
+
       - name: Run tests (attempt 2)
         id: test2
         if: steps.test1.outputs.tests_passed == 'false'
@@ -136,6 +178,7 @@ jobs:
 
       # ── Fix attempt 2 ────────────────────────────────────
       - name: Fix test failures with Claude (attempt 2)
+        id: claude_fix2
         if: steps.test2.outputs.tests_passed == 'false'
         uses: anthropics/claude-code-action@v1
         timeout-minutes: 60
@@ -153,6 +196,26 @@ jobs:
             --max-turns 200
             --model claude-opus-4-6
             --allowedTools "Edit,Write,Bash(*)"
+
+      - name: Log Claude usage (fix attempt 2)
+        if: always() && steps.test2.outputs.tests_passed == 'false'
+        run: |
+          FILE="/home/runner/work/_temp/claude-execution-output.json"
+          if [ ! -f "$FILE" ]; then
+            echo "No execution output file found."
+            exit 0
+          fi
+          INPUT=$(jq '[.[] | select(.type == "assistant") | .message.usage.input_tokens // 0] | add // 0' "$FILE")
+          OUTPUT=$(jq '[.[] | select(.type == "assistant") | .message.usage.output_tokens // 0] | add // 0' "$FILE")
+          CACHE_WRITE=$(jq '[.[] | select(.type == "assistant") | .message.usage.cache_creation_input_tokens // 0] | add // 0' "$FILE")
+          CACHE_READ=$(jq '[.[] | select(.type == "assistant") | .message.usage.cache_read_input_tokens // 0] | add // 0' "$FILE")
+          COST=$(echo "scale=4; ($INPUT * 15 / 1000000) + ($OUTPUT * 75 / 1000000) + ($CACHE_WRITE * 18.75 / 1000000) + ($CACHE_READ * 1.50 / 1000000)" | bc)
+          echo "── Claude Usage (fix attempt 2) ──"
+          echo "Input tokens:       $INPUT"
+          echo "Output tokens:      $OUTPUT"
+          echo "Cache write tokens: $CACHE_WRITE"
+          echo "Cache read tokens:  $CACHE_READ"
+          echo "Estimated cost:     \$$COST"
 
       - name: Run tests (attempt 3)
         id: test3
