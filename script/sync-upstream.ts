@@ -162,6 +162,16 @@ async function ensureOriginAuth() {
 // ── Test gate ─────────────────────────────────────────────
 
 async function runTestGate(): Promise<{ passed: boolean; summary: string }> {
+  // Re-run bun install after merge since the lockfile may have changed
+  // (setup-bun ran install with the pre-merge lockfile).
+  console.log("Installing dependencies (post-merge)...")
+  const deps = await $`bun install`.nothrow()
+  if (deps.exitCode !== 0) {
+    const log = `${deps.stdout.toString()}\n${deps.stderr.toString()}`
+    return { passed: false, summary: `bun install failed:\n${tailLog(log, 4000)}` }
+  }
+  console.log("Dependencies installed.")
+
   console.log("Running SDK generation...")
   const sdkGen = await $`bun ./packages/sdk/js/script/build.ts`.nothrow()
   if (sdkGen.exitCode !== 0) {
