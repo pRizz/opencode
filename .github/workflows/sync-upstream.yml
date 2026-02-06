@@ -32,6 +32,15 @@ jobs:
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
 
+      - name: Verify git push credentials
+        run: |
+          echo "Verifying push access to origin..."
+          git ls-remote --exit-code origin HEAD > /dev/null
+          echo "Push credentials verified."
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+          UPSTREAM_SYNC_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+
       # ── Phase 1: Merge ────────────────────────────────────
       - name: Sync upstream (merge phase)
         id: sync
