@@ -192,20 +192,20 @@ jobs:
       - name: Claude usage summary
         if: always() && steps.sync.outputs.sync_branch != ''
         run: |
-          declare -A LABELS=( [resolve]="conflict resolution" [fix1]="fix attempt 1" [fix2]="fix attempt 2" )
-          declare -A FILES=( [resolve]="$RUNNER_TEMP/claude-resolve.json" [fix1]="$RUNNER_TEMP/claude-fix1.json" [fix2]="$RUNNER_TEMP/claude-fix2.json" )
+          declare -A phase_labels=( [resolve]="conflict resolution" [fix1]="fix attempt 1" [fix2]="fix attempt 2" )
+          declare -A phase_files=( [resolve]="$RUNNER_TEMP/claude-resolve.json" [fix1]="$RUNNER_TEMP/claude-fix1.json" [fix2]="$RUNNER_TEMP/claude-fix2.json" )
 
-          TOT_TURNS=0 TOT_TOOLS=0 TOT_DUR=0 TOT_API=0
-          TOT_IN=0 TOT_OUT=0 TOT_CW=0 TOT_CR=0 TOT_COST=0
-          ANY_RAN=false
+          total_turns=0 total_tool_calls=0 total_duration_ms=0 total_api_duration_ms=0
+          total_input_tokens=0 total_output_tokens=0 total_cache_write_tokens=0 total_cache_read_tokens=0 total_cost=0
+          any_phase_ran=false
 
-          fmt_duration() {
-            local ms=$1
-            local secs=$(( ms / 1000 ))
-            printf '%dm %ds' $(( secs / 60 )) $(( secs % 60 ))
+          format_duration() {
+            local milliseconds=$1
+            local seconds=$(( milliseconds / 1000 ))
+            printf '%dm %ds' $(( seconds / 60 )) $(( seconds % 60 ))
           }
 
-          fmt_number() {
+          format_number() {
             printf "%'d" "$1"
           }
 
@@ -213,65 +213,65 @@ jobs:
           echo "  Claude Usage Summary"
           echo "══════════════════════════════════════════"
 
-          for key in resolve fix1 fix2; do
-            f="${FILES[$key]}"
-            label="${LABELS[$key]}"
+          for phase_key in resolve fix1 fix2; do
+            phase_file="${phase_files[$phase_key]}"
+            phase_label="${phase_labels[$phase_key]}"
             echo ""
-            echo "── $label ──"
+            echo "── $phase_label ──"
 
-            if [ ! -f "$f" ]; then
+            if [ ! -f "$phase_file" ]; then
               echo "  (skipped)"
               continue
             fi
 
-            ANY_RAN=true
-            RESULT=$(jq -r '.[] | select(.type == "result")' "$f")
-            if [ -z "$RESULT" ] || [ "$RESULT" = "null" ]; then
+            any_phase_ran=true
+            result_message=$(jq -r '.[] | select(.type == "result")' "$phase_file")
+            if [ -z "$result_message" ] || [ "$result_message" = "null" ]; then
               echo "  (no result data)"
               continue
             fi
 
-            TURNS=$(echo "$RESULT" | jq -r '.num_turns // 0')
-            COST=$(echo "$RESULT" | jq -r '.total_cost_usd // 0')
-            DUR=$(echo "$RESULT" | jq -r '.duration_ms // 0')
-            API=$(echo "$RESULT" | jq -r '.duration_api_ms // 0')
-            IN=$(echo "$RESULT" | jq -r '.usage.input_tokens // 0')
-            OUT=$(echo "$RESULT" | jq -r '.usage.output_tokens // 0')
-            CW=$(echo "$RESULT" | jq -r '.usage.cache_creation_input_tokens // 0')
-            CR=$(echo "$RESULT" | jq -r '.usage.cache_read_input_tokens // 0')
-            TOOLS=$(jq '[.[] | select(.type == "assistant") | .message.content[]? | select(.type == "tool_use")] | length' "$f")
+            turns=$(echo "$result_message" | jq -r '.num_turns // 0')
+            cost=$(echo "$result_message" | jq -r '.total_cost_usd // 0')
+            duration_ms=$(echo "$result_message" | jq -r '.duration_ms // 0')
+            api_duration_ms=$(echo "$result_message" | jq -r '.duration_api_ms // 0')
+            input_tokens=$(echo "$result_message" | jq -r '.usage.input_tokens // 0')
+            output_tokens=$(echo "$result_message" | jq -r '.usage.output_tokens // 0')
+            cache_write_tokens=$(echo "$result_message" | jq -r '.usage.cache_creation_input_tokens // 0')
+            cache_read_tokens=$(echo "$result_message" | jq -r '.usage.cache_read_input_tokens // 0')
+            tool_calls=$(jq '[.[] | select(.type == "assistant") | .message.content[]? | select(.type == "tool_use")] | length' "$phase_file")
 
-            echo "  Turns:        $TURNS"
-            echo "  Tool calls:   $TOOLS"
-            echo "  Duration:     $(fmt_duration "$DUR") (API: $(fmt_duration "$API"))"
-            echo "  Input:        $(fmt_number "$IN")"
-            echo "  Output:       $(fmt_number "$OUT")"
-            echo "  Cache write:  $(fmt_number "$CW")"
-            echo "  Cache read:   $(fmt_number "$CR")"
-            printf '  Cost:         $%.4f\n' "$COST"
+            echo "  Turns:        $turns"
+            echo "  Tool calls:   $tool_calls"
+            echo "  Duration:     $(format_duration "$duration_ms") (API: $(format_duration "$api_duration_ms"))"
+            echo "  Input:        $(format_number "$input_tokens")"
+            echo "  Output:       $(format_number "$output_tokens")"
+            echo "  Cache write:  $(format_number "$cache_write_tokens")"
+            echo "  Cache read:   $(format_number "$cache_read_tokens")"
+            printf '  Cost:         $%.4f\n' "$cost"
 
-            TOT_TURNS=$((TOT_TURNS + TURNS))
-            TOT_TOOLS=$((TOT_TOOLS + TOOLS))
-            TOT_DUR=$((TOT_DUR + DUR))
-            TOT_API=$((TOT_API + API))
-            TOT_IN=$((TOT_IN + IN))
-            TOT_OUT=$((TOT_OUT + OUT))
-            TOT_CW=$((TOT_CW + CW))
-            TOT_CR=$((TOT_CR + CR))
-            TOT_COST=$(echo "$TOT_COST + $COST" | bc)
+            total_turns=$((total_turns + turns))
+            total_tool_calls=$((total_tool_calls + tool_calls))
+            total_duration_ms=$((total_duration_ms + duration_ms))
+            total_api_duration_ms=$((total_api_duration_ms + api_duration_ms))
+            total_input_tokens=$((total_input_tokens + input_tokens))
+            total_output_tokens=$((total_output_tokens + output_tokens))
+            total_cache_write_tokens=$((total_cache_write_tokens + cache_write_tokens))
+            total_cache_read_tokens=$((total_cache_read_tokens + cache_read_tokens))
+            total_cost=$(echo "$total_cost + $cost" | bc)
           done
 
-          if [ "$ANY_RAN" = true ]; then
+          if [ "$any_phase_ran" = true ]; then
             echo ""
             echo "── TOTALS ──"
-            echo "  Turns:        $TOT_TURNS"
-            echo "  Tool calls:   $TOT_TOOLS"
-            echo "  Duration:     $(fmt_duration "$TOT_DUR") (API: $(fmt_duration "$TOT_API"))"
-            echo "  Input:        $(fmt_number "$TOT_IN")"
-            echo "  Output:       $(fmt_number "$TOT_OUT")"
-            echo "  Cache write:  $(fmt_number "$TOT_CW")"
-            echo "  Cache read:   $(fmt_number "$TOT_CR")"
-            printf '  Cost:         $%.4f\n' "$TOT_COST"
+            echo "  Turns:        $total_turns"
+            echo "  Tool calls:   $total_tool_calls"
+            echo "  Duration:     $(format_duration "$total_duration_ms") (API: $(format_duration "$total_api_duration_ms"))"
+            echo "  Input:        $(format_number "$total_input_tokens")"
+            echo "  Output:       $(format_number "$total_output_tokens")"
+            echo "  Cache write:  $(format_number "$total_cache_write_tokens")"
+            echo "  Cache read:   $(format_number "$total_cache_read_tokens")"
+            printf '  Cost:         $%.4f\n' "$total_cost"
           else
             echo ""
             echo "  No Claude steps ran."
