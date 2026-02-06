@@ -2,7 +2,8 @@ import { test, expect } from "../fixtures"
 import { promptSelector } from "../selectors"
 import { sessionIDFromUrl, withSession } from "../actions"
 
-test("can send a prompt and receive a reply", async ({ page, sdk, gotoSession }) => {
+// Skipped: flaky due to reliance on external LLM API (opencode.ai/zen/v1)
+test.skip("can send a prompt and receive a reply", async ({ page, sdk, gotoSession }) => {
   test.setTimeout(120_000)
 
   const pageErrors: string[] = []
