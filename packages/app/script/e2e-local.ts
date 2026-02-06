@@ -58,6 +58,7 @@ const sandbox = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-e2e-"))
 
 const serverEnv = {
   ...process.env,
+  OPENCODE_DISABLE_PROJECT_CONFIG: process.env.OPENCODE_DISABLE_PROJECT_CONFIG ?? "true",
   OPENCODE_DISABLE_SHARE: process.env.OPENCODE_DISABLE_SHARE ?? "true",
   OPENCODE_DISABLE_LSP_DOWNLOAD: "true",
   OPENCODE_DISABLE_DEFAULT_PLUGINS: "true",
