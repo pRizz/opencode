@@ -148,6 +148,22 @@ async function ensureUpstreamRemote() {
 // ── Test gate ─────────────────────────────────────────────
 
 async function runTestGate(): Promise<{ passed: boolean; summary: string }> {
+  console.log("Running SDK generation...")
+  const sdkGen = await $`bun ./packages/sdk/js/script/build.ts`.nothrow()
+  if (sdkGen.exitCode !== 0) {
+    const log = `${sdkGen.stdout.toString()}\n${sdkGen.stderr.toString()}`
+    return { passed: false, summary: `SDK generation failed:\n${tailLog(log, 4000)}` }
+  }
+  console.log("SDK generation passed.")
+
+  // Stage any SDK changes from generation
+  const sdkStatus = (await $`git status --porcelain packages/sdk/js`.text()).trim()
+  if (sdkStatus.length > 0) {
+    console.log("SDK generation produced changes, staging them...")
+    await $`git add packages/sdk/js`
+    await $`git commit -m "chore: regenerate SDK types after upstream sync"`
+  }
+
   console.log("Running typecheck...")
   const typecheck = await $`bun turbo typecheck`.nothrow()
   if (typecheck.exitCode !== 0) {
