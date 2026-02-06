@@ -17,6 +17,7 @@ permissions:
 jobs:
   sync:
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -30,8 +31,176 @@ jobs:
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
 
-      - name: Sync upstream
-        run: ./script/sync-upstream.ts
+      # ── Phase 1: Merge ────────────────────────────────────
+      - name: Sync upstream (merge phase)
+        id: sync
+        run: ./script/sync-upstream.ts --phase merge
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+          GH_REPO: ${{ github.repository }}
+          UPSTREAM_SYNC_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+
+      # ── Phase 2: Resolve conflicts (Claude) ───────────────
+      - name: Resolve merge conflicts with Claude
+        if: steps.sync.outputs.needs_claude == 'true' && steps.sync.outputs.has_conflicts == 'true'
+        uses: anthropics/claude-code-action@v1
+        timeout-minutes: 10
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            This repository is a fork of anomalyco/opencode being synced with upstream.
+            A `git merge parent-dev` produced conflicts in these files:
+
+            ${{ steps.sync.outputs.conflicted_files }}
+
+            ## Context
+
+            This fork maintains custom features layered on top of upstream. Read
+            `docs/upstream-sync/fork-feature-audit.md` — it is the authoritative
+            inventory of fork-specific features and file ownership.
+
+            Fork-specific behavior lives in `packages/fork-*` with thin re-export
+            stubs in the main codebase. Upstream changes to core packages should
+            generally be accepted.
+
+            ## Resolution Rules
+
+            For each conflicted file:
+            1. Read `docs/upstream-sync/fork-feature-audit.md` to determine ownership.
+            2. Upstream-owned files (not in audit): accept upstream version entirely.
+            3. Fork-owned files (`packages/fork-*`): preserve fork version, incorporate
+               non-contradicting upstream changes.
+            4. Shared surfaces (re-export stubs in `packages/opencode/src/`): accept
+               upstream structural changes, preserve fork hook integration points.
+            5. Config/infra files: merge both sides, keep fork additions alongside
+               upstream updates.
+
+            ## Steps
+
+            1. Read `docs/upstream-sync/fork-feature-audit.md`.
+            2. Resolve each conflicted file per the rules. Remove ALL conflict markers.
+            3. Stage resolved files with `git add`.
+            4. Run `git commit --no-edit` to finalize the merge commit.
+
+            Do NOT run tests or push. Do NOT make changes beyond conflict resolution.
+          claude_args: >-
+            --max-turns 30
+            --model claude-opus-4-6
+
+      # ── Phase 3: Run tests ────────────────────────────────
+      - name: Run tests after merge/resolution
+        id: test1
+        if: steps.sync.outputs.needs_claude == 'true'
+        run: ./script/sync-upstream.ts --phase test
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+          GH_REPO: ${{ github.repository }}
+          UPSTREAM_SYNC_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+        continue-on-error: true
+
+      # ── Fix attempt 1 ────────────────────────────────────
+      - name: Fix test failures with Claude (attempt 1)
+        if: steps.sync.outputs.needs_claude == 'true' && steps.test1.outputs.tests_passed == 'false'
+        uses: anthropics/claude-code-action@v1
+        timeout-minutes: 10
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            This repository is a fork of anomalyco/opencode. An upstream sync merge
+            succeeded but typecheck or e2e tests are failing:
+
+            ${{ steps.test1.outputs.test_failures }}
+
+            Read `docs/upstream-sync/fork-feature-audit.md` for context on which
+            files are fork-owned vs upstream-owned.
+
+            Fix the errors. Commit your changes. Do NOT run tests or push.
+          claude_args: >-
+            --max-turns 20
+            --model claude-opus-4-6
+
+      - name: Run tests (attempt 2)
+        id: test2
+        if: steps.sync.outputs.needs_claude == 'true' && steps.test1.outputs.tests_passed == 'false'
+        run: ./script/sync-upstream.ts --phase test
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+          GH_REPO: ${{ github.repository }}
+          UPSTREAM_SYNC_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+        continue-on-error: true
+
+      # ── Fix attempt 2 ────────────────────────────────────
+      - name: Fix test failures with Claude (attempt 2)
+        if: steps.test2.outcome == 'success' && steps.test2.outputs.tests_passed == 'false'
+        uses: anthropics/claude-code-action@v1
+        timeout-minutes: 10
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Upstream sync tests still failing after first fix attempt:
+
+            ${{ steps.test2.outputs.test_failures }}
+
+            Read `docs/upstream-sync/fork-feature-audit.md` for context.
+            Fix the errors. Commit your changes. Do NOT run tests or push.
+          claude_args: >-
+            --max-turns 20
+            --model claude-opus-4-6
+
+      - name: Run tests (attempt 3)
+        id: test3
+        if: steps.test2.outcome == 'success' && steps.test2.outputs.tests_passed == 'false'
+        run: ./script/sync-upstream.ts --phase test
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+          GH_REPO: ${{ github.repository }}
+          UPSTREAM_SYNC_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+        continue-on-error: true
+
+      # ── Determine final test result ───────────────────────
+      - name: Determine final test status
+        id: final
+        if: steps.sync.outputs.needs_claude == 'true'
+        run: |
+          # Find the last test step that actually ran (priority: test3 > test2 > test1)
+          for result in \
+            "${{ steps.test3.outputs.tests_passed }}" \
+            "${{ steps.test2.outputs.tests_passed }}" \
+            "${{ steps.test1.outputs.tests_passed }}"; do
+            if [ -n "$result" ]; then
+              echo "tests_passed=$result" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          echo "tests_passed=false" >> "$GITHUB_OUTPUT"
+
+      # ── Push + PR (success path) ──────────────────────────
+      - name: Post-resolve sync (push + PR)
+        if: steps.sync.outputs.needs_claude == 'true' && steps.final.outputs.tests_passed == 'true'
+        run: |
+          ./script/sync-upstream.ts \
+            --phase post-resolve \
+            --branch "${{ steps.sync.outputs.sync_branch }}" \
+            --merge-base "${{ steps.sync.outputs.merge_base }}" \
+            --behind "${{ steps.sync.outputs.behind }}" \
+            --ahead "${{ steps.sync.outputs.ahead }}" \
+            --claude-resolved true
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+          GH_REPO: ${{ github.repository }}
+          UPSTREAM_SYNC_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+
+      # ── Fallback: create issue ────────────────────────────
+      - name: Create issue (Claude unable to fix)
+        if: steps.sync.outputs.needs_claude == 'true' && steps.final.outputs.tests_passed == 'false'
+        run: |
+          ./script/sync-upstream.ts \
+            --phase create-issue \
+            --branch "${{ steps.sync.outputs.sync_branch }}" \
+            --merge-base "${{ steps.sync.outputs.merge_base }}" \
+            --behind "${{ steps.sync.outputs.behind }}" \
+            --ahead "${{ steps.sync.outputs.ahead }}" \
+            --had-conflicts "${{ steps.sync.outputs.has_conflicts }}"
         env:
           GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
           GH_REPO: ${{ github.repository }}

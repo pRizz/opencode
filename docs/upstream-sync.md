@@ -46,23 +46,33 @@ wc -l docs/upstream-sync/upstream-first-parent.txt > docs/upstream-sync/upstream
    - Open a PR to `dev` labeled `sync` and merge after CI passes.
 
 ## Ongoing Sync Automation
-- Script: `script/sync-upstream.ts`
+- Script: `script/sync-upstream.ts` (phase-based: `--phase merge|test|post-resolve|create-issue`)
 - Workflow: `.github/workflows/sync-upstream.yml` (runs every 30 minutes)
 - Mirror verification script: `script/verify-upstream-mirror.sh`
-- Token behavior: uses `UPSTREAM_SYNC_TOKEN` when configured, otherwise falls back to `${{ github.token }}`.
+- Required secrets:
+  - `UPSTREAM_SYNC_TOKEN` — GitHub token for repo operations (falls back to `${{ github.token }}`)
+  - `ANTHROPIC_API_KEY` — Anthropic API key for Claude Code Action (conflict resolution + test fixes)
 - Workflow behavior:
   - Verifies mirror health before running sync:
     - fails only if `origin/parent-dev` has commits not in `upstream/dev` (unsafe drift)
     - allows upstream-ahead stale state and lets sync refresh `parent-dev` via force update
   - Updates `parent-dev` to match `upstream/dev` (force push).
-  - Runs linux e2e gate before PR creation:
+  - Attempts merge and runs typecheck + e2e gate:
+    - `bun turbo typecheck`
     - installs Playwright dependencies
     - runs `bun run test:e2e:local -- --workers=2` in `packages/app`
-  - Opens a sync PR when upstream is ahead.
+  - Opens a sync PR when upstream is ahead and merge + tests succeed.
   - Creates/uses labels in the fork repository (`sync`, `sync-conflict`) via CLI.
   - Enables auto-merge once checks pass.
-  - On conflict, opens an issue (prefers `sync-conflict` label) with merge details.
-  - On e2e gate failure, opens an issue (prefers `sync-e2e-failure` label) with log excerpts.
+  - On conflict, invokes Claude Code Action (`anthropics/claude-code-action@v1`) to resolve automatically:
+    - Claude reads `docs/upstream-sync/fork-feature-audit.md` for ownership context
+    - Resolves conflicts per fork ownership rules (upstream-owned vs fork-owned files)
+    - After resolution, script runs typecheck + e2e tests
+  - On test failure (clean merge or post-conflict), invokes Claude to fix errors:
+    - Up to 2 fix attempts, each followed by a test re-run
+    - Claude receives test failure output and fixes code without running tests itself
+  - On success (tests pass), creates PR with auto-merge enabled
+  - On failure (Claude exhausts attempts), creates an issue with `sync-conflict` or `sync-e2e-failure` label
 
 Manual dispatch and monitoring:
 ```bash
@@ -71,7 +81,14 @@ gh run list --workflow sync-upstream.yml --repo pRizz/opencode --limit 1
 gh run view <run-id> --repo pRizz/opencode --log
 ```
 
-Conflict handling:
+Conflict handling (automated):
+1. Claude Code Action resolves conflicts using fork-feature-audit.md as ownership source of truth.
+2. Script runs typecheck + e2e tests after resolution.
+3. If tests fail, Claude attempts fixes (up to 2 retries).
+4. If successful, PR is created with "fixed by Claude" in the title.
+5. PRs with Claude-resolved conflicts should still be reviewed by a human.
+
+Conflict handling (manual fallback):
 1. Check the `sync-conflict` issue for merge-base and conflict context.
 2. Create `sync/catchup-hotfix-<date>` from `dev`.
 3. Resolve conflicts with `docs/upstream-sync/fork-feature-audit.md` as ownership source of truth.
