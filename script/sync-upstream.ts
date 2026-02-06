@@ -57,11 +57,16 @@ function utcHuman(date = new Date()): string {
 }
 
 function parseGitHubRepo(url: string): string | undefined {
-  const match = url.trim().match(/(?:https:\/\/|git@)github\.com[/:]([^/\s]+\/[^/\s]+?)(?:\.git)?$/)
+  // Handles HTTPS (with optional user:token@ credentials), SSH, and git@ URLs
+  const match = url.trim().match(/(?:https:\/\/(?:[^@]+@)?|git@)github\.com[/:]([^/\s]+\/[^/\s]+?)(?:\.git)?$/)
   return match?.[1]
 }
 
 async function resolveOriginRepo(): Promise<string> {
+  // Prefer GH_REPO env var (set by workflow), fall back to parsing git remote
+  const envRepo = process.env.GH_REPO
+  if (envRepo) return envRepo
+
   const remote = (await $`git remote get-url ${REMOTE_ORIGIN}`.text()).trim()
   const repo = parseGitHubRepo(remote)
   if (!repo) {
