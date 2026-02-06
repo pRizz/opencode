@@ -75,8 +75,11 @@ const serverEnv = {
   OPENCODE_CLIENT: "app",
 } satisfies Record<string, string>
 
+const playwrightBrowsersPath = process.env.PLAYWRIGHT_BROWSERS_PATH ?? path.join(process.env.HOME ?? os.homedir(), ".cache", "ms-playwright")
+
 const runnerEnv = {
   ...serverEnv,
+  PLAYWRIGHT_BROWSERS_PATH: playwrightBrowsersPath,
   PLAYWRIGHT_SERVER_HOST: "127.0.0.1",
   PLAYWRIGHT_SERVER_PORT: String(serverPort),
   VITE_OPENCODE_SERVER_HOST: "127.0.0.1",
