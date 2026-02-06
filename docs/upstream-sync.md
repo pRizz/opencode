@@ -57,7 +57,8 @@ wc -l docs/upstream-sync/upstream-first-parent.txt > docs/upstream-sync/upstream
     - fails only if `origin/parent-dev` has commits not in `upstream/dev` (unsafe drift)
     - allows upstream-ahead stale state and lets sync refresh `parent-dev` via force update
   - Updates `parent-dev` to match `upstream/dev` (force push).
-  - Attempts merge and runs SDK generation + typecheck + e2e gate:
+  - Attempts merge (no tests in merge phase — testing is a separate workflow step).
+  - After merge (or conflict resolution), runs SDK generation + typecheck + e2e gate:
     - `bun ./packages/sdk/js/script/build.ts` (regenerates SDK types from OpenAPI spec)
     - `bun turbo typecheck`
     - installs Playwright dependencies
