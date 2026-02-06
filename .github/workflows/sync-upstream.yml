@@ -48,6 +48,7 @@ jobs:
         timeout-minutes: 10
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          show_full_output: true
           prompt: |
             This repository is a fork of anomalyco/opencode being synced with upstream.
             A `git merge parent-dev` produced conflicts in these files:
@@ -106,6 +107,7 @@ jobs:
         timeout-minutes: 10
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          show_full_output: true
           prompt: |
             This repository is a fork of anomalyco/opencode. An upstream sync merge
             succeeded but typecheck or e2e tests are failing:
@@ -137,6 +139,7 @@ jobs:
         timeout-minutes: 10
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          show_full_output: true
           prompt: |
             Upstream sync tests still failing after first fix attempt:
 
