@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: "0 */2 * * *"
   workflow_dispatch:
+    inputs:
+      force:
+        description: "Run sync even if open issues exist"
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: sync-upstream
@@ -15,7 +21,63 @@ permissions:
   id-token: write
 
 jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    outputs:
+      should_skip: ${{ steps.check.outputs.should_skip }}
+      blocking_issue: ${{ steps.check.outputs.blocking_issue }}
+    steps:
+      - name: Check for open sync-failure issues
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+        run: |
+          if [ "${{ inputs.force }}" = "true" ]; then
+            echo "Force flag set — skipping preflight check"
+            echo "should_skip=false" >> "$GITHUB_OUTPUT"
+            echo "blocking_issue=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          should_skip=false
+          blocking_issue=""
+
+          for label in sync-conflict sync-e2e-failure sync-push-failure; do
+            result=$(gh issue list \
+              --repo "${{ github.repository }}" \
+              --state open \
+              --label "$label" \
+              --json number,title \
+              --limit 1)
+
+            count=$(echo "$result" | jq length)
+            if [ "$count" -gt 0 ]; then
+              should_skip=true
+              issue_number=$(echo "$result" | jq -r '.[0].number')
+              issue_title=$(echo "$result" | jq -r '.[0].title')
+              blocking_issue="#${issue_number}: ${issue_title} (label: ${label})"
+              break
+            fi
+          done
+
+          echo "should_skip=$should_skip" >> "$GITHUB_OUTPUT"
+          echo "blocking_issue=$blocking_issue" >> "$GITHUB_OUTPUT"
+
+      - name: Report skip reason
+        if: steps.check.outputs.should_skip == 'true'
+        run: |
+          echo "::warning::Sync skipped — unresolved issue exists: ${{ steps.check.outputs.blocking_issue }}"
+          echo "## Sync Skipped" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "An unresolved sync-failure issue is still open:" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**${{ steps.check.outputs.blocking_issue }}**" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "The sync workflow will not run until this issue is closed." >> "$GITHUB_STEP_SUMMARY"
+
   sync:
+    needs: preflight
+    if: needs.preflight.outputs.should_skip != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     steps:
