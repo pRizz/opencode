@@ -7904,6 +7904,9 @@
               "cache"
             ]
           },
+          "variant": {
+            "type": "string"
+          },
           "finish": {
             "type": "string"
           }

@@ -28,6 +28,8 @@ import { proxied } from "@/util/proxied"
 import { iife } from "@/util/iife"
 
 export namespace Config {
+  const ModelId = z.string().meta({ $ref: "https://models.dev/model-schema.json#/$defs/Model" })
+
   const log = Log.create({ service: "config" })
 
   // Custom merge function that concatenates array fields instead of replacing them
@@ -634,7 +636,7 @@ export namespace Config {
     template: z.string(),
     description: z.string().optional(),
     agent: z.string().optional(),
-    model: z.string().optional(),
+    model: ModelId.optional(),
     subtask: z.boolean().optional(),
   })
   export type Command = z.infer<typeof Command>
@@ -651,7 +653,11 @@ export namespace Config {
 
   export const Agent = z
     .object({
-      model: z.string().optional(),
+      model: ModelId.optional(),
+      variant: z
+        .string()
+        .optional()
+        .describe("Default model variant for this agent (applies only when using the agent's configured model)."),
       temperature: z.number().optional(),
       top_p: z.number().optional(),
       prompt: z.string().optional(),
@@ -1045,11 +1051,10 @@ export namespace Config {
         .array(z.string())
         .optional()
         .describe("When set, ONLY these providers will be enabled. All other providers will be ignored"),
-      model: z.string().describe("Model to use in the format of provider/model, eg anthropic/claude-2").optional(),
-      small_model: z
-        .string()
-        .describe("Small model to use for tasks like title generation in the format of provider/model")
-        .optional(),
+      model: ModelId.describe("Model to use in the format of provider/model, eg anthropic/claude-2").optional(),
+      small_model: ModelId.describe(
+        "Small model to use for tasks like title generation in the format of provider/model",
+      ).optional(),
       default_agent: z
         .string()
         .optional()
