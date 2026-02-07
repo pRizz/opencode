@@ -50,6 +50,12 @@ bun run test:e2e:local -- --ui e2e/settings/settings-authentication.spec.ts
 PWDEBUG=1 bun run test:e2e:local -- --headed --project=chromium e2e/settings/settings-authentication.spec.ts
 ```
 
+### Headless Runs
+
+```bash
+bun run test:e2e:local -- --project=chromium e2e/settings/settings-authentication.spec.ts
+```
+
 Environment options:
 
 - `PLAYWRIGHT_SERVER_HOST` / `PLAYWRIGHT_SERVER_PORT` (backend address, default: `localhost:4096`)

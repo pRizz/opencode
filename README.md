@@ -135,6 +135,12 @@ bun run --cwd packages/app test:e2e:local -- --ui e2e/settings/settings-authenti
 PWDEBUG=1 bun run --cwd packages/app test:e2e:local -- --headed --project=chromium e2e/settings/settings-authentication.spec.ts
 ```
 
+Headless run (default Playwright mode):
+
+```bash
+bun run --cwd packages/app test:e2e:local -- --project=chromium e2e/settings/settings-authentication.spec.ts
+```
+
 For broader E2E command options and environment variables, see [`packages/app/README.md`](packages/app/README.md).
 
 ### Contributing
