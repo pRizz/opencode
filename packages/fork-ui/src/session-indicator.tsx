@@ -196,6 +196,7 @@ export function SessionIndicator(props: SessionIndicatorProps) {
           variant="ghost"
           size="small"
           class="text-text-base hover:bg-surface-base-active flex items-center gap-1"
+          data-action="settings-authentication-menu-trigger"
         >
           {displayUsername()}
           <Icon name="chevron-down" size="small" />
@@ -210,25 +211,28 @@ export function SessionIndicator(props: SessionIndicatorProps) {
             <Show when={showDeviceTrustOptions()}>
               <DropdownMenu.Separator />
               <Show when={isDeviceTrusted()}>
-                <DropdownMenu.Item onSelect={handleForgetDevice}>
+                <DropdownMenu.Item onSelect={handleForgetDevice} data-action="settings-authentication-menu-forget-device">
                   <DropdownMenu.ItemLabel>Forget this device (require 2FA)</DropdownMenu.ItemLabel>
                 </DropdownMenu.Item>
               </Show>
-              <DropdownMenu.Item onSelect={isTwoFactorConfigured() ? handleManage2FA : handleSetup2FA}>
+              <DropdownMenu.Item
+                onSelect={isTwoFactorConfigured() ? handleManage2FA : handleSetup2FA}
+                data-action="settings-authentication-menu-2fa"
+              >
                 <DropdownMenu.ItemLabel>
                   {isTwoFactorConfigured() ? "Manage 2FA" : isTwoFactorOptedOut() ? "Enable 2FA" : "Set up 2FA"}
                 </DropdownMenu.ItemLabel>
               </DropdownMenu.Item>
             </Show>
             <DropdownMenu.Separator />
-            <DropdownMenu.Item onSelect={handleManagePasskeys}>
+            <DropdownMenu.Item onSelect={handleManagePasskeys} data-action="settings-authentication-menu-passkeys">
               <DropdownMenu.ItemLabel>Manage passkeys</DropdownMenu.ItemLabel>
             </DropdownMenu.Item>
             <DropdownMenu.Separator />
-            <DropdownMenu.Item onSelect={handleLogout}>
+            <DropdownMenu.Item onSelect={handleLogout} data-action="settings-authentication-menu-logout">
               <DropdownMenu.ItemLabel>Log out</DropdownMenu.ItemLabel>
             </DropdownMenu.Item>
-            <DropdownMenu.Item onSelect={handleLogoutAll}>
+            <DropdownMenu.Item onSelect={handleLogoutAll} data-action="settings-authentication-menu-logout-all">
               <DropdownMenu.ItemLabel>Log out all sessions</DropdownMenu.ItemLabel>
             </DropdownMenu.Item>
           </DropdownMenu.Content>

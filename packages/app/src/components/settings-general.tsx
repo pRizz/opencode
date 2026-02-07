@@ -5,8 +5,10 @@ import { Select } from "@opencode-ai/ui/select"
 import { Switch } from "@opencode-ai/ui/switch"
 import { useTheme, type ColorScheme } from "@opencode-ai/ui/theme"
 import { showToast } from "@opencode-ai/ui/toast"
+import { SettingsAuthenticationSection } from "@opencode-ai/fork-ui"
 import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
+import { useServer } from "@/context/server"
 import { useSettings, monoFontFamily } from "@/context/settings"
 import { playSound, SOUND_OPTIONS } from "@/utils/sound"
 import { Link } from "./link"
@@ -34,6 +36,7 @@ export const SettingsGeneral: Component = () => {
   const theme = useTheme()
   const language = useLanguage()
   const platform = usePlatform()
+  const server = useServer()
   const settings = useSettings()
 
   const [store, setStore] = createStore({
@@ -280,6 +283,8 @@ export const SettingsGeneral: Component = () => {
             </SettingsRow>
           </div>
         </div>
+
+        <SettingsAuthenticationSection getServerUrl={() => server.url} />
 
         {/* Sound effects Section */}
         <div class="flex flex-col gap-1">
