@@ -184,7 +184,14 @@ function requestIPFromTarget(target: unknown, request: Request): string | undefi
   const requestIP = (target as { requestIP?: (request: Request) => unknown }).requestIP
   if (typeof requestIP !== "function") return undefined
 
-  const value = requestIP(request)
+  // Bun's requestIP implementation expects the server/env object as `this`.
+  // Calling it unbound can throw: "Expected this to be instanceof DebugHTTPServer".
+  let value: unknown
+  try {
+    value = requestIP.call(target, request)
+  } catch {
+    return undefined
+  }
   if (!value) return undefined
 
   if (typeof value === "string") {

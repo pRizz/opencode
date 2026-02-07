@@ -795,7 +795,9 @@ export function LoginApp() {
                   />
                 </div>
                 <div class="bootstrap-hint">
-                  Run <code>docker logs &lt;container&gt;</code> and copy the IOTP value shown at startup.
+                  Run <code>docker logs &lt;container&gt;</code> and copy the <code>IOTP value</code> shown at
+                  startup, or run <code>occ status</code> (or <code>opencode-cloud status</code>) on the host and
+                  copy <code>IOTP value</code>.
                 </div>
               </div>
               <Show when={!state.bootstrapOtpVerified && !shouldBlock}>
