@@ -1,9 +1,9 @@
 import { describe, test, expect, mock, beforeEach } from "bun:test"
 import { Hono } from "hono"
 import path from "path"
-import type { AuthResult } from "../../../../opencode/src/auth/broker-client"
-import type { UnixUserInfo } from "../../../../opencode/src/auth/user-info"
-import type { AuthConfig } from "../../../../opencode/src/config/auth"
+import type { AuthResult } from "../../../src/auth/broker-client"
+import type { UnixUserInfo } from "../../../src/auth/user-info"
+import type { AuthConfig } from "../../../src/config/auth"
 
 // Mock state with explicit types
 const mockAuthenticate = mock<() => Promise<AuthResult>>(() => Promise.resolve({ success: true }))
@@ -17,6 +17,31 @@ const mockGetUserInfo = mock<() => Promise<UnixUserInfo | null>>(() =>
     shell: "/bin/bash",
   }),
 )
+
+const mockCreatePasskeyAuthenticationOptions = mock<
+  () => Promise<{ options: Record<string, unknown>; challengeToken: string }>
+>(() =>
+  Promise.resolve({
+    options: { challenge: "challenge", rpId: "localhost" },
+    challengeToken: "challenge-token",
+  }),
+)
+const mockVerifyPasskeyAuthentication = mock<() => Promise<{ verified: boolean; username?: string; error?: string }>>(
+  () => Promise.resolve({ verified: false, error: "failed" }),
+)
+const mockCreatePasskeyRegistrationOptions = mock<
+  () => Promise<{ options: Record<string, unknown>; challengeToken: string }>
+>(() =>
+  Promise.resolve({
+    options: { challenge: "registration-challenge" },
+    challengeToken: "registration-token",
+  }),
+)
+const mockVerifyPasskeyRegistration = mock<
+  () => Promise<{ verified: boolean; credential?: Record<string, unknown>; error?: string }>
+>(() => Promise.resolve({ verified: false, error: "failed" }))
+const mockListUserPasskeys = mock<() => Promise<Array<Record<string, unknown>>>>(() => Promise.resolve([]))
+const mockRemoveUserPasskey = mock<() => Promise<boolean>>(() => Promise.resolve(false))
 
 // Server auth config state for mocking
 let mockAuthConfig: AuthConfig = {
@@ -39,6 +64,11 @@ let mockAuthConfig: AuthConfig = {
   otpRateLimitMax: 5,
   otpRateLimitWindow: "15m",
   twoFactorRequired: false,
+  passkeysEnabled: false,
+  passkeyRpName: "opencode",
+  passkeyAllowedOrigins: [],
+  passkeyChallengeTimeout: "5m",
+  passkeyRequireUserVerification: true,
 }
 
 // Mock for registerSession (fire-and-forget, just needs to not throw)
@@ -51,8 +81,33 @@ mock.module("../../../src/auth/broker-client", () => ({
     registerSession = mockRegisterSession
   },
 }))
+mock.module("@opencode-ai/fork-auth/auth/broker-client", () => ({
+  BrokerClient: class {
+    authenticate = mockAuthenticate
+    registerSession = mockRegisterSession
+  },
+}))
 mock.module("../../../src/auth/user-info", () => ({
   getUserInfo: mockGetUserInfo,
+}))
+mock.module("@opencode-ai/fork-auth/auth/user-info", () => ({
+  getUserInfo: mockGetUserInfo,
+}))
+mock.module("../../../src/auth/passkey", () => ({
+  createPasskeyAuthenticationOptions: mockCreatePasskeyAuthenticationOptions,
+  verifyPasskeyAuthentication: mockVerifyPasskeyAuthentication,
+  createPasskeyRegistrationOptions: mockCreatePasskeyRegistrationOptions,
+  verifyPasskeyRegistration: mockVerifyPasskeyRegistration,
+  listUserPasskeys: mockListUserPasskeys,
+  removeUserPasskey: mockRemoveUserPasskey,
+}))
+mock.module("@opencode-ai/fork-auth/auth/passkey", () => ({
+  createPasskeyAuthenticationOptions: mockCreatePasskeyAuthenticationOptions,
+  verifyPasskeyAuthentication: mockVerifyPasskeyAuthentication,
+  createPasskeyRegistrationOptions: mockCreatePasskeyRegistrationOptions,
+  verifyPasskeyRegistration: mockVerifyPasskeyRegistration,
+  listUserPasskeys: mockListUserPasskeys,
+  removeUserPasskey: mockRemoveUserPasskey,
 }))
 mock.module("../../../src/config/server-auth", () => ({
   ServerAuth: {
@@ -82,6 +137,48 @@ mock.module("../../../src/config/server-auth", () => ({
         otpRateLimitMax: 5,
         otpRateLimitWindow: "15m",
         twoFactorRequired: false,
+        passkeysEnabled: false,
+        passkeyRpName: "opencode",
+        passkeyAllowedOrigins: [],
+        passkeyChallengeTimeout: "5m",
+        passkeyRequireUserVerification: true,
+      }
+    },
+  },
+}))
+mock.module("@opencode-ai/fork-auth/server-auth", () => ({
+  ServerAuth: {
+    get: () => mockAuthConfig,
+    isEnabled: () => mockAuthConfig.enabled,
+    _setForTesting: (config: AuthConfig) => {
+      mockAuthConfig = config
+    },
+    _reset: () => {
+      mockAuthConfig = {
+        enabled: true,
+        method: "pam",
+        sessionTimeout: "7d",
+        rememberMeDuration: "90d",
+        requireHttps: "warn",
+        rateLimiting: false, // Disabled by default for tests
+        rateLimitWindow: "15m",
+        rateLimitMax: 5,
+        allowedUsers: [],
+        sessionPersistence: true,
+        csrfVerboseErrors: false,
+        debugBrokerErrors: true,
+        csrfAllowlist: [],
+        twoFactorEnabled: false,
+        twoFactorTokenTimeout: "5m",
+        deviceTrustDuration: "30d",
+        otpRateLimitMax: 5,
+        otpRateLimitWindow: "15m",
+        twoFactorRequired: false,
+        passkeysEnabled: false,
+        passkeyRpName: "opencode",
+        passkeyAllowedOrigins: [],
+        passkeyChallengeTimeout: "5m",
+        passkeyRequireUserVerification: true,
       }
     },
   },
@@ -115,6 +212,11 @@ function setMockAuthConfig(config: Partial<AuthConfig>) {
     otpRateLimitMax: 5,
     otpRateLimitWindow: "15m",
     twoFactorRequired: false,
+    passkeysEnabled: false,
+    passkeyRpName: "opencode",
+    passkeyAllowedOrigins: [],
+    passkeyChallengeTimeout: "5m",
+    passkeyRequireUserVerification: true,
     ...config,
   }
 }
@@ -126,6 +228,12 @@ describe("POST /auth/login", () => {
     // Reset mocks
     mockAuthenticate.mockClear()
     mockGetUserInfo.mockClear()
+    mockCreatePasskeyAuthenticationOptions.mockClear()
+    mockVerifyPasskeyAuthentication.mockClear()
+    mockCreatePasskeyRegistrationOptions.mockClear()
+    mockVerifyPasskeyRegistration.mockClear()
+    mockListUserPasskeys.mockClear()
+    mockRemoveUserPasskey.mockClear()
 
     // Default successful mocks
     mockAuthenticate.mockResolvedValue({ success: true })
@@ -137,6 +245,18 @@ describe("POST /auth/login", () => {
       home: "/home/testuser",
       shell: "/bin/bash",
     })
+    mockCreatePasskeyAuthenticationOptions.mockResolvedValue({
+      options: { challenge: "challenge", rpId: "localhost" },
+      challengeToken: "challenge-token",
+    })
+    mockVerifyPasskeyAuthentication.mockResolvedValue({ verified: false, error: "failed" })
+    mockCreatePasskeyRegistrationOptions.mockResolvedValue({
+      options: { challenge: "registration-challenge" },
+      challengeToken: "registration-token",
+    })
+    mockVerifyPasskeyRegistration.mockResolvedValue({ verified: false, error: "failed" })
+    mockListUserPasskeys.mockResolvedValue([])
+    mockRemoveUserPasskey.mockResolvedValue(false)
     setMockAuthConfig({ enabled: true, method: "pam" })
 
     app = new Hono().route("/auth", AuthRoutes())
@@ -420,6 +540,205 @@ describe("GET /auth/status", () => {
   })
 })
 
+describe("Passkey routes", () => {
+  let app: Hono
+
+  beforeEach(() => {
+    mockAuthenticate.mockClear()
+    mockGetUserInfo.mockClear()
+    mockCreatePasskeyAuthenticationOptions.mockClear()
+    mockVerifyPasskeyAuthentication.mockClear()
+    mockCreatePasskeyRegistrationOptions.mockClear()
+    mockVerifyPasskeyRegistration.mockClear()
+    mockListUserPasskeys.mockClear()
+    mockRemoveUserPasskey.mockClear()
+
+    mockGetUserInfo.mockResolvedValue({
+      username: "testuser",
+      uid: 1000,
+      gid: 1000,
+      gecos: "Test User",
+      home: "/home/testuser",
+      shell: "/bin/bash",
+    })
+    mockCreatePasskeyAuthenticationOptions.mockResolvedValue({
+      options: { challenge: "challenge", rpId: "localhost" },
+      challengeToken: "challenge-token",
+    })
+    mockVerifyPasskeyAuthentication.mockResolvedValue({ verified: false, error: "failed" })
+    mockCreatePasskeyRegistrationOptions.mockResolvedValue({
+      options: { challenge: "registration-challenge" },
+      challengeToken: "registration-token",
+    })
+    mockVerifyPasskeyRegistration.mockResolvedValue({ verified: false, error: "failed" })
+    mockListUserPasskeys.mockResolvedValue([])
+    mockRemoveUserPasskey.mockResolvedValue(false)
+
+    setMockAuthConfig({
+      enabled: true,
+      method: "pam",
+      passkeysEnabled: true,
+    })
+
+    app = new Hono().route("/auth", AuthRoutes())
+  })
+
+  test("POST /auth/passkey/auth/options returns 403 when passkeys are disabled", async () => {
+    setMockAuthConfig({
+      enabled: true,
+      passkeysEnabled: false,
+    })
+
+    const res = await app.request("https://example.com/auth/passkey/auth/options", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body: JSON.stringify({}),
+    })
+
+    expect(res.status).toBe(403)
+    expect((await res.json()).error).toBe("passkeys_disabled")
+  })
+
+  test("POST /auth/passkey/auth/options returns challenge options when enabled", async () => {
+    const res = await app.request("https://example.com/auth/passkey/auth/options", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body: JSON.stringify({ username: "testuser" }),
+    })
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.success).toBe(true)
+    expect(body.challengeToken).toBe("challenge-token")
+  })
+
+  test("POST /auth/passkey/auth/verify creates a session on success", async () => {
+    mockVerifyPasskeyAuthentication.mockResolvedValue({
+      verified: true,
+      username: "testuser",
+    })
+
+    const res = await app.request("https://example.com/auth/passkey/auth/verify", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body: JSON.stringify({
+        challengeToken: "challenge-token",
+        response: { id: "credential-id" },
+      }),
+    })
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.success).toBe(true)
+    expect(body.user.username).toBe("testuser")
+    expect(res.headers.get("Set-Cookie")).toContain("opencode_session=")
+  })
+
+  test("POST /auth/passkey/auth/verify returns 401 for invalid challenge", async () => {
+    mockVerifyPasskeyAuthentication.mockResolvedValue({
+      verified: false,
+      error: "invalid_challenge",
+    })
+
+    const res = await app.request("https://example.com/auth/passkey/auth/verify", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body: JSON.stringify({
+        challengeToken: "expired",
+        response: { id: "credential-id" },
+      }),
+    })
+
+    expect(res.status).toBe(401)
+    expect((await res.json()).error).toBe("token_expired")
+  })
+
+  test("GET /auth/passkey/list requires an authenticated session", async () => {
+    const res = await app.request("/auth/passkey/list")
+    expect(res.status).toBe(401)
+    expect((await res.json()).error).toBe("not_authenticated")
+  })
+
+  test("GET /auth/passkey/list returns passkeys for authenticated session", async () => {
+    const authed = new Hono()
+    authed.use("/auth/passkey/*", async (c, next) => {
+      c.set("session", {
+        id: "session-id",
+        username: "testuser",
+        uid: 1000,
+        gid: 1000,
+        home: "/home/testuser",
+        shell: "/bin/bash",
+        createdAt: Date.now(),
+        lastAccessTime: Date.now(),
+      })
+      return next()
+    })
+    authed.route("/auth", AuthRoutes())
+
+    mockListUserPasskeys.mockResolvedValue([
+      {
+        credentialId: "cred-1",
+        deviceLabel: "MacBook Touch ID",
+        createdAt: 1,
+        lastUsedAt: 2,
+        transports: ["internal"],
+        aaguid: "aaguid-1",
+      },
+    ])
+
+    const res = await authed.request("/auth/passkey/list")
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.credentials).toHaveLength(1)
+    expect(body.credentials[0].credentialId).toBe("cred-1")
+  })
+
+  test("POST /auth/passkey/remove returns 404 when credential is missing", async () => {
+    const authed = new Hono()
+    authed.use("/auth/passkey/*", async (c, next) => {
+      c.set("session", {
+        id: "session-id",
+        username: "testuser",
+        uid: 1000,
+        gid: 1000,
+        home: "/home/testuser",
+        shell: "/bin/bash",
+        createdAt: Date.now(),
+        lastAccessTime: Date.now(),
+      })
+      return next()
+    })
+    authed.route("/auth", AuthRoutes())
+
+    mockRemoveUserPasskey.mockResolvedValue(false)
+
+    const res = await authed.request("/auth/passkey/remove", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body: JSON.stringify({ credentialId: "missing-id" }),
+    })
+
+    expect(res.status).toBe(404)
+    expect((await res.json()).error).toBe("not_found")
+  })
+})
+
 describe("Rate limiting", () => {
   let app: Hono
 
@@ -617,8 +936,8 @@ describe("HTTPS detection and enforcement", () => {
     expect(res.status).toBe(200)
     const html = await res.text()
     expect(html).toContain("window.__OPENCODE_LOGIN__")
-    expect(html).toContain('"shouldWarn":true')
     expect(html).toContain('"shouldBlock":false')
+    expect(html).not.toContain('"shouldWarn":')
   })
 
   test("GET /login returns blocked HTML when requireHttps is block and HTTP", async () => {
@@ -645,8 +964,8 @@ describe("HTTPS detection and enforcement", () => {
     })
     expect(res.status).toBe(200)
     const html = await res.text()
-    expect(html).not.toContain('id="httpWarning"')
-    expect(html).not.toContain("HTTPS is required")
+    expect(html).toContain("window.__OPENCODE_LOGIN__")
+    expect(html).toContain('"shouldBlock":false')
   })
 
   test("GET /login returns normal HTML for localhost over HTTP", async () => {
@@ -659,8 +978,8 @@ describe("HTTPS detection and enforcement", () => {
     })
     expect(res.status).toBe(200)
     const html = await res.text()
-    expect(html).not.toContain('id="httpWarning"')
-    expect(html).not.toContain("HTTPS is required")
+    expect(html).toContain("window.__OPENCODE_LOGIN__")
+    expect(html).toContain('"shouldBlock":false')
   })
 
   test("POST /login returns 403 when requireHttps is block and HTTP", async () => {
@@ -712,7 +1031,8 @@ describe("HTTPS detection and enforcement", () => {
     })
     expect(res.status).toBe(200)
     const html = await res.text()
-    expect(html).not.toContain('id="httpWarning"') // Should not warn because X-Forwarded-Proto says https
+    expect(html).toContain("window.__OPENCODE_LOGIN__")
+    expect(html).toContain('"shouldBlock":false')
   })
 
   test("respects multi-value X-Forwarded-Proto when trustProxy is true", async () => {
@@ -728,7 +1048,8 @@ describe("HTTPS detection and enforcement", () => {
     })
     expect(res.status).toBe(200)
     const html = await res.text()
-    expect(html).not.toContain('id="httpWarning"')
+    expect(html).toContain("window.__OPENCODE_LOGIN__")
+    expect(html).toContain('"shouldBlock":false')
   })
 
   test("respects Forwarded proto when trustProxy is true", async () => {
@@ -744,7 +1065,8 @@ describe("HTTPS detection and enforcement", () => {
     })
     expect(res.status).toBe(200)
     const html = await res.text()
-    expect(html).not.toContain('id="httpWarning"')
+    expect(html).toContain("window.__OPENCODE_LOGIN__")
+    expect(html).toContain('"shouldBlock":false')
   })
 
   test("ignores X-Forwarded-Proto when trustProxy is false", async () => {
@@ -761,6 +1083,7 @@ describe("HTTPS detection and enforcement", () => {
     expect(res.status).toBe(200)
     const html = await res.text()
     expect(html).toContain("window.__OPENCODE_LOGIN__")
-    expect(html).toContain('"shouldWarn":true') // Should warn because trustProxy is false
+    expect(html).toContain('"shouldBlock":false')
+    expect(html).not.toContain('"shouldWarn":')
   })
 })

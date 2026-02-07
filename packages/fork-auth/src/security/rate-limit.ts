@@ -10,6 +10,8 @@ const log = Log.create({ service: "rate-limit" })
 export interface RateLimitConfig {
   windowMs?: number // default: 15 * 60 * 1000 (15 min)
   limit?: number // default: 5
+  trustProxy?: boolean
+  keyGenerator?: (c: Context) => string
 }
 
 /**
@@ -20,23 +22,6 @@ interface RateLimitEntry {
   count: number
   resetAt: number
 }
-
-const failureStore = new Map<string, RateLimitEntry>()
-
-/**
- * Clean up expired entries from the store.
- */
-function cleanupExpiredEntries(): void {
-  const now = Date.now()
-  for (const [key, entry] of failureStore) {
-    if (now >= entry.resetAt) {
-      failureStore.delete(key)
-    }
-  }
-}
-
-// Cleanup every 5 minutes
-setInterval(cleanupExpiredEntries, 5 * 60 * 1000)
 
 /**
  * Manual rate limiter for tracking failed attempts only.
@@ -68,10 +53,31 @@ export interface ManualRateLimiter {
 export function createManualRateLimiter(config?: RateLimitConfig): ManualRateLimiter {
   const windowMs = config?.windowMs ?? 15 * 60 * 1000 // 15 minutes
   const limit = config?.limit ?? 5
+  const keyGenerator = config?.keyGenerator ?? ((c: Context) => getClientIP(c, config?.trustProxy ?? false))
+  const failureStore = new Map<string, RateLimitEntry>()
+
+  // Keep counters scoped to this limiter instance to avoid cross-route interference.
+  const cleanupTimer = setInterval(() => {
+    const now = Date.now()
+    for (const [key, entry] of failureStore) {
+      if (now >= entry.resetAt) {
+        failureStore.delete(key)
+      }
+    }
+  }, 5 * 60 * 1000)
+
+  if (
+    typeof cleanupTimer === "object" &&
+    cleanupTimer &&
+    "unref" in cleanupTimer &&
+    typeof cleanupTimer.unref === "function"
+  ) {
+    cleanupTimer.unref()
+  }
 
   return {
     checkRateLimit: (c: Context): Response | undefined => {
-      const key = getClientIP(c)
+      const key = keyGenerator(c)
       const now = Date.now()
       const entry = failureStore.get(key)
 
@@ -86,7 +92,7 @@ export function createManualRateLimiter(config?: RateLimitConfig): ManualRateLim
       }
 
       // Rate limited
-      const ip = getClientIP(c)
+      const ip = keyGenerator(c)
       const timestamp = new Date().toISOString()
 
       log.warn("[SECURITY] Rate limit exceeded", {
@@ -111,7 +117,7 @@ export function createManualRateLimiter(config?: RateLimitConfig): ManualRateLim
     },
 
     recordFailure: (c: Context): void => {
-      const key = getClientIP(c)
+      const key = keyGenerator(c)
       const now = Date.now()
       const entry = failureStore.get(key)
 
@@ -132,23 +138,74 @@ export function createManualRateLimiter(config?: RateLimitConfig): ManualRateLim
 /**
  * Extract client IP address from request headers.
  *
- * Checks X-Forwarded-For (takes first IP), falls back to X-Real-IP,
- * then returns 'unknown' if no headers present.
+ * With trustProxy=false (default), forwarded headers are ignored to avoid spoofing.
+ * With trustProxy=true, checks X-Forwarded-For then X-Real-IP before direct socket IP.
  */
-export function getClientIP(c: Context): string {
-  // Check X-Forwarded-For (comma-separated list, take first)
-  const xForwardedFor = c.req.header("X-Forwarded-For")
-  if (xForwardedFor) {
-    const firstIp = xForwardedFor.split(",")[0].trim()
-    if (firstIp) return firstIp
+export function getClientIP(c: Context, trustProxy = false): string {
+  if (trustProxy) {
+    // Check X-Forwarded-For (comma-separated list, take first)
+    const xForwardedFor = c.req.header("X-Forwarded-For")
+    if (xForwardedFor) {
+      const firstIp = xForwardedFor.split(",")[0].trim()
+      if (firstIp) return firstIp
+    }
+
+    // Fall back to X-Real-IP
+    const xRealIp = c.req.header("X-Real-IP")
+    if (xRealIp) return xRealIp
   }
 
-  // Fall back to X-Real-IP
-  const xRealIp = c.req.header("X-Real-IP")
-  if (xRealIp) return xRealIp
+  const directIp = getDirectSocketIP(c)
+  if (directIp) return directIp
 
   // Fall back to unknown
   return "unknown"
+}
+
+function getDirectSocketIP(c: Context): string | undefined {
+  const env = c.env as unknown as {
+    requestIP?: (request: Request) => unknown
+    server?: {
+      requestIP?: (request: Request) => unknown
+    }
+  }
+
+  const fromEnv = requestIPFromTarget(env, c.req.raw)
+  if (fromEnv) return fromEnv
+
+  const fromServer = requestIPFromTarget(env?.server, c.req.raw)
+  if (fromServer) return fromServer
+
+  return undefined
+}
+
+function requestIPFromTarget(target: unknown, request: Request): string | undefined {
+  if (!target || typeof target !== "object") return undefined
+  const requestIP = (target as { requestIP?: (request: Request) => unknown }).requestIP
+  if (typeof requestIP !== "function") return undefined
+
+  // Bun's requestIP implementation expects the server/env object as `this`.
+  // Calling it unbound can throw: "Expected this to be instanceof DebugHTTPServer".
+  let value: unknown
+  try {
+    value = requestIP.call(target, request)
+  } catch {
+    return undefined
+  }
+  if (!value) return undefined
+
+  if (typeof value === "string") {
+    return value.trim() || undefined
+  }
+
+  if (typeof value === "object") {
+    const address = (value as { address?: unknown }).address
+    if (typeof address === "string" && address.trim()) {
+      return address.trim()
+    }
+  }
+
+  return undefined
 }
 
 /**
@@ -164,15 +221,16 @@ export function getClientIP(c: Context): string {
 export function createLoginRateLimiter(config?: RateLimitConfig) {
   const windowMs = config?.windowMs ?? 15 * 60 * 1000 // 15 minutes
   const limit = config?.limit ?? 5
+  const keyGenerator = config?.keyGenerator ?? ((c: Context) => getClientIP(c, config?.trustProxy ?? false))
 
   return rateLimiter({
     windowMs,
     limit,
     standardHeaders: "draft-7", // Return rate limit info in headers
-    keyGenerator: (c) => getClientIP(c),
+    keyGenerator,
     skipSuccessfulRequests: true, // Only count failed attempts (status >= 400)
     handler: (c) => {
-      const ip = getClientIP(c)
+      const ip = keyGenerator(c)
       const timestamp = new Date().toISOString()
 
       // Log security event
@@ -213,15 +271,16 @@ export function createLoginRateLimiter(config?: RateLimitConfig) {
 export function createOtpRateLimiter(config?: RateLimitConfig) {
   const windowMs = config?.windowMs ?? 15 * 60 * 1000 // 15 minutes
   const limit = config?.limit ?? 5
+  const keyGenerator = config?.keyGenerator ?? ((c: Context) => getClientIP(c, config?.trustProxy ?? false))
 
   return rateLimiter({
     windowMs,
     limit,
     standardHeaders: "draft-7",
-    keyGenerator: (c) => getClientIP(c),
+    keyGenerator,
     skipSuccessfulRequests: true, // Only count failed attempts (status >= 400)
     handler: (c) => {
-      const ip = getClientIP(c)
+      const ip = keyGenerator(c)
       const timestamp = new Date().toISOString()
 
       log.warn("[SECURITY] OTP rate limit exceeded", {

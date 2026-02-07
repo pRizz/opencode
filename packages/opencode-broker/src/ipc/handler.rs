@@ -12,8 +12,8 @@ use base64::Engine;
 use crate::auth::rate_limit::RateLimiter;
 use crate::auth::validation;
 use crate::auth::{
-    check_otp_config, has_2fa_configured, pam, remove_google_authenticator, validate_otp,
-    write_google_authenticator, OtpRemoveError, OtpSetupError,
+    OtpRemoveError, OtpSetupError, check_otp_config, has_2fa_configured, pam,
+    remove_google_authenticator, validate_otp, write_google_authenticator,
 };
 use crate::config::BrokerConfig;
 use crate::ipc::protocol::{
@@ -32,17 +32,13 @@ fn is_pty_closed_error(err: &std::io::Error) -> bool {
         return true;
     }
 
-    match err.raw_os_error() {
-        Some(code)
-            if code == libc::EIO
-                || code == libc::EBADF
-                || code == libc::ENXIO
-                || code == libc::EPIPE =>
-        {
-            true
-        }
-        _ => false,
-    }
+    matches!(
+        err.raw_os_error(),
+        Some(code) if code == libc::EIO
+            || code == libc::EBADF
+            || code == libc::ENXIO
+            || code == libc::EPIPE
+    )
 }
 
 /// Handle a single IPC request.

@@ -23,6 +23,8 @@ export namespace UserSession {
       rememberMe: z.boolean().optional(), // Extended session persistence
       twoFactorPending: z.boolean().optional(), // User needs to set up 2FA
       twoFactorSetupSecret: z.string().optional(), // TOTP secret awaiting verification
+      bootstrapPending: z.boolean().optional(), // First-time bootstrap passkey setup required
+      bootstrapOtp: z.string().optional(), // Verified OTP bound to bootstrap setup session
     })
     .meta({ ref: "UserSessionInfo" })
 
@@ -122,6 +124,32 @@ export namespace UserSession {
     if (!session) return false
 
     session.twoFactorSetupSecret = undefined
+    return true
+  }
+
+  /**
+   * Mark a session as pending bootstrap passkey setup.
+   */
+  export function setBootstrapPending(id: string, otp?: string): boolean {
+    const session = sessions.get(id)
+    if (!session) return false
+
+    session.bootstrapPending = true
+    if (otp) {
+      session.bootstrapOtp = otp
+    }
+    return true
+  }
+
+  /**
+   * Clear bootstrap setup state for a session.
+   */
+  export function clearBootstrapPending(id: string): boolean {
+    const session = sessions.get(id)
+    if (!session) return false
+
+    session.bootstrapPending = false
+    session.bootstrapOtp = undefined
     return true
   }
 

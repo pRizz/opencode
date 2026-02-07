@@ -5,10 +5,10 @@
 use std::ffi::OsString;
 use std::fs;
 use std::io::Write;
+use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::thread;
 use tokio::sync::oneshot;
-use std::os::unix::fs::PermissionsExt;
 
 use super::pam::AuthError;
 
@@ -253,9 +253,7 @@ impl OtpSetupError {
 }
 
 fn google_authenticator_contents(secret: &str) -> String {
-    format!(
-        "{secret}\n\" TOTP_AUTH\n\" RATE_LIMIT 3 30\n\" WINDOW_SIZE 3\n\" DISALLOW_REUSE"
-    )
+    format!("{secret}\n\" TOTP_AUTH\n\" RATE_LIMIT 3 30\n\" WINDOW_SIZE 3\n\" DISALLOW_REUSE")
 }
 
 fn create_unique_temp_path(home: &Path) -> std::path::PathBuf {

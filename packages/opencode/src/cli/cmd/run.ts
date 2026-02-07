@@ -1,5 +1,6 @@
 import type { Argv } from "yargs"
 import path from "path"
+import { pathToFileURL } from "bun"
 import { UI } from "../ui"
 import { cmd } from "./cmd"
 import { Flag } from "../../flag/flag"
@@ -242,6 +243,10 @@ export const RunCommand = cmd({
         describe: "session id to continue",
         type: "string",
       })
+      .option("fork", {
+        describe: "fork the session before continuing (requires --continue or --session)",
+        type: "boolean",
+      })
       .option("share", {
         type: "boolean",
         describe: "share the session",
@@ -316,7 +321,7 @@ export const RunCommand = cmd({
 
         files.push({
           type: "file",
-          url: `file://${resolvedPath}`,
+          url: pathToFileURL(resolvedPath).href,
           filename: path.basename(resolvedPath),
           mime,
         })
@@ -331,6 +336,11 @@ export const RunCommand = cmd({
     }
 
     const forkState = createForkRunState()
+
+    if (args.fork && !args.continue && !args.session) {
+      UI.error("--fork requires --continue or --session")
+      process.exit(1)
+    }
 
     const rules: PermissionNext.Ruleset = [
       {
@@ -357,11 +367,15 @@ export const RunCommand = cmd({
     }
 
     async function session(sdk: OpencodeClient, mode: "attach" | "local") {
-      if (args.continue) {
-        const result = await sdk.session.list()
-        return result.data?.find((s) => !s.parentID)?.id
+      const baseID = args.continue ? (await sdk.session.list()).data?.find((s) => !s.parentID)?.id : args.session
+
+      if (baseID && args.fork) {
+        const forked = await sdk.session.fork({ sessionID: baseID })
+        return forked.data?.id
       }
-      if (args.session) return args.session
+
+      if (baseID) return baseID
+
       const name = title()
       const forkInput = resolveForkRunSessionCreateInput({
         mode,

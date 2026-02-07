@@ -4,6 +4,7 @@ import { Button } from "@opencode-ai/ui/button"
 import { Icon } from "@opencode-ai/ui/icon"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { ManageTwoFactorDialog } from "./manage-2fa-dialog"
+import { PasskeyManagerDialog } from "./passkey-manager-dialog"
 
 interface SessionIndicatorSession {
   isAuthenticated: () => boolean
@@ -167,9 +168,11 @@ export function SessionIndicator(props: SessionIndicatorProps) {
   }
 
   function handleManage2FA(): void {
-    dialog.show(() => (
-      <ManageTwoFactorDialog onUpdate={fetchDeviceTrustStatus} getServerUrl={props.getServerUrl} />
-    ))
+    dialog.show(() => <ManageTwoFactorDialog onUpdate={fetchDeviceTrustStatus} getServerUrl={props.getServerUrl} />)
+  }
+
+  function handleManagePasskeys(): void {
+    dialog.show(() => <PasskeyManagerDialog onUpdate={fetchDeviceTrustStatus} getServerUrl={props.getServerUrl} />)
   }
 
   const showDeviceTrustOptions = () => {
@@ -217,6 +220,10 @@ export function SessionIndicator(props: SessionIndicatorProps) {
                 </DropdownMenu.ItemLabel>
               </DropdownMenu.Item>
             </Show>
+            <DropdownMenu.Separator />
+            <DropdownMenu.Item onSelect={handleManagePasskeys}>
+              <DropdownMenu.ItemLabel>Manage passkeys</DropdownMenu.ItemLabel>
+            </DropdownMenu.Item>
             <DropdownMenu.Separator />
             <DropdownMenu.Item onSelect={handleLogout}>
               <DropdownMenu.ItemLabel>Log out</DropdownMenu.ItemLabel>

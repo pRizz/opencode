@@ -2,8 +2,14 @@ name: sync-upstream
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "0 */2 * * *"
   workflow_dispatch:
+    inputs:
+      force:
+        description: "Run sync even if open issues exist"
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: sync-upstream
@@ -11,13 +17,69 @@ concurrency:
 
 permissions:
   contents: write
-  pull-requests: write
   issues: write
+  id-token: write
 
 jobs:
-  sync:
+  preflight:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    outputs:
+      should_skip: ${{ steps.check.outputs.should_skip }}
+      blocking_issue: ${{ steps.check.outputs.blocking_issue }}
+    steps:
+      - name: Check for open sync-failure issues
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+        run: |
+          if [ "${{ inputs.force }}" = "true" ]; then
+            echo "Force flag set — skipping preflight check"
+            echo "should_skip=false" >> "$GITHUB_OUTPUT"
+            echo "blocking_issue=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          should_skip=false
+          blocking_issue=""
+
+          for label in sync-conflict sync-e2e-failure sync-push-failure; do
+            result=$(gh issue list \
+              --repo "${{ github.repository }}" \
+              --state open \
+              --label "$label" \
+              --json number,title \
+              --limit 1)
+
+            count=$(echo "$result" | jq length)
+            if [ "$count" -gt 0 ]; then
+              should_skip=true
+              issue_number=$(echo "$result" | jq -r '.[0].number')
+              issue_title=$(echo "$result" | jq -r '.[0].title')
+              blocking_issue="#${issue_number}: ${issue_title} (label: ${label})"
+              break
+            fi
+          done
+
+          echo "should_skip=$should_skip" >> "$GITHUB_OUTPUT"
+          echo "blocking_issue=$blocking_issue" >> "$GITHUB_OUTPUT"
+
+      - name: Report skip reason
+        if: steps.check.outputs.should_skip == 'true'
+        run: |
+          echo "::warning::Sync skipped — unresolved issue exists: ${{ steps.check.outputs.blocking_issue }}"
+          echo "## Sync Skipped" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "An unresolved sync-failure issue is still open:" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**${{ steps.check.outputs.blocking_issue }}**" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "The sync workflow will not run until this issue is closed." >> "$GITHUB_STEP_SUMMARY"
+
+  sync:
+    needs: preflight
+    if: needs.preflight.outputs.should_skip != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -31,6 +93,15 @@ jobs:
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
 
+      - name: Verify git push credentials
+        run: |
+          echo "Verifying push access to origin..."
+          git ls-remote --exit-code origin HEAD > /dev/null
+          echo "Push credentials verified."
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+          UPSTREAM_SYNC_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+
       # ── Phase 1: Merge ────────────────────────────────────
       - name: Sync upstream (merge phase)
         id: sync
@@ -42,11 +113,13 @@ jobs:
 
       # ── Phase 2: Resolve conflicts (Claude) ───────────────
       - name: Resolve merge conflicts with Claude
-        if: steps.sync.outputs.needs_claude == 'true' && steps.sync.outputs.has_conflicts == 'true'
+        id: claude_resolve
+        if: steps.sync.outputs.has_conflicts == 'true'
         uses: anthropics/claude-code-action@v1
-        timeout-minutes: 10
+        timeout-minutes: 60
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          show_full_output: true
           prompt: |
             This repository is a fork of anomalyco/opencode being synced with upstream.
             A `git merge parent-dev` produced conflicts in these files:
@@ -84,13 +157,24 @@ jobs:
 
             Do NOT run tests or push. Do NOT make changes beyond conflict resolution.
           claude_args: >-
-            --max-turns 30
+            --max-turns 300
             --model claude-opus-4-6
+            --allowedTools "Edit,Write,Bash(*)"
+
+      - name: Save Claude output (conflict resolution)
+        if: always() && steps.sync.outputs.has_conflicts == 'true'
+        run: cp -f "$RUNNER_TEMP/claude-execution-output.json" "$RUNNER_TEMP/claude-resolve.json" 2>/dev/null || true
+
+      # After merge/resolution, package.json may require a newer Bun version
+      # from upstream. Re-setup to match the merged state.
+      - name: Re-setup Bun (post-merge)
+        if: steps.sync.outputs.sync_branch != ''
+        uses: ./.github/actions/setup-bun
 
       # ── Phase 3: Run tests ────────────────────────────────
       - name: Run tests after merge/resolution
         id: test1
-        if: steps.sync.outputs.needs_claude == 'true'
+        if: steps.sync.outputs.sync_branch != ''
         run: ./script/sync-upstream.ts --phase test
         env:
           GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
@@ -100,11 +184,13 @@ jobs:
 
       # ── Fix attempt 1 ────────────────────────────────────
       - name: Fix test failures with Claude (attempt 1)
-        if: steps.sync.outputs.needs_claude == 'true' && steps.test1.outputs.tests_passed == 'false'
+        id: claude_fix1
+        if: steps.test1.outputs.tests_passed == 'false'
         uses: anthropics/claude-code-action@v1
-        timeout-minutes: 10
+        timeout-minutes: 60
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          show_full_output: true
           prompt: |
             This repository is a fork of anomalyco/opencode. An upstream sync merge
             succeeded but typecheck or e2e tests are failing:
@@ -116,12 +202,17 @@ jobs:
 
             Fix the errors. Commit your changes. Do NOT run tests or push.
           claude_args: >-
-            --max-turns 20
+            --max-turns 200
             --model claude-opus-4-6
+            --allowedTools "Edit,Write,Bash(*)"
+
+      - name: Save Claude output (fix attempt 1)
+        if: always() && steps.test1.outputs.tests_passed == 'false'
+        run: cp -f "$RUNNER_TEMP/claude-execution-output.json" "$RUNNER_TEMP/claude-fix1.json" 2>/dev/null || true
 
       - name: Run tests (attempt 2)
         id: test2
-        if: steps.sync.outputs.needs_claude == 'true' && steps.test1.outputs.tests_passed == 'false'
+        if: steps.test1.outputs.tests_passed == 'false'
         run: ./script/sync-upstream.ts --phase test
         env:
           GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
@@ -131,11 +222,13 @@ jobs:
 
       # ── Fix attempt 2 ────────────────────────────────────
       - name: Fix test failures with Claude (attempt 2)
-        if: steps.test2.outcome == 'success' && steps.test2.outputs.tests_passed == 'false'
+        id: claude_fix2
+        if: steps.test2.outputs.tests_passed == 'false'
         uses: anthropics/claude-code-action@v1
-        timeout-minutes: 10
+        timeout-minutes: 60
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          show_full_output: true
           prompt: |
             Upstream sync tests still failing after first fix attempt:
 
@@ -144,12 +237,17 @@ jobs:
             Read `docs/upstream-sync/fork-feature-audit.md` for context.
             Fix the errors. Commit your changes. Do NOT run tests or push.
           claude_args: >-
-            --max-turns 20
+            --max-turns 200
             --model claude-opus-4-6
+            --allowedTools "Edit,Write,Bash(*)"
+
+      - name: Save Claude output (fix attempt 2)
+        if: always() && steps.test2.outputs.tests_passed == 'false'
+        run: cp -f "$RUNNER_TEMP/claude-execution-output.json" "$RUNNER_TEMP/claude-fix2.json" 2>/dev/null || true
 
       - name: Run tests (attempt 3)
         id: test3
-        if: steps.test2.outcome == 'success' && steps.test2.outputs.tests_passed == 'false'
+        if: steps.test2.outputs.tests_passed == 'false'
         run: ./script/sync-upstream.ts --phase test
         env:
           GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
@@ -157,10 +255,100 @@ jobs:
           UPSTREAM_SYNC_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
         continue-on-error: true
 
+      # ── Claude usage summary ──────────────────────────────
+      - name: Claude usage summary
+        if: always() && steps.sync.outputs.sync_branch != ''
+        run: |
+          declare -A phase_labels=( [resolve]="conflict resolution" [fix1]="fix attempt 1" [fix2]="fix attempt 2" )
+          declare -A phase_files=( [resolve]="$RUNNER_TEMP/claude-resolve.json" [fix1]="$RUNNER_TEMP/claude-fix1.json" [fix2]="$RUNNER_TEMP/claude-fix2.json" )
+
+          total_turns=0 total_tool_calls=0 total_duration_ms=0 total_api_duration_ms=0
+          total_input_tokens=0 total_output_tokens=0 total_cache_write_tokens=0 total_cache_read_tokens=0 total_cost=0
+          any_phase_ran=false
+
+          format_duration() {
+            local milliseconds=$1
+            local seconds=$(( milliseconds / 1000 ))
+            printf '%dm %ds' $(( seconds / 60 )) $(( seconds % 60 ))
+          }
+
+          format_number() {
+            printf "%'d" "$1"
+          }
+
+          echo "══════════════════════════════════════════"
+          echo "  Claude Usage Summary"
+          echo "══════════════════════════════════════════"
+
+          for phase_key in resolve fix1 fix2; do
+            phase_file="${phase_files[$phase_key]}"
+            phase_label="${phase_labels[$phase_key]}"
+            echo ""
+            echo "── $phase_label ──"
+
+            if [ ! -f "$phase_file" ]; then
+              echo "  (skipped)"
+              continue
+            fi
+
+            any_phase_ran=true
+            result_message=$(jq -r '.[] | select(.type == "result")' "$phase_file")
+            if [ -z "$result_message" ] || [ "$result_message" = "null" ]; then
+              echo "  (no result data)"
+              continue
+            fi
+
+            turns=$(echo "$result_message" | jq -r '.num_turns // 0')
+            cost=$(echo "$result_message" | jq -r '.total_cost_usd // 0')
+            duration_ms=$(echo "$result_message" | jq -r '.duration_ms // 0')
+            api_duration_ms=$(echo "$result_message" | jq -r '.duration_api_ms // 0')
+            input_tokens=$(echo "$result_message" | jq -r '.usage.input_tokens // 0')
+            output_tokens=$(echo "$result_message" | jq -r '.usage.output_tokens // 0')
+            cache_write_tokens=$(echo "$result_message" | jq -r '.usage.cache_creation_input_tokens // 0')
+            cache_read_tokens=$(echo "$result_message" | jq -r '.usage.cache_read_input_tokens // 0')
+            tool_calls=$(jq '[.[] | select(.type == "assistant") | .message.content[]? | select(.type == "tool_use")] | length' "$phase_file")
+
+            echo "  Turns:        $turns"
+            echo "  Tool calls:   $tool_calls"
+            echo "  Duration:     $(format_duration "$duration_ms") (API: $(format_duration "$api_duration_ms"))"
+            echo "  Input:        $(format_number "$input_tokens")"
+            echo "  Output:       $(format_number "$output_tokens")"
+            echo "  Cache write:  $(format_number "$cache_write_tokens")"
+            echo "  Cache read:   $(format_number "$cache_read_tokens")"
+            printf '  Cost:         $%.4f\n' "$cost"
+
+            total_turns=$((total_turns + turns))
+            total_tool_calls=$((total_tool_calls + tool_calls))
+            total_duration_ms=$((total_duration_ms + duration_ms))
+            total_api_duration_ms=$((total_api_duration_ms + api_duration_ms))
+            total_input_tokens=$((total_input_tokens + input_tokens))
+            total_output_tokens=$((total_output_tokens + output_tokens))
+            total_cache_write_tokens=$((total_cache_write_tokens + cache_write_tokens))
+            total_cache_read_tokens=$((total_cache_read_tokens + cache_read_tokens))
+            total_cost=$(echo "$total_cost + $cost" | bc)
+          done
+
+          if [ "$any_phase_ran" = true ]; then
+            echo ""
+            echo "── TOTALS ──"
+            echo "  Turns:        $total_turns"
+            echo "  Tool calls:   $total_tool_calls"
+            echo "  Duration:     $(format_duration "$total_duration_ms") (API: $(format_duration "$total_api_duration_ms"))"
+            echo "  Input:        $(format_number "$total_input_tokens")"
+            echo "  Output:       $(format_number "$total_output_tokens")"
+            echo "  Cache write:  $(format_number "$total_cache_write_tokens")"
+            echo "  Cache read:   $(format_number "$total_cache_read_tokens")"
+            printf '  Cost:         $%.4f\n' "$total_cost"
+          else
+            echo ""
+            echo "  No Claude steps ran."
+          fi
+          echo "══════════════════════════════════════════"
+
       # ── Determine final test result ───────────────────────
       - name: Determine final test status
         id: final
-        if: steps.sync.outputs.needs_claude == 'true'
+        if: steps.sync.outputs.sync_branch != ''
         run: |
           # Find the last test step that actually ran (priority: test3 > test2 > test1)
           for result in \
@@ -174,9 +362,9 @@ jobs:
           done
           echo "tests_passed=false" >> "$GITHUB_OUTPUT"
 
-      # ── Push + PR (success path) ──────────────────────────
-      - name: Post-resolve sync (push + PR)
-        if: steps.sync.outputs.needs_claude == 'true' && steps.final.outputs.tests_passed == 'true'
+      # ── Rebase + push to dev (success path) ───────────────
+      - name: Post-resolve sync (rebase + push to dev)
+        if: steps.final.outputs.tests_passed == 'true'
         run: |
           ./script/sync-upstream.ts \
             --phase post-resolve \
@@ -184,7 +372,7 @@ jobs:
             --merge-base "${{ steps.sync.outputs.merge_base }}" \
             --behind "${{ steps.sync.outputs.behind }}" \
             --ahead "${{ steps.sync.outputs.ahead }}" \
-            --claude-resolved true
+            --claude-resolved "${{ steps.sync.outputs.has_conflicts == 'true' || steps.test1.outputs.tests_passed == 'false' }}"
         env:
           GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
           GH_REPO: ${{ github.repository }}
@@ -192,7 +380,7 @@ jobs:
 
       # ── Fallback: create issue ────────────────────────────
       - name: Create issue (Claude unable to fix)
-        if: steps.sync.outputs.needs_claude == 'true' && steps.final.outputs.tests_passed == 'false'
+        if: steps.final.outputs.tests_passed == 'false'
         run: |
           ./script/sync-upstream.ts \
             --phase create-issue \

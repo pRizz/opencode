@@ -1,8 +1,31 @@
-import { Show, onMount } from "solid-js"
+import { Show, onCleanup, onMount } from "solid-js"
 import { createStore } from "solid-js/store"
 
 type LoginBootstrap = {
   shouldBlock?: boolean
+  bootstrap?: {
+    active?: boolean
+    available?: boolean
+  }
+}
+
+type PasskeyRequestOptionsJSON = {
+  challenge: string
+  timeout?: number
+  rpId?: string
+  allowCredentials?: Array<{
+    id: string
+    type?: PublicKeyCredentialType
+    transports?: AuthenticatorTransport[]
+  }>
+  userVerification?: UserVerificationRequirement
+  extensions?: AuthenticationExtensionsClientInputs
+}
+
+type PasskeyAuthOptionsResult = {
+  success: true
+  options: PasskeyRequestOptionsJSON
+  challengeToken: string
 }
 
 declare global {
@@ -19,10 +42,88 @@ function shouldWarnForHttpConnection(): boolean {
   return window.location.protocol === "http:" && !isLocalhost
 }
 
+function base64urlToArrayBuffer(value: string): ArrayBuffer {
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/")
+  const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4)
+  const binary = atob(padded)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer
+}
+
+function arrayBufferToBase64url(value: ArrayBuffer): string {
+  const bytes = new Uint8Array(value)
+  let binary = ""
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte)
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "")
+}
+
+function parseRequestOptions(options: PasskeyRequestOptionsJSON): PublicKeyCredentialRequestOptions {
+  const parser = PublicKeyCredential as typeof PublicKeyCredential & {
+    parseRequestOptionsFromJSON?: (input: PasskeyRequestOptionsJSON) => PublicKeyCredentialRequestOptions
+  }
+
+  if (typeof parser.parseRequestOptionsFromJSON === "function") {
+    return parser.parseRequestOptionsFromJSON(options)
+  }
+
+  return {
+    challenge: base64urlToArrayBuffer(options.challenge),
+    timeout: options.timeout,
+    rpId: options.rpId,
+    userVerification: options.userVerification,
+    extensions: options.extensions,
+    allowCredentials: options.allowCredentials?.map((item) => ({
+      id: base64urlToArrayBuffer(item.id),
+      type: item.type ?? "public-key",
+      transports: item.transports,
+    })),
+  }
+}
+
+function isAssertionResponse(response: AuthenticatorResponse): response is AuthenticatorAssertionResponse {
+  return "authenticatorData" in response && "signature" in response
+}
+
+function toAuthenticationResponseJSON(credential: PublicKeyCredential): Record<string, unknown> | null {
+  const jsonCredential = credential as PublicKeyCredential & { toJSON?: () => unknown }
+  if (typeof jsonCredential.toJSON === "function") {
+    const payload = jsonCredential.toJSON()
+    if (payload && typeof payload === "object") {
+      return payload as Record<string, unknown>
+    }
+  }
+
+  if (!isAssertionResponse(credential.response)) return null
+
+  return {
+    id: credential.id,
+    rawId: arrayBufferToBase64url(credential.rawId),
+    type: credential.type,
+    response: {
+      clientDataJSON: arrayBufferToBase64url(credential.response.clientDataJSON),
+      authenticatorData: arrayBufferToBase64url(credential.response.authenticatorData),
+      signature: arrayBufferToBase64url(credential.response.signature),
+      userHandle: credential.response.userHandle ? arrayBufferToBase64url(credential.response.userHandle) : undefined,
+    },
+    authenticatorAttachment: credential.authenticatorAttachment,
+    clientExtensionResults: credential.getClientExtensionResults(),
+  }
+}
+
+function isPasskeySupported() {
+  return typeof window.PublicKeyCredential !== "undefined" && typeof navigator.credentials !== "undefined"
+}
+
 export function LoginApp() {
   const bootstrap = window.__OPENCODE_LOGIN__ ?? {}
   const shouldWarn = shouldWarnForHttpConnection()
   const shouldBlock = Boolean(bootstrap.shouldBlock)
+  const bootstrapActive = Boolean(bootstrap.bootstrap?.active)
 
   const [state, setState] = createStore({
     username: "",
@@ -30,18 +131,38 @@ export function LoginApp() {
     rememberMe: true,
     submitting: false,
     submitLabel: "Sign In",
+    passkeySubmitting: false,
+    passkeyLabel: "Sign in with passkey",
+    passkeySupported: false,
     error: "",
     showPassword: false,
     invalidUsername: false,
     invalidPassword: false,
     warningDismissed: false,
+
+    bootstrapOtp: "",
+    bootstrapOtpVerifying: false,
+    bootstrapOtpVerified: false,
+    bootstrapOtpError: "",
   })
 
+  let conditionalController: AbortController | undefined
+
   onMount(() => {
-    if (!shouldWarn) return
-    if (sessionStorage.getItem(HTTP_WARNING_KEY)) {
+    if (shouldWarn && sessionStorage.getItem(HTTP_WARNING_KEY)) {
       setState("warningDismissed", true)
     }
+
+    const supported = isPasskeySupported()
+    setState("passkeySupported", supported)
+
+    if (supported && !shouldBlock) {
+      void startConditionalPasskey()
+    }
+  })
+
+  onCleanup(() => {
+    conditionalController?.abort()
   })
 
   const dismissWarning = () => {
@@ -49,9 +170,171 @@ export function LoginApp() {
     setState("warningDismissed", true)
   }
 
+  const fetchPasskeyOptions = async (input: { username?: string; quiet?: boolean }) => {
+    const res = await fetch("/auth/passkey/auth/options", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body: JSON.stringify(input.username ? { username: input.username } : {}),
+    })
+
+    const body = (await res.json().catch(() => ({}))) as Record<string, unknown>
+    if (!res.ok || body.success !== true) {
+      if (!input.quiet) {
+        setState("error", (typeof body.message === "string" && body.message) || "Passkey sign-in is unavailable")
+      }
+      return null
+    }
+
+    return body as unknown as PasskeyAuthOptionsResult
+  }
+
+  const verifyPasskey = async (input: { credential: PublicKeyCredential; challengeToken: string; quiet?: boolean }) => {
+    const response = toAuthenticationResponseJSON(input.credential)
+    if (!response) {
+      if (!input.quiet) {
+        setState("error", "Unable to read passkey response from this browser")
+      }
+      return false
+    }
+
+    const res = await fetch("/auth/passkey/auth/verify", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body: JSON.stringify({
+        challengeToken: input.challengeToken,
+        response,
+        rememberMe: state.rememberMe,
+      }),
+    })
+
+    const body = (await res.json().catch(() => ({}))) as Record<string, unknown>
+    if (res.ok && body.success === true) {
+      setState("passkeyLabel", "Redirecting...")
+      window.location.href = "/"
+      return true
+    }
+
+    if (!input.quiet) {
+      const message =
+        (typeof body.message === "string" && body.message) ||
+        (state.username.trim() ? "Passkey authentication failed" : "No passkey found. Enter a username and try again.")
+      setState("error", message)
+    }
+
+    return false
+  }
+
+  const startConditionalPasskey = async () => {
+    const helper = PublicKeyCredential as typeof PublicKeyCredential & {
+      isConditionalMediationAvailable?: () => Promise<boolean>
+    }
+
+    if (typeof helper.isConditionalMediationAvailable !== "function") return
+
+    let available = false
+    try {
+      available = await helper.isConditionalMediationAvailable()
+    } catch {
+      return
+    }
+    if (!available) return
+
+    const optionsResult = await fetchPasskeyOptions({
+      username: state.username.trim() || undefined,
+      quiet: true,
+    })
+    if (!optionsResult) return
+
+    conditionalController = new AbortController()
+
+    try {
+      const credential = await navigator.credentials.get({
+        publicKey: parseRequestOptions(optionsResult.options),
+        mediation: "conditional",
+        signal: conditionalController.signal,
+      })
+
+      if (!(credential instanceof PublicKeyCredential)) return
+
+      await verifyPasskey({
+        credential,
+        challengeToken: optionsResult.challengeToken,
+        quiet: true,
+      })
+    } catch {
+      // Browser may reject conditional flows when no discoverable credential exists.
+    }
+  }
+
+  const handlePasskeyLogin = async () => {
+    if (shouldBlock || state.submitting || state.passkeySubmitting) return
+    if (!state.passkeySupported) {
+      setState("error", "Passkeys are not supported in this browser")
+      return
+    }
+
+    setState({
+      error: "",
+      passkeySubmitting: true,
+      passkeyLabel: "Waiting for passkey...",
+    })
+
+    try {
+      const optionsResult = await fetchPasskeyOptions({
+        username: state.username.trim() || undefined,
+      })
+
+      if (!optionsResult) {
+        setState({
+          passkeySubmitting: false,
+          passkeyLabel: "Sign in with passkey",
+        })
+        return
+      }
+
+      const credential = await navigator.credentials.get({
+        publicKey: parseRequestOptions(optionsResult.options),
+      })
+
+      if (!(credential instanceof PublicKeyCredential)) {
+        setState("error", "Passkey login was cancelled")
+        setState({
+          passkeySubmitting: false,
+          passkeyLabel: "Sign in with passkey",
+        })
+        return
+      }
+
+      const ok = await verifyPasskey({
+        credential,
+        challengeToken: optionsResult.challengeToken,
+      })
+      if (!ok) {
+        setState({
+          passkeySubmitting: false,
+          passkeyLabel: "Sign in with passkey",
+        })
+      }
+    } catch {
+      setState({
+        error: state.username.trim()
+          ? "Passkey authentication failed"
+          : "No passkey found. Enter a username and try again.",
+        passkeySubmitting: false,
+        passkeyLabel: "Sign in with passkey",
+      })
+    }
+  }
+
   const handleSubmit = async (event: Event) => {
     event.preventDefault()
-    if (shouldBlock || state.submitting) return
+    if (shouldBlock || state.submitting || state.passkeySubmitting) return
 
     setState({
       error: "",
@@ -89,34 +372,16 @@ export function LoginApp() {
         }),
       })
 
-      const data = await res.json()
-
-      if (data.error === "2fa_required") {
-        setState("submitLabel", "Redirecting...")
-        const params = new URLSearchParams({
-          token: data.twoFactorToken,
-          username: data.username,
-          timeout: String(data.timeoutSeconds),
-        })
-        window.location.href = `/auth/2fa?${params.toString()}`
-        return
-      }
-
-      if (data.error === "2fa_setup_required") {
-        setState("submitLabel", "Redirecting to 2FA setup...")
-        const setupUrl = data.canSkip ? "/auth/2fa/setup" : "/auth/2fa/setup?required=1"
-        window.location.href = setupUrl
-        return
-      }
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>
 
       if (res.ok && data.success) {
         setState("submitLabel", "Redirecting...")
-        window.location.href = "/"
+        window.location.href = typeof data.redirectTo === "string" && data.redirectTo ? data.redirectTo : "/"
         return
       }
 
       setState({
-        error: data.message || "Authentication failed",
+        error: (typeof data.message === "string" && data.message) || "Authentication failed",
         submitting: false,
         submitLabel: "Sign In",
       })
@@ -125,6 +390,56 @@ export function LoginApp() {
         error: "Connection error",
         submitting: false,
         submitLabel: "Sign In",
+      })
+    }
+  }
+
+  const handleBootstrapVerify = async (event: Event) => {
+    event.preventDefault()
+    if (shouldBlock || state.bootstrapOtpVerifying || state.bootstrapOtpVerified) return
+
+    const otp = state.bootstrapOtp.trim()
+    if (!otp) {
+      setState("bootstrapOtpError", "Initial one-time password is required.")
+      return
+    }
+
+    setState({
+      bootstrapOtpVerifying: true,
+      bootstrapOtpError: "",
+    })
+
+    try {
+      const res = await fetch("/auth/bootstrap/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+        body: JSON.stringify({ otp }),
+      })
+      const data = await res.json().catch(() => ({}))
+
+      if (res.ok && data.success) {
+        setState({
+          bootstrapOtpVerified: true,
+          bootstrapOtpVerifying: false,
+          bootstrapOtpError: "",
+        })
+        window.location.href =
+          typeof data?.redirectTo === "string" && data.redirectTo ? data.redirectTo : "/auth/passkey/setup?required=1"
+        return
+      }
+
+      setState({
+        bootstrapOtpVerifying: false,
+        bootstrapOtpError:
+          typeof data?.message === "string" ? data.message : "Could not verify initial one-time password.",
+      })
+    } catch {
+      setState({
+        bootstrapOtpVerifying: false,
+        bootstrapOtpError: "Connection error while verifying initial one-time password.",
       })
     }
   }
@@ -138,11 +453,14 @@ export function LoginApp() {
           background: #0a0a0a;
           color: #e5e5e5;
           min-height: 100vh;
+          min-height: 100dvh;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
+          justify-content: safe center;
           padding: 2rem;
+          overflow-y: auto;
         }
         .logo {
           width: 80px;
@@ -151,8 +469,9 @@ export function LoginApp() {
           display: block;
         }
         .card {
-          width: 100%;
-          max-width: 360px;
+          width: min(100%, 420px);
+          min-width: min(360px, 100%);
+          max-width: 420px;
           padding: 2rem;
           background: #141414;
           border: 1px solid #262626;
@@ -161,6 +480,21 @@ export function LoginApp() {
         }
         form { display: flex; flex-direction: column; gap: 1.25rem; }
         .field { display: flex; flex-direction: column; gap: 0.5rem; }
+        .label-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.5rem;
+        }
+        .verified-pill {
+          font-size: 0.65rem;
+          color: #10b981;
+          border: 1px solid rgba(16,185,129,0.4);
+          border-radius: 999px;
+          padding: 0.125rem 0.5rem;
+          text-transform: uppercase;
+          letter-spacing: 0.03em;
+        }
         label {
           font-size: 0.75rem;
           font-weight: 500;
@@ -253,7 +587,7 @@ export function LoginApp() {
           display: none;
         }
         .error.visible { display: block; }
-        button[type="submit"] {
+        button {
           height: 40px;
           border: none;
           border-radius: 8px;
@@ -263,13 +597,93 @@ export function LoginApp() {
           font-weight: 600;
           cursor: pointer;
           transition: background-color 0.15s;
-          margin-top: 0.5rem;
+          margin-top: 0.25rem;
         }
-        button[type="submit"]:hover { background: #d4d4d4; }
-        button[type="submit"]:disabled {
+        button:hover { background: #d4d4d4; }
+        button:disabled {
           background: #404040;
           color: #737373;
           cursor: not-allowed;
+        }
+        .passkey-button {
+          margin-top: 0;
+          height: 48px;
+          font-size: 0.95rem;
+          font-weight: 700;
+          background: transparent;
+          border: 1px solid #3f3f46;
+          border-radius: 10px;
+          color: #e5e5e5;
+        }
+        .passkey-button:hover { background: #1f1f24; }
+        div.divider {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          color: #737373;
+          font-size: 0.75rem;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+        div.divider::before,
+        div.divider::after {
+          content: "";
+          flex: 1;
+          height: 1px;
+          background: #2a2a2a;
+        }
+        hr.divider {
+          margin: 1.25rem 0;
+          border: 0;
+          height: 1px;
+          background: rgba(163,163,163,0.2);
+        }
+        .bootstrap-panel {
+          border: 1px solid rgba(14,165,233,0.4);
+          border-radius: 10px;
+          padding: 1rem;
+          background: rgba(14,165,233,0.08);
+          margin-bottom: 1.25rem;
+        }
+        .bootstrap-title {
+          font-size: 0.95rem;
+          font-weight: 700;
+          color: #bae6fd;
+          margin-bottom: 0.5rem;
+        }
+        .bootstrap-text {
+          color: #bfdbfe;
+          font-size: 0.75rem;
+          line-height: 1.5;
+          margin-bottom: 0.9rem;
+        }
+        .bootstrap-step {
+          border-top: 1px solid rgba(148,163,184,0.25);
+          padding-top: 0.85rem;
+          margin-top: 0.85rem;
+        }
+        .bootstrap-step:first-of-type {
+          border-top: none;
+          padding-top: 0;
+          margin-top: 0;
+        }
+        .bootstrap-step-title {
+          font-size: 0.78rem;
+          font-weight: 600;
+          color: #cbd5e1;
+          margin-bottom: 0.55rem;
+        }
+        .bootstrap-hint {
+          color: #93c5fd;
+          font-size: 0.72rem;
+          line-height: 1.4;
+          margin-top: -0.55rem;
+        }
+        .bootstrap-hint code {
+          background: rgba(2, 132, 199, 0.2);
+          color: #bae6fd;
+          border-radius: 4px;
+          padding: 0 0.35rem;
         }
         .http-warning {
           background: rgba(234, 179, 8, 0.15);
@@ -295,6 +709,8 @@ export function LoginApp() {
           border-radius: 6px;
           cursor: pointer;
           align-self: flex-start;
+          height: auto;
+          margin-top: 0;
         }
         .http-warning-dismiss:hover {
           background: rgba(234, 179, 8, 0.1);
@@ -311,8 +727,15 @@ export function LoginApp() {
           line-height: 1.5;
         }
         @media (max-width: 480px) {
-          .card { padding: 1.5rem; border-radius: 8px; }
+          .card { padding: 1.2rem; border-radius: 8px; }
           .logo { width: 60px; height: 75px; margin-bottom: 1.5rem; }
+        }
+        @media (max-height: 760px) {
+          body {
+            justify-content: flex-start;
+            padding-top: 1.25rem;
+            padding-bottom: 1.25rem;
+          }
         }
       `}</style>
       <svg class="logo" viewBox="0 0 80 100" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -321,29 +744,94 @@ export function LoginApp() {
       </svg>
 
       <div class="card">
-        <form onSubmit={handleSubmit}>
-          <Show when={shouldBlock}>
-            <div class="blocked-message">
-              <strong>HTTPS is required to log in.</strong>
-              <br />
-              Please access this page over a secure connection.
-            </div>
-          </Show>
+        <Show when={shouldBlock}>
+          <div class="blocked-message">
+            <strong>HTTPS is required to log in.</strong>
+            <br />
+            Please access this page over a secure connection.
+          </div>
+        </Show>
 
-          <Show when={shouldWarn && !state.warningDismissed}>
-            <div class="http-warning">
-              <div class="http-warning-text">
-                ⚠️ You are connecting over HTTP. Your credentials may be visible to attackers on this network.
+        <Show when={shouldWarn && !state.warningDismissed}>
+          <div class="http-warning">
+            <div class="http-warning-text">
+              ⚠️ You are connecting over HTTP. Your credentials may be visible to attackers on this network.
+            </div>
+            <button type="button" class="http-warning-dismiss" onClick={dismissWarning}>
+              I understand the risks
+            </button>
+          </div>
+        </Show>
+
+        <Show when={bootstrapActive}>
+          <div class="bootstrap-panel">
+            <div class="bootstrap-title">Initial One-Time Password Setup</div>
+            <div class="bootstrap-text">
+              For first-time containers with no configured users, enter the Initial One-Time Password (IOTP) from
+              container logs. After verification, you will enroll a passkey for the <code>opencoder</code> account.
+            </div>
+
+            <form onSubmit={handleBootstrapVerify} class="bootstrap-step">
+              <div class="bootstrap-step-title">Step 1: Verify Initial One-Time Password</div>
+              <div class="field">
+                <div class="label-row">
+                  <label for="bootstrapOtp">Initial One-Time Password</label>
+                  <Show when={state.bootstrapOtpVerified}>
+                    <span class="verified-pill">Verified</span>
+                  </Show>
+                </div>
+                <div class="input-wrapper">
+                  <input
+                    id="bootstrapOtp"
+                    type="text"
+                    disabled={shouldBlock || state.bootstrapOtpVerified}
+                    value={state.bootstrapOtp}
+                    onInput={(event) => {
+                      const value = event.currentTarget.value
+                      setState({
+                        bootstrapOtp: value,
+                        bootstrapOtpError: "",
+                      })
+                    }}
+                  />
+                </div>
+                <div class="bootstrap-hint">
+                  Run <code>docker logs &lt;container&gt;</code> and copy the <code>IOTP value</code> shown at
+                  startup, or run <code>occ status</code> (or <code>opencode-cloud status</code>) on the host and
+                  copy <code>IOTP value</code>.
+                </div>
               </div>
-              <button type="button" class="http-warning-dismiss" onClick={dismissWarning}>
-                I understand the risks
-              </button>
-            </div>
-          </Show>
+              <Show when={!state.bootstrapOtpVerified && !shouldBlock}>
+                <button type="submit" disabled={state.bootstrapOtpVerifying}>
+                  {state.bootstrapOtpVerifying ? "Verifying..." : "Continue to passkey setup"}
+                </button>
+              </Show>
+            </form>
 
+            <Show when={Boolean(state.bootstrapOtpError)}>
+              <div class="error visible">{state.bootstrapOtpError}</div>
+            </Show>
+          </div>
+        </Show>
+
+        <hr class="divider" />
+
+        <form onSubmit={handleSubmit}>
           <div class="error" classList={{ visible: Boolean(state.error) }}>
             {state.error}
           </div>
+
+          <Show when={state.passkeySupported && !shouldBlock}>
+            <button
+              type="button"
+              class="passkey-button"
+              disabled={state.submitting || state.passkeySubmitting}
+              onClick={handlePasskeyLogin}
+            >
+              {state.passkeyLabel}
+            </button>
+            <div class="divider">or</div>
+          </Show>
 
           <div class="field">
             <label for="username">Username</label>
@@ -354,7 +842,7 @@ export function LoginApp() {
                 name="username"
                 required
                 autofocus
-                autocomplete="username"
+                autocomplete="username webauthn"
                 disabled={shouldBlock}
                 value={state.username}
                 classList={{ invalid: state.invalidUsername }}
@@ -428,7 +916,7 @@ export function LoginApp() {
           </div>
 
           <Show when={!shouldBlock}>
-            <button type="submit" disabled={state.submitting}>
+            <button type="submit" disabled={state.submitting || state.passkeySubmitting}>
               {state.submitLabel}
             </button>
           </Show>

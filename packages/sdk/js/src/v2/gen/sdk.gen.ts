@@ -15,6 +15,18 @@ import type {
   AuthLogin2FaResponses,
   AuthLoginErrors,
   AuthLoginResponses,
+  AuthPasskeyAuthOptionsErrors,
+  AuthPasskeyAuthOptionsResponses,
+  AuthPasskeyAuthVerifyErrors,
+  AuthPasskeyAuthVerifyResponses,
+  AuthPasskeyListErrors,
+  AuthPasskeyListResponses,
+  AuthPasskeyRegisterOptionsErrors,
+  AuthPasskeyRegisterOptionsResponses,
+  AuthPasskeyRegisterVerifyErrors,
+  AuthPasskeyRegisterVerifyResponses,
+  AuthPasskeyRemoveErrors,
+  AuthPasskeyRemoveResponses,
   AuthRemoveErrors,
   AuthRemoveResponses,
   AuthSessionErrors,
@@ -331,7 +343,7 @@ export class Auth extends HeyApiClient {
   /**
    * Login with username and password
    *
-   * Authenticate user credentials via PAM and create session. Returns 2fa_required if user has 2FA enabled.
+   * Authenticate user credentials via PAM and create session.
    */
   public login<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
     return (options?.client ?? this.client).post<AuthLoginResponses, AuthLoginErrors, ThrowOnError>({
@@ -348,6 +360,82 @@ export class Auth extends HeyApiClient {
   public login2Fa<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
     return (options?.client ?? this.client).post<AuthLogin2FaResponses, AuthLogin2FaErrors, ThrowOnError>({
       url: "/auth/login/2fa",
+      ...options,
+    })
+  }
+
+  /**
+   * Get passkey authentication options
+   *
+   * Generate a WebAuthn assertion challenge for passkey login.
+   */
+  public passkeyAuthOptions<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).post<
+      AuthPasskeyAuthOptionsResponses,
+      AuthPasskeyAuthOptionsErrors,
+      ThrowOnError
+    >({ url: "/auth/passkey/auth/options", ...options })
+  }
+
+  /**
+   * Verify passkey authentication
+   *
+   * Verify WebAuthn assertion and create a session.
+   */
+  public passkeyAuthVerify<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).post<
+      AuthPasskeyAuthVerifyResponses,
+      AuthPasskeyAuthVerifyErrors,
+      ThrowOnError
+    >({ url: "/auth/passkey/auth/verify", ...options })
+  }
+
+  /**
+   * Get passkey registration options
+   *
+   * Generate a WebAuthn registration challenge for the authenticated user.
+   */
+  public passkeyRegisterOptions<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).post<
+      AuthPasskeyRegisterOptionsResponses,
+      AuthPasskeyRegisterOptionsErrors,
+      ThrowOnError
+    >({ url: "/auth/passkey/register/options", ...options })
+  }
+
+  /**
+   * Verify passkey registration
+   *
+   * Verify WebAuthn attestation and persist passkey metadata.
+   */
+  public passkeyRegisterVerify<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).post<
+      AuthPasskeyRegisterVerifyResponses,
+      AuthPasskeyRegisterVerifyErrors,
+      ThrowOnError
+    >({ url: "/auth/passkey/register/verify", ...options })
+  }
+
+  /**
+   * List registered passkeys
+   *
+   * List passkeys for the current authenticated user.
+   */
+  public passkeyList<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<AuthPasskeyListResponses, AuthPasskeyListErrors, ThrowOnError>({
+      url: "/auth/passkey/list",
+      ...options,
+    })
+  }
+
+  /**
+   * Remove a passkey
+   *
+   * Delete a registered passkey for the current authenticated user.
+   */
+  public passkeyRemove<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).post<AuthPasskeyRemoveResponses, AuthPasskeyRemoveErrors, ThrowOnError>({
+      url: "/auth/passkey/remove",
       ...options,
     })
   }

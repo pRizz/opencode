@@ -14,15 +14,26 @@ import { Log } from "../../../opencode/src/util/log"
 import { createManualRateLimiter, getClientIP, type ManualRateLimiter } from "../security/rate-limit"
 import { parseDuration } from "../../../opencode/src/util/duration"
 import { shouldBlockInsecureLogin } from "../security/https-detection"
-import { create2FAToken, verify2FAToken, type TwoFactorUserInfo } from "../auth/two-factor-token"
+import { verify2FAToken } from "../auth/two-factor-token"
 import { verifyDeviceTrustToken, createDeviceTrustToken, createDeviceFingerprint } from "../auth/device-trust"
 import { getTokenSecret } from "../security/token-secret"
 import { generateTotpSetup, getGoogleAuthenticatorSetupCommand, verifyTotpCode } from "../auth/totp-setup"
 import { getTwoFactorPreference, setTwoFactorPreference } from "../auth/two-factor-preference"
+import { completeBootstrapOtp, getBootstrapStatus, verifyBootstrapOtp } from "../auth/bootstrap"
 import { getUiDir } from "../../../opencode/src/server/ui-dir"
+import {
+  createPasskeyAuthenticationOptions,
+  createPasskeyRegistrationOptions,
+  listUserPasskeys,
+  removeUserPasskey,
+  verifyPasskeyAuthentication,
+  verifyPasskeyRegistration,
+} from "../auth/passkey"
+import type { AuthenticationResponseJSON, RegistrationResponseJSON } from "@simplewebauthn/server"
 import path from "node:path"
 
 const log = Log.create({ service: "auth-routes" })
+const BOOTSTRAP_SETUP_USER = "opencoder"
 
 async function ensureBrokerSession(sessionId: string, session: UserSession.Info): Promise<boolean> {
   let { uid, gid, home, shell } = session
@@ -93,6 +104,24 @@ function maskUsername(username: string): string {
   return username.slice(0, 2) + "***" + username.slice(-1)
 }
 
+function getRequestIP(c: Parameters<ManualRateLimiter["checkRateLimit"]>[0]): string {
+  const authConfig = ServerAuth.get()
+  return getClientIP(c, authConfig.trustProxy ?? false)
+}
+
+type ApiStatusCode = 400 | 401 | 403 | 409 | 429 | 500 | 503
+
+function normalizeApiStatus(status: number | undefined, fallback: ApiStatusCode): ApiStatusCode {
+  if (status === 400) return 400
+  if (status === 401) return 401
+  if (status === 403) return 403
+  if (status === 409) return 409
+  if (status === 429) return 429
+  if (status === 500) return 500
+  if (status === 503) return 503
+  return fallback
+}
+
 /**
  * Login request schema - accepts username, password, and optional rememberMe.
  */
@@ -101,6 +130,34 @@ const loginRequestSchema = z.object({
   password: z.string().min(1),
   returnUrl: z.string().optional(),
   rememberMe: z.boolean().optional(),
+})
+
+const passkeyAuthOptionsRequestSchema = z.object({
+  username: z.string().min(1).max(32).optional(),
+})
+
+const passkeyAuthVerifyRequestSchema = z.object({
+  challengeToken: z.string().min(1),
+  response: z.unknown(),
+  rememberMe: z.boolean().optional(),
+})
+
+const passkeyRegisterOptionsRequestSchema = z.object({
+  deviceLabel: z.string().trim().min(1).max(64).optional(),
+})
+
+const passkeyRegisterVerifyRequestSchema = z.object({
+  challengeToken: z.string().min(1),
+  response: z.unknown(),
+  deviceLabel: z.string().trim().min(1).max(64).optional(),
+})
+
+const passkeyRemoveRequestSchema = z.object({
+  credentialId: z.string().min(1),
+})
+
+const bootstrapVerifyRequestSchema = z.object({
+  otp: z.string().min(1).max(256),
 })
 
 /**
@@ -116,6 +173,7 @@ const loginRateLimiter = lazy((): ManualRateLimiter | undefined => {
   return createManualRateLimiter({
     windowMs,
     limit: authConfig.rateLimitMax ?? 5,
+    keyGenerator: (c) => getClientIP(c, authConfig.trustProxy ?? false),
   })
 })
 
@@ -132,6 +190,21 @@ const otpRateLimiter = lazy((): ManualRateLimiter | undefined => {
   return createManualRateLimiter({
     windowMs,
     limit: authConfig.otpRateLimitMax ?? 5,
+    keyGenerator: (c) => getClientIP(c, authConfig.trustProxy ?? false),
+  })
+})
+
+/**
+ * Dedicated limiter for bootstrap OTP brute-force protection.
+ * Counts failed verify/signup attempts per client IP.
+ */
+const bootstrapRateLimiter = lazy((): ManualRateLimiter | undefined => {
+  const authConfig = ServerAuth.get()
+  if (!authConfig.enabled) return undefined
+  return createManualRateLimiter({
+    windowMs: 15 * 60 * 1000,
+    limit: 3,
+    keyGenerator: (c) => getClientIP(c, authConfig.trustProxy ?? false),
   })
 })
 
@@ -163,6 +236,46 @@ function isValidReturnUrl(url: string): boolean {
   return false
 }
 
+function passkeyRpID(c: { req: { url: string } }, authConfig: ReturnType<typeof ServerAuth.get>): string {
+  const configValue = authConfig.passkeyRpId?.trim()
+  if (configValue) return configValue
+  return new URL(c.req.url).hostname
+}
+
+function passkeyOrigins(c: { req: { url: string } }, authConfig: ReturnType<typeof ServerAuth.get>): string[] {
+  const list = authConfig.passkeyAllowedOrigins?.filter((item) => item.trim().length > 0) ?? []
+  if (list.length) return list
+  return [new URL(c.req.url).origin]
+}
+
+function passkeyTimeoutMs(authConfig: ReturnType<typeof ServerAuth.get>): number {
+  return parseDuration(authConfig.passkeyChallengeTimeout ?? "5m") ?? 300000
+}
+
+function isUserAllowed(authConfig: ReturnType<typeof ServerAuth.get>, username: string): boolean {
+  const allowedUsers = authConfig.allowedUsers ?? []
+  if (!allowedUsers.length) return true
+  return allowedUsers.includes(username)
+}
+
+async function shouldPromptPasskeySetup(authConfig: ReturnType<typeof ServerAuth.get>, username: string): Promise<boolean> {
+  if (!authConfig.passkeysEnabled) return false
+  const credentials = await listUserPasskeys(username)
+  return credentials.length === 0
+}
+
+function passkeySetupPath(required: boolean, returnTo?: string): string {
+  const params = new URLSearchParams()
+  if (required) {
+    params.set("required", "1")
+  }
+  if (returnTo && isValidReturnUrl(returnTo)) {
+    params.set("returnTo", returnTo)
+  }
+  const query = params.toString()
+  return query.length > 0 ? `/auth/passkey/setup?${query}` : "/auth/passkey/setup"
+}
+
 /**
  * Generate login page HTML with security context.
  */
@@ -172,6 +285,8 @@ let cachedTwoFactorTemplate: string | undefined
 let cachedTwoFactorTemplatePath: string | undefined
 let cachedTwoFactorSetupTemplate: string | undefined
 let cachedTwoFactorSetupTemplatePath: string | undefined
+let cachedPasskeySetupTemplate: string | undefined
+let cachedPasskeySetupTemplatePath: string | undefined
 
 async function loadLoginTemplate(uiDir: string): Promise<string> {
   const templatePath = path.join(uiDir, "login.html")
@@ -192,7 +307,13 @@ async function loadLoginTemplate(uiDir: string): Promise<string> {
 
 function injectLoginBootstrap(
   template: string,
-  securityContext: { shouldBlock: boolean },
+  securityContext: {
+    shouldBlock: boolean
+    bootstrap: {
+      active: boolean
+      available: boolean
+    }
+  },
 ): string {
   const bootstrap = `<script>window.__OPENCODE_LOGIN__ = ${JSON.stringify(securityContext)};</script>`
   if (template.includes("</head>")) {
@@ -281,11 +402,55 @@ function injectTwoFactorSetupBootstrap(
   return `${template}\n${script}`
 }
 
+async function loadPasskeySetupTemplate(uiDir: string): Promise<string> {
+  const templatePath = path.join(uiDir, "passkey-setup.html")
+  if (cachedPasskeySetupTemplate && cachedPasskeySetupTemplatePath === templatePath) {
+    return cachedPasskeySetupTemplate
+  }
+
+  const file = Bun.file(templatePath)
+  const exists = await file.exists()
+  if (!exists) {
+    throw new Error(`Passkey setup HTML not found at ${templatePath}`)
+  }
+
+  cachedPasskeySetupTemplate = await file.text()
+  cachedPasskeySetupTemplatePath = templatePath
+  return cachedPasskeySetupTemplate
+}
+
+function injectPasskeySetupBootstrap(
+  template: string,
+  bootstrap: {
+    username: string
+    required: boolean
+    canSkip: boolean
+    returnTo: string
+  },
+): string {
+  const script = `<script>window.__OPENCODE_PASSKEY_SETUP__ = ${JSON.stringify(bootstrap)};</script>`
+  if (template.includes("</head>")) {
+    return template.replace("</head>", `${script}\n</head>`)
+  }
+  if (template.includes("</body>")) {
+    return template.replace("</body>", `${script}\n</body>`)
+  }
+  return `${template}\n${script}`
+}
+
 /**
  * Auth routes for session management.
  *
  * - GET /login - Login page (HTML)
+ * - POST /bootstrap/verify - Verify first-boot one-time password
  * - POST /login - Login with username and password
+ * - POST /passkey/auth/options - Get passkey authentication options
+ * - POST /passkey/auth/verify - Verify passkey authentication response
+ * - GET /passkey/setup - Passkey setup prompt page (HTML)
+ * - POST /passkey/register/options - Get passkey registration options
+ * - POST /passkey/register/verify - Verify passkey registration response
+ * - GET /passkey/list - List passkeys for current user
+ * - POST /passkey/remove - Remove a passkey for current user
  * - GET /2fa - 2FA verification page (HTML)
  * - POST /login/2fa - Complete 2FA login
  * - GET /status - Get auth configuration status
@@ -301,6 +466,7 @@ export const AuthRoutes = lazy(() =>
         requireHttps: authConfig.requireHttps,
         trustProxy: authConfig.trustProxy,
       })
+      const bootstrapStatus = await getBootstrapStatus()
 
       const uiDir = getUiDir()
       if (!uiDir) {
@@ -309,10 +475,210 @@ export const AuthRoutes = lazy(() =>
 
       try {
         const template = await loadLoginTemplate(uiDir)
-        return c.html(injectLoginBootstrap(template, { shouldBlock }))
+      return c.html(
+          injectLoginBootstrap(template, {
+            shouldBlock,
+            bootstrap: {
+              active: bootstrapStatus.active,
+              available: bootstrapStatus.available,
+            },
+          }),
+        )
       } catch (error) {
         log.error("Failed to load login HTML", { error })
         return c.text("Login UI is missing. Run the app build to generate login.html.", 500)
+      }
+    })
+    .post("/bootstrap/verify", async (c) => {
+      const authConfig = ServerAuth.get()
+      if (!authConfig.enabled) {
+        return c.json({ error: "auth_disabled", message: "Authentication is not enabled" }, 403)
+      }
+      if (
+        shouldBlockInsecureLogin(c, {
+          requireHttps: authConfig.requireHttps,
+          trustProxy: authConfig.trustProxy,
+        })
+      ) {
+        return c.json({ error: "https_required", message: "HTTPS is required for login" }, 403)
+      }
+
+      const limiter = bootstrapRateLimiter()
+      if (limiter) {
+        const rateLimitResult = limiter.checkRateLimit(c)
+        if (rateLimitResult) {
+          return rateLimitResult
+        }
+      }
+
+      const xrw = c.req.header("X-Requested-With")
+      if (!xrw) {
+        logSecurityEvent({
+          type: "csrf_violation",
+          ip: getRequestIP(c),
+          timestamp: new Date().toISOString(),
+          userAgent: c.req.header("User-Agent"),
+        })
+        return c.json({ error: "csrf_missing", message: "X-Requested-With header required" }, 400)
+      }
+
+      const body = await c.req.json().catch(() => ({}))
+      const parsed = bootstrapVerifyRequestSchema.safeParse(body)
+      if (!parsed.success) {
+        return c.json({ error: "invalid_request", message: "Initial one-time password is required." }, 400)
+      }
+
+      const verifyResult = await verifyBootstrapOtp(parsed.data.otp)
+      if (verifyResult.ok) {
+        const userInfo = await getUserInfo(BOOTSTRAP_SETUP_USER)
+        if (!userInfo) {
+          return c.json(
+            {
+              error: "bootstrap_user_missing",
+              message:
+                "Bootstrap setup user is not available in this container. " +
+                "Rebuild the container image or create users with `occ user add <username>`.",
+            },
+            500,
+          )
+        }
+
+        const session = UserSession.create(
+          BOOTSTRAP_SETUP_USER,
+          c.req.header("User-Agent"),
+          {
+            uid: userInfo.uid,
+            gid: userInfo.gid,
+            home: userInfo.home,
+            shell: userInfo.shell,
+          },
+          false,
+        )
+        UserSession.setBootstrapPending(session.id, parsed.data.otp)
+        setSessionCookie(c, session.id, false)
+        setCSRFCookie(c, session.id)
+
+        const broker = new BrokerClient()
+        broker
+          .registerSession(session.id, {
+            username: BOOTSTRAP_SETUP_USER,
+            uid: userInfo.uid,
+            gid: userInfo.gid,
+            home: userInfo.home,
+            shell: userInfo.shell,
+          })
+          .catch((error) => {
+            log.warn("Failed to register bootstrap setup session with broker", { error })
+          })
+
+        logSecurityEvent({
+          type: "login_success",
+          ip: getRequestIP(c),
+          username: BOOTSTRAP_SETUP_USER,
+          reason: "bootstrap_otp_verified",
+          timestamp: new Date().toISOString(),
+          userAgent: c.req.header("User-Agent"),
+        })
+
+        return c.json({
+          success: true as const,
+          redirectTo: passkeySetupPath(true),
+          user: {
+            username: BOOTSTRAP_SETUP_USER,
+            uid: userInfo.uid,
+            gid: userInfo.gid,
+            home: userInfo.home,
+            shell: userInfo.shell,
+          },
+        })
+      }
+
+      if (verifyResult.code === "otp_invalid") {
+        limiter?.recordFailure(c)
+        logSecurityEvent({
+          type: "login_failed",
+          ip: getRequestIP(c),
+          reason: "bootstrap_otp_invalid",
+          timestamp: new Date().toISOString(),
+          userAgent: c.req.header("User-Agent"),
+        })
+        return c.json({ error: "otp_invalid", message: "Initial one-time password is invalid." }, 401)
+      }
+
+      if (verifyResult.code === "inactive") {
+        return c.json(
+          {
+            error: "bootstrap_inactive",
+            message: "Initial setup is not active. A user may already be configured.",
+          },
+          403,
+        )
+      }
+
+      const status = normalizeApiStatus(verifyResult.status, 500)
+      return c.json(
+        {
+          error: verifyResult.code,
+          message: verifyResult.message,
+        },
+        status,
+      )
+    })
+    .post("/bootstrap/signup", async (c) => {
+      return c.json(
+        {
+          error: "bootstrap_signup_removed",
+          message:
+            "Bootstrap now uses passkey enrollment. Verify the initial one-time password and continue to passkey setup.",
+        },
+        410,
+      )
+    })
+    .get("/passkey/setup", async (c) => {
+      const authConfig = ServerAuth.get()
+      if (!authConfig.enabled) {
+        return c.redirect("/auth/login")
+      }
+      if (!authConfig.passkeysEnabled) {
+        return c.redirect("/")
+      }
+
+      const sessionId = getCookie(c, "opencode_session")
+      if (!sessionId) {
+        return c.redirect("/auth/login")
+      }
+      const session = UserSession.get(sessionId)
+      if (!session) {
+        return c.redirect("/auth/login")
+      }
+
+      const required = session.bootstrapPending === true || c.req.query("required") === "1"
+      const requestedReturnTo = c.req.query("returnTo")
+      const returnTo = requestedReturnTo && isValidReturnUrl(requestedReturnTo) ? requestedReturnTo : "/"
+      const credentials = await listUserPasskeys(session.username)
+      if (session.bootstrapPending && credentials.length > 0) {
+        UserSession.clearBootstrapPending(session.id)
+        return c.redirect(returnTo)
+      }
+
+      const uiDir = getUiDir()
+      if (!uiDir) {
+        return c.text("Passkey setup UI is not configured. Build the app UI and set uiDir.", 500)
+      }
+
+      try {
+        const template = await loadPasskeySetupTemplate(uiDir)
+        return c.html(
+          injectPasskeySetupBootstrap(template, {
+            username: session.username,
+            required,
+            canSkip: !required,
+            returnTo,
+          }),
+        )
+      } catch (error) {
+        log.error("Failed to load passkey setup HTML", { error })
+        return c.text("Passkey setup UI is missing. Run the app build to generate passkey-setup.html.", 500)
       }
     })
     .get("/2fa", async (c) => {
@@ -346,34 +712,25 @@ export const AuthRoutes = lazy(() =>
       "/login",
       describeRoute({
         summary: "Login with username and password",
-        description:
-          "Authenticate user credentials via PAM and create session. Returns 2fa_required if user has 2FA enabled.",
+        description: "Authenticate user credentials via PAM and create session.",
         operationId: "auth.login",
         responses: {
           200: {
-            description: "Login successful or 2FA required",
+            description: "Login successful",
             content: {
               "application/json": {
                 schema: resolver(
-                  z.union([
-                    z.object({
-                      success: z.literal(true),
-                      user: z.object({
-                        username: z.string(),
-                        uid: z.number(),
-                        gid: z.number(),
-                        home: z.string(),
-                        shell: z.string(),
-                      }),
-                    }),
-                    z.object({
-                      success: z.literal(false),
-                      error: z.literal("2fa_required"),
-                      twoFactorToken: z.string(),
+                  z.object({
+                    success: z.literal(true),
+                    user: z.object({
                       username: z.string(),
-                      timeoutSeconds: z.number(),
+                      uid: z.number(),
+                      gid: z.number(),
+                      home: z.string(),
+                      shell: z.string(),
                     }),
-                  ]),
+                    redirectTo: z.string().optional(),
+                  }),
                 ),
               },
             },
@@ -431,7 +788,7 @@ export const AuthRoutes = lazy(() =>
             trustProxy: authConfig.trustProxy,
           })
         ) {
-          const ip = getClientIP(c)
+          const ip = getRequestIP(c)
           logSecurityEvent({
             type: "login_failed",
             ip,
@@ -454,7 +811,7 @@ export const AuthRoutes = lazy(() =>
         // 3. Check X-Requested-With header for basic CSRF protection
         const xrw = c.req.header("X-Requested-With")
         if (!xrw) {
-          const ip = getClientIP(c)
+          const ip = getRequestIP(c)
           logSecurityEvent({
             type: "csrf_violation",
             ip,
@@ -500,13 +857,27 @@ export const AuthRoutes = lazy(() =>
           return c.json({ error: "invalid_return_url", message: "Invalid return URL" }, 400)
         }
 
+        const ip = getRequestIP(c)
+        const timestamp = new Date().toISOString()
+        const userAgent = c.req.header("User-Agent")
+
+        // 7. Enforce configured user allowlist before password auth.
+        if (!isUserAllowed(authConfig, username)) {
+          logSecurityEvent({
+            type: "login_failed",
+            ip,
+            username,
+            reason: "user_not_allowed",
+            timestamp,
+            userAgent,
+          })
+          limiter?.recordFailure(c)
+          return c.json({ error: "auth_failed", message: "Authentication failed" }, 401)
+        }
+
         // 7. Authenticate via broker
         const broker = new BrokerClient()
         const authResult = await broker.authenticate(username, password)
-
-        const ip = getClientIP(c)
-        const timestamp = new Date().toISOString()
-        const userAgent = c.req.header("User-Agent")
 
         if (!authResult.success) {
           // Log failed login attempt
@@ -575,102 +946,6 @@ export const AuthRoutes = lazy(() =>
           return c.json({ error: "auth_failed", message: "Authentication failed" }, 401)
         }
 
-        // 8a. Check if 2FA is required
-        if (authConfig.twoFactorEnabled) {
-          const has2fa = await broker.check2fa(username, userInfo.home)
-          const preference = await getTwoFactorPreference(username)
-          const skipSetup = preference.skipSetup && !authConfig.twoFactorRequired
-
-          if (has2fa) {
-            // Check device trust cookie first
-            const deviceTrustCookie = getCookie(c, "opencode_device_trust")
-            let deviceTrusted = false
-
-            if (deviceTrustCookie) {
-              const fingerprint = createDeviceFingerprint(userAgent ?? "")
-              const trustedUser = await verifyDeviceTrustToken(deviceTrustCookie, fingerprint, getTokenSecret())
-              if (trustedUser === username) {
-                // Device is trusted - skip 2FA, continue to session creation
-                deviceTrusted = true
-              }
-            }
-
-            if (!deviceTrusted) {
-              // Device not trusted or token invalid - require 2FA
-              const tfaUserInfo: TwoFactorUserInfo = {
-                username,
-                uid: userInfo.uid,
-                gid: userInfo.gid,
-                home: userInfo.home,
-                shell: userInfo.shell,
-              }
-
-              const timeoutMs = parseDuration(authConfig.twoFactorTokenTimeout ?? "5m") ?? 300000
-              const timeoutSec = Math.floor(timeoutMs / 1000)
-
-              const twoFactorToken = await create2FAToken(
-                tfaUserInfo,
-                timeoutSec,
-                getTokenSecret(),
-                ip, // Bind to requesting IP
-              )
-
-              return c.json(
-                {
-                  success: false as const,
-                  error: "2fa_required" as const,
-                  twoFactorToken,
-                  username,
-                  timeoutSeconds: timeoutSec,
-                },
-                200,
-              ) // 200 because password was valid, just need 2FA
-            }
-          } else if (!skipSetup) {
-            // User doesn't have 2FA configured - redirect to setup
-            // Create session with twoFactorPending flag
-            const tempSession = UserSession.create(
-              username,
-              c.req.header("User-Agent"),
-              {
-                uid: userInfo.uid,
-                gid: userInfo.gid,
-                home: userInfo.home,
-                shell: userInfo.shell,
-              },
-              false, // Don't use rememberMe for setup session
-            )
-            // Mark session as pending 2FA setup
-            tempSession.twoFactorPending = true
-            setSessionCookie(c, tempSession.id, false)
-            setCSRFCookie(c, tempSession.id)
-
-            const userInfoForBroker: UserInfo = {
-              username,
-              uid: userInfo.uid,
-              gid: userInfo.gid,
-              home: userInfo.home,
-              shell: userInfo.shell,
-            }
-            const brokerForRegistration = new BrokerClient()
-            brokerForRegistration.registerSession(tempSession.id, userInfoForBroker).catch((err) => {
-              log.warn("Failed to register setup session with broker", { error: err })
-            })
-
-            return c.json(
-              {
-                success: false as const,
-                error: "2fa_setup_required" as const,
-                message: authConfig.twoFactorRequired
-                  ? "Two-factor authentication setup is required"
-                  : "Two-factor authentication is recommended",
-                canSkip: !authConfig.twoFactorRequired,
-              },
-              200,
-            )
-          }
-        }
-
         // 9. Create session with full user info
         const session = UserSession.create(
           username,
@@ -714,9 +989,13 @@ export const AuthRoutes = lazy(() =>
           userAgent,
         })
 
+        const needsPasskeySetup = await shouldPromptPasskeySetup(authConfig, username)
+        const redirectTo = needsPasskeySetup ? passkeySetupPath(false, returnUrl) : (returnUrl ?? "/")
+
         // 13. Return success with user info
         return c.json({
           success: true as const,
+          redirectTo,
           user: {
             username: session.username,
             uid: userInfo.uid,
@@ -768,7 +1047,7 @@ export const AuthRoutes = lazy(() =>
         // Check X-Requested-With for CSRF
         const xrw = c.req.header("X-Requested-With")
         if (!xrw) {
-          const ip = getClientIP(c)
+          const ip = getRequestIP(c)
           logSecurityEvent({
             type: "csrf_violation",
             ip,
@@ -791,7 +1070,7 @@ export const AuthRoutes = lazy(() =>
         }
 
         // Verify 2FA token
-        const ip = getClientIP(c)
+        const ip = getRequestIP(c)
         const userInfo = await verify2FAToken(twoFactorToken, getTokenSecret(), ip)
         if (!userInfo) {
           return c.json({ error: "token_expired", message: "2FA session expired, please login again" }, 401)
@@ -941,6 +1220,481 @@ export const AuthRoutes = lazy(() =>
         })
       },
     )
+    .post(
+      "/passkey/auth/options",
+      describeRoute({
+        summary: "Get passkey authentication options",
+        description: "Generate a WebAuthn assertion challenge for passkey login.",
+        operationId: "auth.passkeyAuthOptions",
+        responses: {
+          200: {
+            description: "Authentication options",
+            content: {
+              "application/json": {
+                schema: resolver(
+                  z.object({
+                    success: z.literal(true),
+                    challengeToken: z.string(),
+                    options: z.unknown(),
+                  }),
+                ),
+              },
+            },
+          },
+          400: { description: "Bad request" },
+          403: { description: "Passkeys disabled or HTTPS required" },
+        },
+      }),
+      async (c) => {
+        const authConfig = ServerAuth.get()
+        if (!authConfig.enabled) {
+          return c.json({ error: "auth_disabled", message: "Authentication is not enabled" }, 403)
+        }
+        if (!authConfig.passkeysEnabled) {
+          return c.json({ error: "passkeys_disabled", message: "Passkeys are not enabled" }, 403)
+        }
+
+        if (
+          shouldBlockInsecureLogin(c, {
+            requireHttps: "block",
+            trustProxy: authConfig.trustProxy,
+          })
+        ) {
+          return c.json({ error: "passkey_requires_https", message: "Passkeys require HTTPS or localhost" }, 403)
+        }
+
+        const xrw = c.req.header("X-Requested-With")
+        if (!xrw) {
+          return c.json({ error: "csrf_missing", message: "X-Requested-With header required" }, 400)
+        }
+
+        const body = await c.req.json().catch(() => ({}))
+        const parsed = passkeyAuthOptionsRequestSchema.safeParse(body)
+        if (!parsed.success) {
+          return c.json({ error: "invalid_request", message: "Invalid request body" }, 400)
+        }
+
+        const timeoutMs = passkeyTimeoutMs(authConfig)
+        const ip = getClientIP(c)
+        const generated = await createPasskeyAuthenticationOptions({
+          username: parsed.data.username?.trim(),
+          rpID: passkeyRpID(c, authConfig),
+          origins: passkeyOrigins(c, authConfig),
+          timeoutMs,
+          timeoutSeconds: Math.max(1, Math.floor(timeoutMs / 1000)),
+          requireUserVerification: authConfig.passkeyRequireUserVerification ?? true,
+          secret: getTokenSecret(),
+          ip,
+        })
+
+        return c.json({
+          success: true as const,
+          challengeToken: generated.challengeToken,
+          options: generated.options,
+        })
+      },
+    )
+    .post(
+      "/passkey/auth/verify",
+      describeRoute({
+        summary: "Verify passkey authentication",
+        description: "Verify WebAuthn assertion and create a session.",
+        operationId: "auth.passkeyAuthVerify",
+        responses: {
+          200: { description: "Passkey login successful" },
+          400: { description: "Bad request" },
+          401: { description: "Authentication failed" },
+          403: { description: "Passkeys disabled or HTTPS required" },
+        },
+      }),
+      async (c) => {
+        const authConfig = ServerAuth.get()
+        if (!authConfig.enabled) {
+          return c.json({ error: "auth_disabled", message: "Authentication is not enabled" }, 403)
+        }
+        if (!authConfig.passkeysEnabled) {
+          return c.json({ error: "passkeys_disabled", message: "Passkeys are not enabled" }, 403)
+        }
+
+        if (
+          shouldBlockInsecureLogin(c, {
+            requireHttps: "block",
+            trustProxy: authConfig.trustProxy,
+          })
+        ) {
+          return c.json({ error: "passkey_requires_https", message: "Passkeys require HTTPS or localhost" }, 403)
+        }
+
+        const xrw = c.req.header("X-Requested-With")
+        if (!xrw) {
+          return c.json({ error: "csrf_missing", message: "X-Requested-With header required" }, 400)
+        }
+
+        const body = await c.req.json().catch(() => null)
+        const parsed = passkeyAuthVerifyRequestSchema.safeParse(body)
+        if (!parsed.success) {
+          return c.json({ error: "invalid_request", message: "Challenge token and response are required" }, 400)
+        }
+
+        const verifyResult = await verifyPasskeyAuthentication({
+          challengeToken: parsed.data.challengeToken,
+          response: parsed.data.response as AuthenticationResponseJSON,
+          rpID: passkeyRpID(c, authConfig),
+          origins: passkeyOrigins(c, authConfig),
+          timeoutSeconds: Math.max(1, Math.floor(passkeyTimeoutMs(authConfig) / 1000)),
+          requireUserVerification: authConfig.passkeyRequireUserVerification ?? true,
+          secret: getTokenSecret(),
+          ip: getClientIP(c),
+        })
+
+        if (!verifyResult.verified || !verifyResult.username) {
+          logSecurityEvent({
+            type: "login_failed",
+            ip: getClientIP(c),
+            reason: verifyResult.error ?? "passkey_failed",
+            timestamp: new Date().toISOString(),
+            userAgent: c.req.header("User-Agent"),
+          })
+
+          if (verifyResult.error === "invalid_challenge") {
+            return c.json({ error: "token_expired", message: "Passkey challenge expired. Please try again." }, 401)
+          }
+          if (verifyResult.error === "counter") {
+            return c.json({ error: "passkey_replay_detected", message: "Passkey could not be verified" }, 401)
+          }
+          return c.json({ error: "passkey_failed", message: "Passkey authentication failed" }, 401)
+        }
+
+        const userInfo = await getUserInfo(verifyResult.username)
+        if (!userInfo) {
+          return c.json({ error: "auth_failed", message: "Authentication failed" }, 401)
+        }
+        if (!isUserAllowed(authConfig, verifyResult.username)) {
+          logSecurityEvent({
+            type: "login_failed",
+            ip: getClientIP(c),
+            username: verifyResult.username,
+            reason: "user_not_allowed",
+            timestamp: new Date().toISOString(),
+            userAgent: c.req.header("User-Agent"),
+          })
+          return c.json({ error: "auth_failed", message: "Authentication failed" }, 401)
+        }
+
+        const rememberMe = parsed.data.rememberMe ?? false
+        const session = UserSession.create(
+          verifyResult.username,
+          c.req.header("User-Agent"),
+          {
+            uid: userInfo.uid,
+            gid: userInfo.gid,
+            home: userInfo.home,
+            shell: userInfo.shell,
+          },
+          rememberMe,
+        )
+
+        setSessionCookie(c, session.id, rememberMe)
+        setCSRFCookie(c, session.id)
+
+        const broker = new BrokerClient()
+        broker
+          .registerSession(session.id, {
+            username: verifyResult.username,
+            uid: userInfo.uid,
+            gid: userInfo.gid,
+            home: userInfo.home,
+            shell: userInfo.shell,
+          })
+          .catch((error) => {
+            log.warn("Failed to register passkey session with broker", { error })
+          })
+
+        logSecurityEvent({
+          type: "login_success",
+          ip: getClientIP(c),
+          username: verifyResult.username,
+          timestamp: new Date().toISOString(),
+          userAgent: c.req.header("User-Agent"),
+        })
+
+        return c.json({
+          success: true as const,
+          user: {
+            username: verifyResult.username,
+            uid: userInfo.uid,
+            gid: userInfo.gid,
+            home: userInfo.home,
+            shell: userInfo.shell,
+          },
+        })
+      },
+    )
+    .post(
+      "/passkey/register/options",
+      describeRoute({
+        summary: "Get passkey registration options",
+        description: "Generate a WebAuthn registration challenge for the authenticated user.",
+        operationId: "auth.passkeyRegisterOptions",
+        responses: {
+          200: { description: "Registration options" },
+          400: { description: "Bad request" },
+          401: { description: "Not authenticated" },
+          403: { description: "Passkeys disabled or HTTPS required" },
+        },
+      }),
+      async (c) => {
+        const authConfig = ServerAuth.get()
+        if (!authConfig.enabled) {
+          return c.json({ error: "auth_disabled", message: "Authentication is not enabled" }, 403)
+        }
+        if (!authConfig.passkeysEnabled) {
+          return c.json({ error: "passkeys_disabled", message: "Passkeys are not enabled" }, 403)
+        }
+
+        if (
+          shouldBlockInsecureLogin(c, {
+            requireHttps: "block",
+            trustProxy: authConfig.trustProxy,
+          })
+        ) {
+          return c.json({ error: "passkey_requires_https", message: "Passkeys require HTTPS or localhost" }, 403)
+        }
+
+        const session = c.get("session")
+        if (!session) {
+          return c.json({ error: "not_authenticated", message: "Not authenticated" }, 401)
+        }
+
+        const xrw = c.req.header("X-Requested-With")
+        if (!xrw) {
+          return c.json({ error: "csrf_missing", message: "X-Requested-With header required" }, 400)
+        }
+
+        const body = await c.req.json().catch(() => ({}))
+        const parsed = passkeyRegisterOptionsRequestSchema.safeParse(body)
+        if (!parsed.success) {
+          return c.json({ error: "invalid_request", message: "Invalid request body" }, 400)
+        }
+
+        const timeoutMs = passkeyTimeoutMs(authConfig)
+        const generated = await createPasskeyRegistrationOptions({
+          username: session.username,
+          rpName: authConfig.passkeyRpName ?? "opencode",
+          rpID: passkeyRpID(c, authConfig),
+          origins: passkeyOrigins(c, authConfig),
+          timeoutMs,
+          timeoutSeconds: Math.max(1, Math.floor(timeoutMs / 1000)),
+          requireUserVerification: authConfig.passkeyRequireUserVerification ?? true,
+          secret: getTokenSecret(),
+          ip: getClientIP(c),
+        })
+
+        return c.json({
+          success: true as const,
+          challengeToken: generated.challengeToken,
+          options: generated.options,
+          username: session.username,
+          deviceLabel: parsed.data.deviceLabel,
+        })
+      },
+    )
+    .post(
+      "/passkey/register/verify",
+      describeRoute({
+        summary: "Verify passkey registration",
+        description: "Verify WebAuthn attestation and persist passkey metadata.",
+        operationId: "auth.passkeyRegisterVerify",
+        responses: {
+          200: { description: "Registration successful" },
+          400: { description: "Bad request" },
+          401: { description: "Verification failed" },
+          403: { description: "Passkeys disabled or HTTPS required" },
+        },
+      }),
+      async (c) => {
+        const authConfig = ServerAuth.get()
+        if (!authConfig.enabled) {
+          return c.json({ error: "auth_disabled", message: "Authentication is not enabled" }, 403)
+        }
+        if (!authConfig.passkeysEnabled) {
+          return c.json({ error: "passkeys_disabled", message: "Passkeys are not enabled" }, 403)
+        }
+
+        if (
+          shouldBlockInsecureLogin(c, {
+            requireHttps: "block",
+            trustProxy: authConfig.trustProxy,
+          })
+        ) {
+          return c.json({ error: "passkey_requires_https", message: "Passkeys require HTTPS or localhost" }, 403)
+        }
+
+        const session = c.get("session")
+        if (!session) {
+          return c.json({ error: "not_authenticated", message: "Not authenticated" }, 401)
+        }
+
+        const xrw = c.req.header("X-Requested-With")
+        if (!xrw) {
+          return c.json({ error: "csrf_missing", message: "X-Requested-With header required" }, 400)
+        }
+
+        const body = await c.req.json().catch(() => null)
+        const parsed = passkeyRegisterVerifyRequestSchema.safeParse(body)
+        if (!parsed.success) {
+          return c.json({ error: "invalid_request", message: "Challenge token and response are required" }, 400)
+        }
+
+        const verifyResult = await verifyPasskeyRegistration({
+          username: session.username,
+          challengeToken: parsed.data.challengeToken,
+          response: parsed.data.response as RegistrationResponseJSON,
+          deviceLabel: parsed.data.deviceLabel,
+          rpID: passkeyRpID(c, authConfig),
+          origins: passkeyOrigins(c, authConfig),
+          timeoutSeconds: Math.max(1, Math.floor(passkeyTimeoutMs(authConfig) / 1000)),
+          requireUserVerification: authConfig.passkeyRequireUserVerification ?? true,
+          secret: getTokenSecret(),
+          ip: getClientIP(c),
+        })
+
+        if (!verifyResult.verified || !verifyResult.credential) {
+          if (verifyResult.error === "invalid_challenge") {
+            return c.json({ error: "token_expired", message: "Passkey challenge expired. Please try again." }, 401)
+          }
+          if (verifyResult.error === "invalid_response") {
+            return c.json({ error: "invalid_request", message: "Invalid passkey response" }, 400)
+          }
+          return c.json({ error: "passkey_failed", message: "Passkey registration failed" }, 401)
+        }
+
+        const bootstrapPending = session.bootstrapPending === true
+        if (bootstrapPending) {
+          const otp = session.bootstrapOtp
+          if (!otp) {
+            return c.json(
+              {
+                error: "bootstrap_state_invalid",
+                message: "Bootstrap setup state expired. Retry initial setup from the login page.",
+              },
+              401,
+            )
+          }
+
+          const completeResult = await completeBootstrapOtp(otp)
+          if (!completeResult.ok && completeResult.code !== "inactive") {
+            return c.json(
+              {
+                error: "bootstrap_finalize_failed",
+                message: "Passkey was registered, but bootstrap finalization failed. Please retry.",
+              },
+              normalizeApiStatus(completeResult.status, 500),
+            )
+          }
+          UserSession.clearBootstrapPending(session.id)
+        }
+
+        return c.json({
+          success: true as const,
+          redirectTo: bootstrapPending ? "/" : undefined,
+          credential: {
+            credentialId: verifyResult.credential.credentialId,
+            deviceLabel: verifyResult.credential.deviceLabel,
+            createdAt: verifyResult.credential.createdAt,
+            lastUsedAt: verifyResult.credential.lastUsedAt,
+            transports: verifyResult.credential.transports ?? [],
+            aaguid: verifyResult.credential.aaguid,
+          },
+        })
+      },
+    )
+    .get(
+      "/passkey/list",
+      describeRoute({
+        summary: "List registered passkeys",
+        description: "List passkeys for the current authenticated user.",
+        operationId: "auth.passkeyList",
+        responses: {
+          200: { description: "Passkeys" },
+          401: { description: "Not authenticated" },
+          403: { description: "Passkeys disabled" },
+        },
+      }),
+      async (c) => {
+        const authConfig = ServerAuth.get()
+        if (!authConfig.enabled) {
+          return c.json({ error: "auth_disabled", message: "Authentication is not enabled" }, 403)
+        }
+        if (!authConfig.passkeysEnabled) {
+          return c.json({ error: "passkeys_disabled", message: "Passkeys are not enabled" }, 403)
+        }
+
+        const session = c.get("session")
+        if (!session) {
+          return c.json({ error: "not_authenticated", message: "Not authenticated" }, 401)
+        }
+
+        const credentials = await listUserPasskeys(session.username)
+        return c.json({
+          credentials: credentials.map((item) => ({
+            credentialId: item.credentialId,
+            deviceLabel: item.deviceLabel,
+            createdAt: item.createdAt,
+            lastUsedAt: item.lastUsedAt,
+            transports: item.transports ?? [],
+            aaguid: item.aaguid,
+          })),
+        })
+      },
+    )
+    .post(
+      "/passkey/remove",
+      describeRoute({
+        summary: "Remove a passkey",
+        description: "Delete a registered passkey for the current authenticated user.",
+        operationId: "auth.passkeyRemove",
+        responses: {
+          200: { description: "Passkey removed" },
+          400: { description: "Bad request" },
+          401: { description: "Not authenticated" },
+          403: { description: "Passkeys disabled" },
+          404: { description: "Passkey not found" },
+        },
+      }),
+      async (c) => {
+        const authConfig = ServerAuth.get()
+        if (!authConfig.enabled) {
+          return c.json({ error: "auth_disabled", message: "Authentication is not enabled" }, 403)
+        }
+        if (!authConfig.passkeysEnabled) {
+          return c.json({ error: "passkeys_disabled", message: "Passkeys are not enabled" }, 403)
+        }
+
+        const session = c.get("session")
+        if (!session) {
+          return c.json({ error: "not_authenticated", message: "Not authenticated" }, 401)
+        }
+
+        const xrw = c.req.header("X-Requested-With")
+        if (!xrw) {
+          return c.json({ error: "csrf_missing", message: "X-Requested-With header required" }, 400)
+        }
+
+        const body = await c.req.json().catch(() => null)
+        const parsed = passkeyRemoveRequestSchema.safeParse(body)
+        if (!parsed.success) {
+          return c.json({ error: "invalid_request", message: "credentialId is required" }, 400)
+        }
+
+        const removed = await removeUserPasskey(session.username, parsed.data.credentialId)
+        if (!removed) {
+          return c.json({ error: "not_found", message: "Passkey not found" }, 404)
+        }
+
+        return c.json({ success: true as const })
+      },
+    )
     .get(
       "/status",
       describeRoute({
@@ -956,6 +1710,7 @@ export const AuthRoutes = lazy(() =>
                   z.object({
                     enabled: z.boolean(),
                     method: z.string().optional(),
+                    passkeysEnabled: z.boolean(),
                   }),
                 ),
               },
@@ -968,6 +1723,7 @@ export const AuthRoutes = lazy(() =>
         return c.json({
           enabled: authConfig.enabled,
           method: authConfig.enabled ? authConfig.method : undefined,
+          passkeysEnabled: authConfig.enabled && authConfig.passkeysEnabled === true,
         })
       },
     )
