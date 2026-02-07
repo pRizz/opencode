@@ -119,6 +119,21 @@ function isPasskeySupported() {
   return typeof window.PublicKeyCredential !== "undefined" && typeof navigator.credentials !== "undefined"
 }
 
+function passkeyErrorDetails(error: unknown) {
+  if (!(error instanceof Error)) return { name: "UnknownError", message: String(error) }
+  return { name: error.name, message: error.message }
+}
+
+function isExpectedPasskeyCancelError(error: unknown) {
+  if (!(error instanceof Error)) return false
+  return (
+    error.name === "AbortError" ||
+    error.name === "NotAllowedError" ||
+    error.name === "InvalidStateError" ||
+    error.name === "OperationError"
+  )
+}
+
 export function LoginApp() {
   const bootstrap = window.__OPENCODE_LOGIN__ ?? {}
   const shouldWarn = shouldWarnForHttpConnection()
@@ -148,6 +163,12 @@ export function LoginApp() {
 
   let conditionalController: AbortController | undefined
 
+  const abortConditionalPasskeyRequest = () => {
+    if (!conditionalController) return
+    conditionalController.abort()
+    conditionalController = undefined
+  }
+
   onMount(() => {
     if (shouldWarn && sessionStorage.getItem(HTTP_WARNING_KEY)) {
       setState("warningDismissed", true)
@@ -162,7 +183,7 @@ export function LoginApp() {
   })
 
   onCleanup(() => {
-    conditionalController?.abort()
+    abortConditionalPasskeyRequest()
   })
 
   const dismissWarning = () => {
@@ -251,13 +272,15 @@ export function LoginApp() {
     })
     if (!optionsResult) return
 
-    conditionalController = new AbortController()
+    abortConditionalPasskeyRequest()
+    const controller = new AbortController()
+    conditionalController = controller
 
     try {
       const credential = await navigator.credentials.get({
         publicKey: parseRequestOptions(optionsResult.options),
         mediation: "conditional",
-        signal: conditionalController.signal,
+        signal: controller.signal,
       })
 
       if (!(credential instanceof PublicKeyCredential)) return
@@ -267,8 +290,14 @@ export function LoginApp() {
         challengeToken: optionsResult.challengeToken,
         quiet: true,
       })
-    } catch {
-      // Browser may reject conditional flows when no discoverable credential exists.
+    } catch (error) {
+      if (!isExpectedPasskeyCancelError(error)) {
+        console.warn("[login-passkey] conditional mediation failed", passkeyErrorDetails(error))
+      }
+    } finally {
+      if (conditionalController === controller) {
+        conditionalController = undefined
+      }
     }
   }
 
@@ -284,6 +313,7 @@ export function LoginApp() {
       passkeySubmitting: true,
       passkeyLabel: "Waiting for passkey...",
     })
+    abortConditionalPasskeyRequest()
 
     try {
       const optionsResult = await fetchPasskeyOptions({
@@ -321,11 +351,16 @@ export function LoginApp() {
           passkeyLabel: "Sign in with passkey",
         })
       }
-    } catch {
+    } catch (error) {
+      if (!isExpectedPasskeyCancelError(error)) {
+        console.warn("[login-passkey] passkey sign-in failed", passkeyErrorDetails(error))
+      }
       setState({
-        error: state.username.trim()
-          ? "Passkey authentication failed"
-          : "No passkey found. Enter a username and try again.",
+        error: isExpectedPasskeyCancelError(error)
+          ? "Passkey login was cancelled"
+          : state.username.trim()
+            ? "Passkey authentication failed"
+            : "No passkey found. Enter a username and try again.",
         passkeySubmitting: false,
         passkeyLabel: "Sign in with passkey",
       })
@@ -462,6 +497,12 @@ export function LoginApp() {
           padding: 2rem;
           overflow-y: auto;
         }
+        #root {
+          width: 100%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
         .logo {
           width: 80px;
           height: 100px;
@@ -470,7 +511,7 @@ export function LoginApp() {
         }
         .card {
           width: min(100%, 420px);
-          min-width: min(360px, 100%);
+          min-width: 360px;
           max-width: 420px;
           padding: 2rem;
           background: #141414;
@@ -585,6 +626,8 @@ export function LoginApp() {
           border: 1px solid rgba(239,68,68,0.3);
           border-radius: 8px;
           display: none;
+          overflow-wrap: anywhere;
+          word-break: break-word;
         }
         .error.visible { display: block; }
         button {
@@ -725,6 +768,9 @@ export function LoginApp() {
           margin-bottom: 1.25rem;
           text-align: center;
           line-height: 1.5;
+        }
+        @media (max-width: 420px) {
+          .card { min-width: 0; }
         }
         @media (max-width: 480px) {
           .card { padding: 1.2rem; border-radius: 8px; }
