@@ -420,16 +420,7 @@ async function loadTwoFactorSetupTemplate(uiDir: string): Promise<string> {
 
 function injectTwoFactorSetupBootstrap(
   template: string,
-  bootstrap: {
-    username: string
-    secret: string
-    qrCodeSvg: string
-    setupCommand?: string
-    alreadyConfigured: boolean
-    required: boolean
-    setupStatus: "pending_verification" | "already_configured" | "manual_required"
-    setupMessage?: string
-  },
+  bootstrap: TwoFactorSetupBootstrap,
 ): string {
   const script = `<script>window.__OPENCODE_2FA_SETUP__ = ${JSON.stringify(bootstrap)};</script>`
   if (template.includes("</head>")) {
@@ -439,6 +430,56 @@ function injectTwoFactorSetupBootstrap(
     return template.replace("</body>", `${script}\n</body>`)
   }
   return `${template}\n${script}`
+}
+
+type TwoFactorSetupBootstrap = {
+  username: string
+  secret: string
+  qrCodeSvg: string
+  setupCommand?: string
+  alreadyConfigured: boolean
+  required: boolean
+  setupStatus: "pending_verification" | "already_configured" | "manual_required"
+  setupMessage?: string
+}
+
+async function buildTwoFactorSetupBootstrap(
+  sessionId: string,
+  session: UserSession.Info,
+  required: boolean,
+): Promise<TwoFactorSetupBootstrap> {
+  const broker = new BrokerClient()
+  const has2fa = await broker.check2fa(session.username, session.home ?? "")
+
+  const setupData = await generateTotpSetup(session.username)
+  UserSession.setTwoFactorSetupSecret(sessionId, setupData.secret)
+
+  let setupStatus: TwoFactorSetupBootstrap["setupStatus"] = "pending_verification"
+  let setupMessage: string | undefined = "We'll create your 2FA configuration after you verify your code."
+  let setupCommand: string | undefined
+
+  if (has2fa) {
+    setupStatus = "already_configured"
+    setupMessage = "We detected an existing 2FA configuration for this account."
+  } else {
+    const brokerAvailable = await broker.ping()
+    if (!brokerAvailable) {
+      setupStatus = "manual_required"
+      setupMessage = "We couldn't reach the authentication service. Run the command below on the server."
+      setupCommand = getGoogleAuthenticatorSetupCommand(setupData.secret)
+    }
+  }
+
+  return {
+    username: session.username,
+    secret: setupData.secret,
+    qrCodeSvg: setupData.qrCodeSvg,
+    setupCommand,
+    alreadyConfigured: setupStatus === "already_configured",
+    required,
+    setupStatus,
+    setupMessage,
+  }
 }
 
 async function loadPasskeySetupTemplate(uiDir: string): Promise<string> {
@@ -1897,32 +1938,9 @@ export const AuthRoutes = lazy(() =>
         return c.redirect("/auth/login")
       }
 
-      // Check if 2FA is already configured
-      const broker = new BrokerClient()
-      const has2fa = await broker.check2fa(session.username, session.home ?? "")
-
       // Check if setup is required (from login redirect)
       const required = c.req.query("required") === "1"
-
-      // Generate setup data
-      const setupData = await generateTotpSetup(session.username)
-      UserSession.setTwoFactorSetupSecret(sessionId, setupData.secret)
-
-      let setupStatus: "pending_verification" | "already_configured" | "manual_required" = "pending_verification"
-      let setupMessage: string | undefined = "We'll create your 2FA configuration after you verify your code."
-      let setupCommand: string | undefined
-
-      if (has2fa) {
-        setupStatus = "already_configured"
-        setupMessage = "We detected an existing 2FA configuration for this account."
-      } else {
-        const brokerAvailable = await broker.ping()
-        if (!brokerAvailable) {
-          setupStatus = "manual_required"
-          setupMessage = "We couldn't reach the authentication service. Run the command below on the server."
-          setupCommand = getGoogleAuthenticatorSetupCommand(setupData.secret)
-        }
-      }
+      const bootstrap = await buildTwoFactorSetupBootstrap(sessionId, session, required)
 
       const uiDir = getUiDir()
       if (!uiDir) {
@@ -1931,22 +1949,36 @@ export const AuthRoutes = lazy(() =>
 
       try {
         const template = await loadTwoFactorSetupTemplate(uiDir)
-        return c.html(
-          injectTwoFactorSetupBootstrap(template, {
-            username: session.username,
-            secret: setupData.secret,
-            qrCodeSvg: setupData.qrCodeSvg,
-            setupCommand,
-            alreadyConfigured: setupStatus === "already_configured",
-            required,
-            setupStatus,
-            setupMessage,
-          }),
-        )
+        return c.html(injectTwoFactorSetupBootstrap(template, bootstrap))
       } catch (error) {
         log.error("Failed to load 2FA setup HTML", { error })
         return c.text("2FA setup UI is missing. Run the app build to generate 2fa-setup.html.", 500)
       }
+    })
+    .post("/2fa/setup/start", async (c) => {
+      const sessionId = getCookie(c, "opencode_session")
+      if (!sessionId) {
+        return c.json({ error: "not_authenticated", message: "Not authenticated" }, 401)
+      }
+      const session = UserSession.get(sessionId)
+      if (!session) {
+        return c.json({ error: "not_authenticated", message: "Not authenticated" }, 401)
+      }
+
+      const xrw = c.req.header("X-Requested-With")
+      if (!xrw) {
+        return c.json({ error: "csrf_missing", message: "CSRF token required" }, 400)
+      }
+
+      const csrfToken = c.req.header("X-CSRF-Token")
+      if (!csrfToken || !validateCSRFToken(csrfToken, sessionId, getCSRFSecret())) {
+        return c.json({ error: "csrf_invalid", message: "Invalid CSRF token" }, 403)
+      }
+
+      const body = await c.req.json().catch(() => ({}))
+      const required = c.req.query("required") === "1" || body.required === true
+      const bootstrap = await buildTwoFactorSetupBootstrap(sessionId, session, required)
+      return c.json(bootstrap)
     })
     .post("/2fa/verify", async (c) => {
       // Require authenticated session

@@ -5,6 +5,7 @@ import { Icon } from "@opencode-ai/ui/icon"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { ManageTwoFactorDialog } from "./manage-2fa-dialog"
 import { PasskeyManagerDialog } from "./passkey-manager-dialog"
+import { authForgetDevice, authLogout, authLogoutAll } from "./settings-auth-actions"
 
 interface SessionIndicatorSession {
   isAuthenticated: () => boolean
@@ -14,14 +15,6 @@ interface SessionIndicatorSession {
 interface SessionIndicatorProps {
   session: SessionIndicatorSession
   getServerUrl: () => string | undefined
-}
-
-/**
- * Get CSRF token from cookie.
- */
-function getCsrfToken(): string | undefined {
-  const match = document.cookie.match(/opencode_csrf=([^;]+)/)
-  return match ? match[1] : undefined
 }
 
 /**
@@ -73,30 +66,7 @@ export function SessionIndicator(props: SessionIndicatorProps) {
    * Handle logout by POSTing to /auth/logout endpoint.
    */
   async function handleLogout(): Promise<void> {
-    try {
-      const url = props.getServerUrl()
-      if (!url) return
-
-      const csrfToken = getCsrfToken()
-      const headers: Record<string, string> = {}
-      if (csrfToken) {
-        headers["X-CSRF-Token"] = csrfToken
-      }
-
-      const res = await fetch(`${url}/auth/logout`, {
-        method: "POST",
-        credentials: "include",
-        headers,
-      })
-
-      // Logout endpoint returns 302 redirect, but fetch doesn't follow redirects
-      // from cross-origin POST requests automatically. Redirect manually.
-      if (res.status === 302 || res.ok) {
-        window.location.href = `${url}/auth/login`
-      }
-    } catch (err) {
-      console.error("Logout failed:", err)
-    }
+    await authLogout({ getServerUrl: props.getServerUrl })
   }
 
   /**
@@ -104,56 +74,17 @@ export function SessionIndicator(props: SessionIndicatorProps) {
    * This also clears device trust as a security measure.
    */
   async function handleLogoutAll(): Promise<void> {
-    try {
-      const url = props.getServerUrl()
-      if (!url) return
-
-      const csrfToken = getCsrfToken()
-      const headers: Record<string, string> = {}
-      if (csrfToken) {
-        headers["X-CSRF-Token"] = csrfToken
-      }
-
-      const res = await fetch(`${url}/auth/logout/all`, {
-        method: "POST",
-        credentials: "include",
-        headers,
-      })
-
-      if (res.status === 302 || res.ok) {
-        window.location.href = `${url}/auth/login`
-      }
-    } catch (err) {
-      console.error("Logout all failed:", err)
-    }
+    await authLogoutAll({ getServerUrl: props.getServerUrl })
   }
 
   /**
    * Revoke device trust, requiring 2FA on next login.
    */
   async function handleForgetDevice(): Promise<void> {
-    try {
-      const url = props.getServerUrl()
-      if (!url) return
-
-      const csrfToken = getCsrfToken()
-      const headers: Record<string, string> = {}
-      if (csrfToken) {
-        headers["X-CSRF-Token"] = csrfToken
-      }
-
-      const res = await fetch(`${url}/auth/device-trust/revoke`, {
-        method: "POST",
-        credentials: "include",
-        headers,
-      })
-
-      if (res.ok) {
-        // Update local state to reflect that device is no longer trusted
-        setDeviceTrustStatus((prev) => (prev ? { ...prev, deviceTrusted: false } : null))
-      }
-    } catch (err) {
-      console.error("Forget device failed:", err)
+    const ok = await authForgetDevice({ getServerUrl: props.getServerUrl })
+    if (ok) {
+      // Update local state to reflect that device is no longer trusted.
+      setDeviceTrustStatus((prev) => (prev ? { ...prev, deviceTrusted: false } : null))
     }
   }
 

@@ -4,6 +4,8 @@ import path from "path"
 import type { AuthResult } from "../../../src/auth/broker-client"
 import type { UnixUserInfo } from "../../../src/auth/user-info"
 import type { AuthConfig } from "../../../src/config/auth"
+import { UserSession } from "../../../src/session/user-session"
+import { generateCSRFToken, getCSRFSecret } from "../../../src/server/security/csrf"
 
 // Mock state with explicit types
 const mockAuthenticate = mock<() => Promise<AuthResult>>(() => Promise.resolve({ success: true }))
@@ -42,6 +44,8 @@ const mockVerifyPasskeyRegistration = mock<
 >(() => Promise.resolve({ verified: false, error: "failed" }))
 const mockListUserPasskeys = mock<() => Promise<Array<Record<string, unknown>>>>(() => Promise.resolve([]))
 const mockRemoveUserPasskey = mock<() => Promise<boolean>>(() => Promise.resolve(false))
+const mockCheck2fa = mock<() => Promise<boolean>>(() => Promise.resolve(false))
+const mockBrokerPing = mock<() => Promise<boolean>>(() => Promise.resolve(true))
 
 // Server auth config state for mocking
 let mockAuthConfig: AuthConfig = {
@@ -79,12 +83,16 @@ mock.module("../../../src/auth/broker-client", () => ({
   BrokerClient: class {
     authenticate = mockAuthenticate
     registerSession = mockRegisterSession
+    check2fa = mockCheck2fa
+    ping = mockBrokerPing
   },
 }))
 mock.module("@opencode-ai/fork-auth/auth/broker-client", () => ({
   BrokerClient: class {
     authenticate = mockAuthenticate
     registerSession = mockRegisterSession
+    check2fa = mockCheck2fa
+    ping = mockBrokerPing
   },
 }))
 mock.module("../../../src/auth/user-info", () => ({
@@ -234,6 +242,8 @@ describe("POST /auth/login", () => {
     mockVerifyPasskeyRegistration.mockClear()
     mockListUserPasskeys.mockClear()
     mockRemoveUserPasskey.mockClear()
+    mockCheck2fa.mockClear()
+    mockBrokerPing.mockClear()
 
     // Default successful mocks
     mockAuthenticate.mockResolvedValue({ success: true })
@@ -257,6 +267,8 @@ describe("POST /auth/login", () => {
     mockVerifyPasskeyRegistration.mockResolvedValue({ verified: false, error: "failed" })
     mockListUserPasskeys.mockResolvedValue([])
     mockRemoveUserPasskey.mockResolvedValue(false)
+    mockCheck2fa.mockResolvedValue(false)
+    mockBrokerPing.mockResolvedValue(true)
     setMockAuthConfig({ enabled: true, method: "pam" })
 
     app = new Hono().route("/auth", AuthRoutes())
@@ -540,6 +552,107 @@ describe("GET /auth/status", () => {
   })
 })
 
+describe("POST /auth/2fa/setup/start", () => {
+  let app: Hono
+
+  beforeEach(() => {
+    setMockAuthConfig({ enabled: true, method: "pam", twoFactorEnabled: true })
+    mockCheck2fa.mockClear()
+    mockBrokerPing.mockClear()
+    mockCheck2fa.mockResolvedValue(false)
+    mockBrokerPing.mockResolvedValue(true)
+    app = new Hono().route("/auth", AuthRoutes())
+  })
+
+  test("returns 401 without authenticated session", async () => {
+    const res = await app.request("/auth/2fa/setup/start", {
+      method: "POST",
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+      },
+    })
+
+    expect(res.status).toBe(401)
+    expect((await res.json()).error).toBe("not_authenticated")
+  })
+
+  test("returns 400 when X-Requested-With is missing", async () => {
+    const session = UserSession.create("testuser", "test-agent", {
+      uid: 1000,
+      gid: 1000,
+      home: "/home/testuser",
+      shell: "/bin/bash",
+    })
+    const csrfToken = generateCSRFToken(session.id, getCSRFSecret())
+
+    const res = await app.request("/auth/2fa/setup/start", {
+      method: "POST",
+      headers: {
+        Cookie: `opencode_session=${session.id}`,
+        "X-CSRF-Token": csrfToken,
+      },
+    })
+
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toBe("csrf_missing")
+    UserSession.remove(session.id)
+  })
+
+  test("returns 403 when CSRF token is invalid", async () => {
+    const session = UserSession.create("testuser", "test-agent", {
+      uid: 1000,
+      gid: 1000,
+      home: "/home/testuser",
+      shell: "/bin/bash",
+    })
+
+    const res = await app.request("/auth/2fa/setup/start", {
+      method: "POST",
+      headers: {
+        Cookie: `opencode_session=${session.id}`,
+        "X-Requested-With": "XMLHttpRequest",
+        "X-CSRF-Token": "invalid-token",
+      },
+    })
+
+    expect(res.status).toBe(403)
+    expect((await res.json()).error).toBe("csrf_invalid")
+    UserSession.remove(session.id)
+  })
+
+  test("returns setup bootstrap payload for valid authenticated request", async () => {
+    const session = UserSession.create("testuser", "test-agent", {
+      uid: 1000,
+      gid: 1000,
+      home: "/home/testuser",
+      shell: "/bin/bash",
+    })
+    const csrfToken = generateCSRFToken(session.id, getCSRFSecret())
+
+    const res = await app.request("/auth/2fa/setup/start", {
+      method: "POST",
+      headers: {
+        Cookie: `opencode_session=${session.id}`,
+        "X-Requested-With": "XMLHttpRequest",
+        "X-CSRF-Token": csrfToken,
+      },
+    })
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.username).toBe("testuser")
+    expect(typeof body.secret).toBe("string")
+    expect(typeof body.qrCodeSvg).toBe("string")
+    expect(typeof body.setupStatus).toBe("string")
+    expect(typeof body.setupMessage).toBe("string")
+    expect(body.alreadyConfigured).toBe(false)
+
+    const storedSession = UserSession.get(session.id)
+    expect(storedSession?.twoFactorSetupSecret).toBe(body.secret)
+    UserSession.remove(session.id)
+  })
+})
+
 describe("Passkey routes", () => {
   let app: Hono
 
@@ -552,6 +665,8 @@ describe("Passkey routes", () => {
     mockVerifyPasskeyRegistration.mockClear()
     mockListUserPasskeys.mockClear()
     mockRemoveUserPasskey.mockClear()
+    mockCheck2fa.mockClear()
+    mockBrokerPing.mockClear()
 
     mockGetUserInfo.mockResolvedValue({
       username: "testuser",
@@ -573,6 +688,8 @@ describe("Passkey routes", () => {
     mockVerifyPasskeyRegistration.mockResolvedValue({ verified: false, error: "failed" })
     mockListUserPasskeys.mockResolvedValue([])
     mockRemoveUserPasskey.mockResolvedValue(false)
+    mockCheck2fa.mockResolvedValue(false)
+    mockBrokerPing.mockResolvedValue(true)
 
     setMockAuthConfig({
       enabled: true,
