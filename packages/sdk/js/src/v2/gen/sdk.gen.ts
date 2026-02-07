@@ -343,7 +343,7 @@ export class Auth extends HeyApiClient {
   /**
    * Login with username and password
    *
-   * Authenticate user credentials via PAM and create session. Returns 2fa_required if user has 2FA enabled.
+   * Authenticate user credentials via PAM and create session.
    */
   public login<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
     return (options?.client ?? this.client).post<AuthLoginResponses, AuthLoginErrors, ThrowOnError>({

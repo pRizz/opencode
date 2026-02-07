@@ -1384,6 +1384,10 @@ export type PermissionConfig =
 
 export type AgentConfig = {
   model?: string
+  /**
+   * Default model variant for this agent (applies only when using the agent's configured model).
+   */
+  variant?: string
   temperature?: number
   top_p?: number
   prompt?: string
@@ -2581,26 +2585,19 @@ export type AuthLoginError = AuthLoginErrors[keyof AuthLoginErrors]
 
 export type AuthLoginResponses = {
   /**
-   * Login successful or 2FA required
+   * Login successful
    */
-  200:
-    | {
-        success: true
-        user: {
-          username: string
-          uid: number
-          gid: number
-          home: string
-          shell: string
-        }
-      }
-    | {
-        success: false
-        error: "2fa_required"
-        twoFactorToken: string
-        username: string
-        timeoutSeconds: number
-      }
+  200: {
+    success: true
+    user: {
+      username: string
+      uid: number
+      gid: number
+      home: string
+      shell: string
+    }
+    redirectTo?: string
+  }
 }
 
 export type AuthLoginResponse = AuthLoginResponses[keyof AuthLoginResponses]
