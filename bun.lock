@@ -255,6 +255,7 @@
         "jose": "6.1.3",
         "jsonc-parser": "3.3.1",
         "qrcode": "1.5.4",
+        "reflect-metadata": "0.2.2",
         "zod": "catalog:",
       },
       "devDependencies": {
@@ -441,6 +442,7 @@
         "opentui-spinner": "0.0.6",
         "partial-json": "0.1.7",
         "qrcode": "1.5.4",
+        "reflect-metadata": "0.2.2",
         "remeda": "catalog:",
         "solid-js": "catalog:",
         "strip-ansi": "7.1.2",

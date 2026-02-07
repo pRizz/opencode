@@ -1,13 +1,9 @@
-import {
-  generateAuthenticationOptions,
-  generateRegistrationOptions,
-  verifyAuthenticationResponse,
-  verifyRegistrationResponse,
-  type AuthenticationResponseJSON,
-  type AuthenticatorTransportFuture,
-  type PublicKeyCredentialCreationOptionsJSON,
-  type PublicKeyCredentialRequestOptionsJSON,
-  type RegistrationResponseJSON,
+import type {
+  AuthenticationResponseJSON,
+  AuthenticatorTransportFuture,
+  PublicKeyCredentialCreationOptionsJSON,
+  PublicKeyCredentialRequestOptionsJSON,
+  RegistrationResponseJSON,
 } from "@simplewebauthn/server"
 import { consumePasskeyChallengeToken, createPasskeyChallengeToken } from "./passkey-challenge"
 import {
@@ -18,6 +14,23 @@ import {
   type PasskeyCredential,
   upsertPasskeyCredential,
 } from "./passkey-storage"
+
+type SimpleWebAuthnServerModule = typeof import("@simplewebauthn/server")
+
+let simpleWebAuthnServerPromise: Promise<SimpleWebAuthnServerModule> | undefined
+
+async function loadSimpleWebAuthnServer(): Promise<SimpleWebAuthnServerModule> {
+  if (!simpleWebAuthnServerPromise) {
+    simpleWebAuthnServerPromise = (async () => {
+      await import("reflect-metadata")
+      return import("@simplewebauthn/server")
+    })().catch((error) => {
+      simpleWebAuthnServerPromise = undefined
+      throw error
+    })
+  }
+  return simpleWebAuthnServerPromise
+}
 
 const TRANSPORTS = new Set<AuthenticatorTransportFuture>([
   "ble",
@@ -90,6 +103,7 @@ export async function createPasskeyAuthenticationOptions(
     timeoutMs: number
   },
 ): Promise<PasskeyAuthOptions> {
+  const { generateAuthenticationOptions } = await loadSimpleWebAuthnServer()
   const credentials = input.username ? await listPasskeyCredentials(input.username) : []
   const options = await generateAuthenticationOptions({
     rpID: input.rpID,
@@ -130,6 +144,7 @@ export async function verifyPasskeyAuthentication(
   username?: string
   error?: "invalid_challenge" | "invalid_response" | "unknown_credential" | "counter" | "failed"
 }> {
+  const { verifyAuthenticationResponse } = await loadSimpleWebAuthnServer()
   const challenge = await consumePasskeyChallengeToken({
     token: input.challengeToken,
     purpose: "auth",
@@ -205,6 +220,7 @@ export async function createPasskeyRegistrationOptions(
     timeoutMs: number
   },
 ): Promise<PasskeyRegisterOptions> {
+  const { generateRegistrationOptions } = await loadSimpleWebAuthnServer()
   const credentials = await listPasskeyCredentials(input.username)
   const options = await generateRegistrationOptions({
     rpName: input.rpName,
@@ -252,6 +268,7 @@ export async function verifyPasskeyRegistration(
   credential?: PasskeyCredential
   error?: "invalid_challenge" | "invalid_response" | "failed"
 }> {
+  const { verifyRegistrationResponse } = await loadSimpleWebAuthnServer()
   const challenge = await consumePasskeyChallengeToken({
     token: input.challengeToken,
     purpose: "register",

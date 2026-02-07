@@ -36,6 +36,16 @@ export async function validateAuthConfig(input: ValidateAuthConfigInput) {
   throw new Error(`PAM service file not found at ${pamPath}`)
 }
 
-export function registerAuthRoutes<T>(authRoutes: () => T): T {
-  return authRoutes()
+export function registerAuthRoutes<T>(authRoutes: (() => T) | undefined): T {
+  if (typeof authRoutes !== "function") {
+    throw new Error(
+      "Auth route initialization failed: expected a route factory function. Check auth module startup logs for dependency/load errors.",
+    )
+  }
+
+  try {
+    return authRoutes()
+  } catch (error) {
+    throw new Error("Auth route initialization failed while constructing routes", { cause: error })
+  }
 }
