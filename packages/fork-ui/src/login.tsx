@@ -606,17 +606,15 @@ export function LoginApp() {
         }
         .passkey-button {
           margin-top: 0;
+          height: 48px;
+          font-size: 0.95rem;
+          font-weight: 700;
           background: transparent;
           border: 1px solid #3f3f46;
+          border-radius: 10px;
           color: #e5e5e5;
         }
         .passkey-button:hover { background: #1f1f24; }
-        .passkey-hint {
-          font-size: 0.75rem;
-          color: #737373;
-          text-align: center;
-          margin-top: -0.5rem;
-        }
         div.divider {
           display: flex;
           align-items: center;
@@ -638,13 +636,6 @@ export function LoginApp() {
           border: 0;
           height: 1px;
           background: rgba(163,163,163,0.2);
-        }
-        .section-title {
-          font-size: 0.78rem;
-          color: #a3a3a3;
-          text-transform: uppercase;
-          letter-spacing: 0.04em;
-          margin-bottom: 0.9rem;
         }
         .bootstrap-panel {
           border: 1px solid rgba(14,165,233,0.4);
@@ -821,7 +812,6 @@ export function LoginApp() {
         </Show>
 
         <hr class="divider" />
-        <div class="section-title">Sign in with existing account</div>
 
         <form onSubmit={handleSubmit}>
           <div class="error" classList={{ visible: Boolean(state.error) }}>
@@ -837,8 +827,7 @@ export function LoginApp() {
             >
               {state.passkeyLabel}
             </button>
-            <div class="passkey-hint">Use a passkey first. You can still sign in with username and password below.</div>
-            <div class="divider">or use password</div>
+            <div class="divider">or</div>
           </Show>
 
           <div class="field">
