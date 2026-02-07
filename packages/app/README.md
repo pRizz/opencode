@@ -40,6 +40,16 @@ bun run test:e2e:local
 bun run test:e2e:local -- --grep "settings"
 ```
 
+`test:e2e` alone does not provision the local backend harness; use `test:e2e:local` for local sandboxed runs.
+
+### Visual and Interactive Runs
+
+```bash
+bun run test:e2e:local -- --headed --project=chromium e2e/settings/settings-authentication.spec.ts
+bun run test:e2e:local -- --ui e2e/settings/settings-authentication.spec.ts
+PWDEBUG=1 bun run test:e2e:local -- --headed --project=chromium e2e/settings/settings-authentication.spec.ts
+```
+
 Environment options:
 
 - `PLAYWRIGHT_SERVER_HOST` / `PLAYWRIGHT_SERVER_PORT` (backend address, default: `localhost:4096`)

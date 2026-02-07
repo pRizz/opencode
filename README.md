@@ -125,6 +125,18 @@ OpenCode includes an SSH key manager in Settings to help with git operations.
 - Git operations started by the server will use these keys.
 - If you run the server under a service account, make sure that account owns its home directory and can create `~/.ssh`.
 
+### Local UI E2E (Fork Workflow)
+
+From the `packages/opencode` repository root:
+
+```bash
+bun run --cwd packages/app test:e2e:local -- --headed --project=chromium e2e/settings/settings-authentication.spec.ts
+bun run --cwd packages/app test:e2e:local -- --ui e2e/settings/settings-authentication.spec.ts
+PWDEBUG=1 bun run --cwd packages/app test:e2e:local -- --headed --project=chromium e2e/settings/settings-authentication.spec.ts
+```
+
+For broader E2E command options and environment variables, see [`packages/app/README.md`](packages/app/README.md).
+
 ### Contributing
 
 If you're interested in contributing to OpenCode, please read our [contributing docs](./CONTRIBUTING.md) before submitting a pull request.
