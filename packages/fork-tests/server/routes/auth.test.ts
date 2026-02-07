@@ -618,6 +618,37 @@ describe("Passkey routes", () => {
     expect(body.challengeToken).toBe("challenge-token")
   })
 
+  test("POST /auth/passkey/auth/options returns 400 for loopback IP hostnames", async () => {
+    const res = await app.request("http://127.0.0.1:3000/auth/passkey/auth/options", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body: JSON.stringify({ username: "testuser" }),
+    })
+
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.error).toBe("passkey_invalid_domain")
+    expect(body.message).toContain("localhost:3000")
+  })
+
+  test("POST /auth/passkey/auth/options allows localhost hostname", async () => {
+    const res = await app.request("http://localhost:3000/auth/passkey/auth/options", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body: JSON.stringify({ username: "testuser" }),
+    })
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.success).toBe(true)
+  })
+
   test("POST /auth/passkey/auth/verify creates a session on success", async () => {
     mockVerifyPasskeyAuthentication.mockResolvedValue({
       verified: true,
@@ -736,6 +767,38 @@ describe("Passkey routes", () => {
 
     expect(res.status).toBe(404)
     expect((await res.json()).error).toBe("not_found")
+  })
+
+  test("POST /auth/passkey/register/options returns 400 for loopback IP hostnames", async () => {
+    const authed = new Hono()
+    authed.use("/auth/passkey/*", async (c, next) => {
+      c.set("session", {
+        id: "session-id",
+        username: "testuser",
+        uid: 1000,
+        gid: 1000,
+        home: "/home/testuser",
+        shell: "/bin/bash",
+        createdAt: Date.now(),
+        lastAccessTime: Date.now(),
+      })
+      return next()
+    })
+    authed.route("/auth", AuthRoutes())
+
+    const res = await authed.request("http://127.0.0.1:3000/auth/passkey/register/options", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body: JSON.stringify({}),
+    })
+
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.error).toBe("passkey_invalid_domain")
+    expect(body.message).toContain("localhost:3000")
   })
 })
 

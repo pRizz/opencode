@@ -38,6 +38,8 @@ interface PasskeyManagerDialogProps {
   getServerUrl: () => string | undefined
 }
 
+type PasskeyRegistrationStage = "register_options_request" | "credential_create" | "register_verify_request"
+
 function base64urlToArrayBuffer(value: string): ArrayBuffer {
   const base64 = value.replace(/-/g, "+").replace(/_/g, "/")
   const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4)
@@ -126,6 +128,93 @@ function toRegistrationResponseJSON(credential: PublicKeyCredential): Record<str
   }
 }
 
+function localhostOriginFromServerUrl(serverUrl: string | undefined): string {
+  if (!serverUrl) {
+    return `${window.location.protocol}//localhost${window.location.port ? `:${window.location.port}` : ""}`
+  }
+  try {
+    const parsed = new URL(serverUrl)
+    return `${parsed.protocol}//localhost${parsed.port ? `:${parsed.port}` : ""}`
+  } catch {
+    return `${window.location.protocol}//localhost${window.location.port ? `:${window.location.port}` : ""}`
+  }
+}
+
+function hostnameFromServerUrl(serverUrl: string | undefined): string | undefined {
+  if (!serverUrl) return undefined
+  try {
+    return new URL(serverUrl).hostname
+  } catch {
+    return undefined
+  }
+}
+
+function mapPasskeySetupError(
+  error: unknown,
+  stage: PasskeyRegistrationStage,
+  serverUrl: string | undefined,
+): string {
+  const fallback = "Passkey setup failed"
+  if (!(error instanceof Error)) return fallback
+
+  const errorName = (error as { name?: string }).name ?? ""
+  const errorMessage = error.message ?? ""
+  const lowered = errorMessage.toLowerCase()
+
+  if (errorName === "SecurityError" && lowered.includes("invalid domain")) {
+    const host = hostnameFromServerUrl(serverUrl) || window.location.hostname || "this host"
+    return `Passkeys are not supported on ${host}. Open ${localhostOriginFromServerUrl(serverUrl)} and try again.`
+  }
+  if (errorName === "NotAllowedError") {
+    return "Passkey setup was cancelled or timed out. Try again and approve the browser prompt."
+  }
+  if (errorName === "InvalidStateError") {
+    return "This passkey may already be registered. Try a different authenticator."
+  }
+  if (errorName === "NotSupportedError") {
+    return "This browser or authenticator does not support creating passkeys."
+  }
+  if (stage === "register_options_request") return "Could not start passkey setup"
+  if (stage === "register_verify_request") return "Passkey was created but verification failed. Try again."
+  return errorMessage || fallback
+}
+
+function logPasskeySetupFailure(input: {
+  stage: PasskeyRegistrationStage
+  serverUrl?: string
+  error?: unknown
+  rpID?: string
+  optionsStatus?: number
+  optionsMessage?: string
+  verifyStatus?: number
+  verifyMessage?: string
+}): void {
+  const errorName =
+    input.error && typeof input.error === "object" && "name" in input.error
+      ? String((input.error as { name?: unknown }).name ?? "UnknownError")
+      : undefined
+  const errorMessage =
+    input.error && typeof input.error === "object" && "message" in input.error
+      ? String((input.error as { message?: unknown }).message ?? "")
+      : undefined
+
+  // Use a structured payload so support/debugging can pinpoint the failing passkey stage quickly.
+  console.error("[passkey-manager] registration failed", {
+    stage: input.stage,
+    errorName,
+    errorMessage,
+    origin: window.location.origin,
+    hostname: window.location.hostname,
+    isSecureContext: window.isSecureContext,
+    serverUrl: input.serverUrl,
+    rpID: input.rpID,
+    optionsStatus: input.optionsStatus,
+    optionsMessage: input.optionsMessage,
+    verifyStatus: input.verifyStatus,
+    verifyMessage: input.verifyMessage,
+  })
+}
+
 export function PasskeyManagerDialog(props: PasskeyManagerDialogProps) {
   const dialog = useDialog()
   const [passkeys, setPasskeys] = createSignal<Passkey[]>([])
@@ -180,6 +269,12 @@ export function PasskeyManagerDialog(props: PasskeyManagerDialogProps) {
 
     setWorking(true)
     setError("")
+    let stage: PasskeyRegistrationStage = "register_options_request"
+    let rpID: string | undefined
+    let optionsStatus: number | undefined
+    let optionsMessage: string | undefined
+    let verifyStatus: number | undefined
+    let verifyMessage: string | undefined
     try {
       const csrfToken = getCsrfToken()
       const optionsRes = await fetch(`${url}/auth/passkey/register/options`, {
@@ -199,36 +294,69 @@ export function PasskeyManagerDialog(props: PasskeyManagerDialogProps) {
         options?: PasskeyCreationOptionsJSON
         message?: string
       }
+      optionsStatus = optionsRes.status
+      optionsMessage = optionsBody.message
+      if (typeof optionsBody.options?.rp?.id === "string") {
+        rpID = optionsBody.options.rp.id
+      }
 
       if (!optionsRes.ok || !optionsBody.success || !optionsBody.challengeToken || !optionsBody.options) {
+        const message = optionsBody.message ?? "Try again in a moment."
+        logPasskeySetupFailure({
+          stage,
+          serverUrl: url,
+          rpID,
+          optionsStatus,
+          optionsMessage: optionsMessage ?? message,
+        })
         showToast({
           title: "Could not start passkey setup",
-          description: optionsBody.message ?? "Try again in a moment.",
+          description: message,
         })
         return
       }
 
+      stage = "credential_create"
       const credential = await navigator.credentials.create({
         publicKey: parseCreationOptions(optionsBody.options),
       })
 
       if (!(credential instanceof PublicKeyCredential)) {
+        const message = "No credential was created."
+        logPasskeySetupFailure({
+          stage,
+          serverUrl: url,
+          rpID,
+          optionsStatus,
+          optionsMessage,
+          verifyMessage: message,
+        })
         showToast({
           title: "Passkey setup cancelled",
-          description: "No credential was created.",
+          description: message,
         })
         return
       }
 
       const response = toRegistrationResponseJSON(credential)
       if (!response) {
+        const message = "Your browser returned an unsupported response."
+        logPasskeySetupFailure({
+          stage,
+          serverUrl: url,
+          rpID,
+          optionsStatus,
+          optionsMessage,
+          verifyMessage: message,
+        })
         showToast({
           title: "Passkey setup failed",
-          description: "Your browser returned an unsupported response.",
+          description: message,
         })
         return
       }
 
+      stage = "register_verify_request"
       const verifyRes = await fetch(`${url}/auth/passkey/register/verify`, {
         method: "POST",
         credentials: "include",
@@ -247,11 +375,23 @@ export function PasskeyManagerDialog(props: PasskeyManagerDialogProps) {
         success?: boolean
         message?: string
       }
+      verifyStatus = verifyRes.status
+      verifyMessage = verifyBody.message
 
       if (!verifyRes.ok || !verifyBody.success) {
+        const message = verifyBody.message ?? "Try again."
+        logPasskeySetupFailure({
+          stage,
+          serverUrl: url,
+          rpID,
+          optionsStatus,
+          optionsMessage,
+          verifyStatus,
+          verifyMessage: verifyMessage ?? message,
+        })
         showToast({
           title: "Passkey setup failed",
-          description: verifyBody.message ?? "Try again.",
+          description: message,
         })
         return
       }
@@ -263,7 +403,17 @@ export function PasskeyManagerDialog(props: PasskeyManagerDialogProps) {
       await load()
       props.onUpdate?.()
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Passkey setup failed"
+      const message = mapPasskeySetupError(error, stage, url)
+      logPasskeySetupFailure({
+        stage,
+        serverUrl: url,
+        error,
+        rpID,
+        optionsStatus,
+        optionsMessage,
+        verifyStatus,
+        verifyMessage,
+      })
       showToast({
         title: "Passkey setup failed",
         description: message,

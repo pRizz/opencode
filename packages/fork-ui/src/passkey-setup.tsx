@@ -35,6 +35,8 @@ type Passkey = {
   transports: string[]
 }
 
+type PasskeyRegistrationStage = "register_options_request" | "credential_create" | "register_verify_request"
+
 declare global {
   interface Window {
     __OPENCODE_PASSKEY_SETUP__?: PasskeySetupBootstrap
@@ -128,6 +130,66 @@ function formatTime(value: number | undefined): string {
   return new Date(value).toLocaleString()
 }
 
+function mapPasskeySetupError(error: unknown, stage: PasskeyRegistrationStage): string {
+  const fallback = "Passkey setup failed."
+  if (!(error instanceof Error)) return fallback
+
+  const errorName = (error as { name?: string }).name ?? ""
+  const errorMessage = error.message ?? ""
+  const lowered = errorMessage.toLowerCase()
+
+  if (errorName === "SecurityError" && lowered.includes("invalid domain")) {
+    const localhostOrigin = `${window.location.protocol}//localhost${window.location.port ? `:${window.location.port}` : ""}`
+    return `Passkeys are not supported on ${window.location.hostname}. Open ${localhostOrigin} and try again.`
+  }
+  if (errorName === "NotAllowedError") {
+    return "Passkey setup was cancelled or timed out. Try again and approve the browser prompt."
+  }
+  if (errorName === "InvalidStateError") {
+    return "This passkey may already be registered. Try a different authenticator."
+  }
+  if (errorName === "NotSupportedError") {
+    return "This browser or authenticator does not support creating passkeys."
+  }
+  if (stage === "register_options_request") return "Could not start passkey setup."
+  if (stage === "register_verify_request") return "Passkey was created but verification failed. Try again."
+  return errorMessage || fallback
+}
+
+function logPasskeySetupFailure(input: {
+  stage: PasskeyRegistrationStage
+  error?: unknown
+  rpID?: string
+  optionsStatus?: number
+  optionsMessage?: string
+  verifyStatus?: number
+  verifyMessage?: string
+}): void {
+  const errorName =
+    input.error && typeof input.error === "object" && "name" in input.error
+      ? String((input.error as { name?: unknown }).name ?? "UnknownError")
+      : undefined
+  const errorMessage =
+    input.error && typeof input.error === "object" && "message" in input.error
+      ? String((input.error as { message?: unknown }).message ?? "")
+      : undefined
+
+  // Keep diagnostics structured so browser consoles show the exact failing stage.
+  console.error("[passkey-setup] registration failed", {
+    stage: input.stage,
+    errorName,
+    errorMessage,
+    origin: window.location.origin,
+    hostname: window.location.hostname,
+    isSecureContext: window.isSecureContext,
+    rpID: input.rpID,
+    optionsStatus: input.optionsStatus,
+    optionsMessage: input.optionsMessage,
+    verifyStatus: input.verifyStatus,
+    verifyMessage: input.verifyMessage,
+  })
+}
+
 export function PasskeySetupApp() {
   const bootstrap = window.__OPENCODE_PASSKEY_SETUP__ ?? {}
   const required = Boolean(bootstrap.required)
@@ -178,6 +240,12 @@ export function PasskeySetupApp() {
     setWorking(true)
     setError("")
     setStatus("")
+    let stage: PasskeyRegistrationStage = "register_options_request"
+    let rpID: string | undefined
+    let optionsStatus: number | undefined
+    let optionsMessage: string | undefined
+    let verifyStatus: number | undefined
+    let verifyMessage: string | undefined
 
     try {
       const csrfToken = getCsrfToken()
@@ -197,25 +265,57 @@ export function PasskeySetupApp() {
         options?: PasskeyCreationOptionsJSON
         message?: string
       }
+      optionsStatus = optionsRes.status
+      optionsMessage = optionsBody.message
+      if (typeof optionsBody.options?.rp?.id === "string") {
+        rpID = optionsBody.options.rp.id
+      }
       if (!optionsRes.ok || !optionsBody.success || !optionsBody.challengeToken || !optionsBody.options) {
-        setError(optionsBody.message ?? "Could not start passkey setup.")
+        const message = optionsBody.message ?? "Could not start passkey setup."
+        setError(message)
+        logPasskeySetupFailure({
+          stage,
+          rpID,
+          optionsStatus,
+          optionsMessage: optionsMessage ?? message,
+        })
         return
       }
 
+      stage = "credential_create"
       const credential = await navigator.credentials.create({
         publicKey: parseCreationOptions(optionsBody.options),
       })
       if (!(credential instanceof PublicKeyCredential)) {
-        setError("Passkey setup was cancelled.")
+        const message = "Passkey setup was cancelled."
+        setError(message)
+        logPasskeySetupFailure({
+          stage,
+          rpID,
+          optionsStatus,
+          optionsMessage,
+          verifyStatus,
+          verifyMessage: message,
+        })
         return
       }
 
       const response = toRegistrationResponseJSON(credential)
       if (!response) {
-        setError("Your browser returned an unsupported passkey response.")
+        const message = "Your browser returned an unsupported passkey response."
+        setError(message)
+        logPasskeySetupFailure({
+          stage,
+          rpID,
+          optionsStatus,
+          optionsMessage,
+          verifyStatus,
+          verifyMessage: message,
+        })
         return
       }
 
+      stage = "register_verify_request"
       const verifyRes = await fetch("/auth/passkey/register/verify", {
         method: "POST",
         credentials: "include",
@@ -234,8 +334,19 @@ export function PasskeySetupApp() {
         message?: string
         redirectTo?: string
       }
+      verifyStatus = verifyRes.status
+      verifyMessage = verifyBody.message
       if (!verifyRes.ok || !verifyBody.success) {
-        setError(verifyBody.message ?? "Passkey setup failed.")
+        const message = verifyBody.message ?? "Passkey setup failed."
+        setError(message)
+        logPasskeySetupFailure({
+          stage,
+          rpID,
+          optionsStatus,
+          optionsMessage,
+          verifyStatus,
+          verifyMessage: verifyMessage ?? message,
+        })
         return
       }
 
@@ -246,8 +357,18 @@ export function PasskeySetupApp() {
 
       setStatus("Passkey added successfully.")
       await loadPasskeys()
-    } catch {
-      setError("Passkey setup failed.")
+    } catch (error) {
+      const message = mapPasskeySetupError(error, stage)
+      setError(message)
+      logPasskeySetupFailure({
+        stage,
+        error,
+        rpID,
+        optionsStatus,
+        optionsMessage,
+        verifyStatus,
+        verifyMessage,
+      })
     } finally {
       setWorking(false)
     }

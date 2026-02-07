@@ -31,6 +31,7 @@ import {
 } from "../auth/passkey"
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from "@simplewebauthn/server"
 import path from "node:path"
+import { isIP } from "node:net"
 
 const log = Log.create({ service: "auth-routes" })
 const BOOTSTRAP_SETUP_USER = "opencoder"
@@ -240,6 +241,44 @@ function passkeyRpID(c: { req: { url: string } }, authConfig: ReturnType<typeof 
   const configValue = authConfig.passkeyRpId?.trim()
   if (configValue) return configValue
   return new URL(c.req.url).hostname
+}
+
+function normalizeHostname(hostname: string): string {
+  return hostname.trim().replace(/^\[(.*)\]$/, "$1").toLowerCase()
+}
+
+function isLoopbackIp(hostname: string): boolean {
+  if (hostname === "::1" || hostname === "0:0:0:0:0:0:0:1") return true
+  if (hostname === "127.0.0.1" || hostname.startsWith("127.")) return true
+  return false
+}
+
+function buildPasskeyDomainErrorMessage(hostname: string, requestUrl: URL): string {
+  if (isLoopbackIp(hostname)) {
+    const localhostOrigin = `${requestUrl.protocol}//localhost${requestUrl.port ? `:${requestUrl.port}` : ""}`
+    return `Passkeys are not supported on loopback IP hosts like ${hostname}. Open ${localhostOrigin} and try again.`
+  }
+  return `Passkeys require a domain hostname. The current host (${hostname}) is an IP address.`
+}
+
+function validatePasskeyDomain(
+  c: { req: { url: string } },
+  authConfig: ReturnType<typeof ServerAuth.get>,
+): { invalidHost: string; rpID: string; message: string } | undefined {
+  const requestUrl = new URL(c.req.url)
+  const requestHost = normalizeHostname(requestUrl.hostname)
+  const rpID = normalizeHostname(passkeyRpID(c, authConfig))
+
+  // WebAuthn fails in navigator.credentials.create/get when the browser origin is an IP host.
+  // We reject early so the UI gets an actionable server error instead of a generic browser exception.
+  if (isIP(requestHost) === 0 && isIP(rpID) === 0) return undefined
+
+  const invalidHost = isIP(requestHost) !== 0 ? requestHost : rpID
+  return {
+    invalidHost,
+    rpID,
+    message: buildPasskeyDomainErrorMessage(invalidHost, requestUrl),
+  }
 }
 
 function passkeyOrigins(c: { req: { url: string } }, authConfig: ReturnType<typeof ServerAuth.get>): string[] {
@@ -1263,6 +1302,18 @@ export const AuthRoutes = lazy(() =>
           return c.json({ error: "passkey_requires_https", message: "Passkeys require HTTPS or localhost" }, 403)
         }
 
+        const invalidDomain = validatePasskeyDomain(c, authConfig)
+        if (invalidDomain) {
+          const requestUrl = new URL(c.req.url)
+          log.warn("Blocking passkey auth options request for invalid domain", {
+            path: requestUrl.pathname,
+            host: requestUrl.host,
+            invalidHost: invalidDomain.invalidHost,
+            rpID: invalidDomain.rpID,
+          })
+          return c.json({ error: "passkey_invalid_domain", message: invalidDomain.message }, 400)
+        }
+
         const xrw = c.req.header("X-Requested-With")
         if (!xrw) {
           return c.json({ error: "csrf_missing", message: "X-Requested-With header required" }, 400)
@@ -1459,6 +1510,18 @@ export const AuthRoutes = lazy(() =>
           })
         ) {
           return c.json({ error: "passkey_requires_https", message: "Passkeys require HTTPS or localhost" }, 403)
+        }
+
+        const invalidDomain = validatePasskeyDomain(c, authConfig)
+        if (invalidDomain) {
+          const requestUrl = new URL(c.req.url)
+          log.warn("Blocking passkey register options request for invalid domain", {
+            path: requestUrl.pathname,
+            host: requestUrl.host,
+            invalidHost: invalidDomain.invalidHost,
+            rpID: invalidDomain.rpID,
+          })
+          return c.json({ error: "passkey_invalid_domain", message: invalidDomain.message }, 400)
         }
 
         const session = c.get("session")
