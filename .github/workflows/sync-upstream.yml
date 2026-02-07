@@ -103,6 +103,12 @@ jobs:
         if: always() && steps.sync.outputs.has_conflicts == 'true'
         run: cp -f "$RUNNER_TEMP/claude-execution-output.json" "$RUNNER_TEMP/claude-resolve.json" 2>/dev/null || true
 
+      # After merge/resolution, package.json may require a newer Bun version
+      # from upstream. Re-setup to match the merged state.
+      - name: Re-setup Bun (post-merge)
+        if: steps.sync.outputs.sync_branch != ''
+        uses: ./.github/actions/setup-bun
+
       # ── Phase 3: Run tests ────────────────────────────────
       - name: Run tests after merge/resolution
         id: test1
