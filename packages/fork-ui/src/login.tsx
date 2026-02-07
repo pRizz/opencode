@@ -469,7 +469,8 @@ export function LoginApp() {
           display: block;
         }
         .card {
-          width: 100%;
+          width: min(100%, 420px);
+          min-width: min(360px, 100%);
           max-width: 420px;
           padding: 2rem;
           background: #141414;
