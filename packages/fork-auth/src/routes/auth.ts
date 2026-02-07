@@ -14,17 +14,12 @@ import { Log } from "../../../opencode/src/util/log"
 import { createManualRateLimiter, getClientIP, type ManualRateLimiter } from "../security/rate-limit"
 import { parseDuration } from "../../../opencode/src/util/duration"
 import { shouldBlockInsecureLogin } from "../security/https-detection"
-import { create2FAToken, verify2FAToken, type TwoFactorUserInfo } from "../auth/two-factor-token"
+import { verify2FAToken } from "../auth/two-factor-token"
 import { verifyDeviceTrustToken, createDeviceTrustToken, createDeviceFingerprint } from "../auth/device-trust"
 import { getTokenSecret } from "../security/token-secret"
 import { generateTotpSetup, getGoogleAuthenticatorSetupCommand, verifyTotpCode } from "../auth/totp-setup"
 import { getTwoFactorPreference, setTwoFactorPreference } from "../auth/two-factor-preference"
-import { createBootstrapUser, getBootstrapStatus, verifyBootstrapOtp } from "../auth/bootstrap"
-import {
-  PASSWORD_POLICY_MESSAGE,
-  validateBootstrapPassword,
-  validateBootstrapUsername,
-} from "../auth/password-policy"
+import { completeBootstrapOtp, getBootstrapStatus, verifyBootstrapOtp } from "../auth/bootstrap"
 import { getUiDir } from "../../../opencode/src/server/ui-dir"
 import {
   createPasskeyAuthenticationOptions,
@@ -38,6 +33,7 @@ import type { AuthenticationResponseJSON, RegistrationResponseJSON } from "@simp
 import path from "node:path"
 
 const log = Log.create({ service: "auth-routes" })
+const BOOTSTRAP_SETUP_USER = "opencoder"
 
 async function ensureBrokerSession(sessionId: string, session: UserSession.Info): Promise<boolean> {
   let { uid, gid, home, shell } = session
@@ -164,12 +160,6 @@ const bootstrapVerifyRequestSchema = z.object({
   otp: z.string().min(1).max(256),
 })
 
-const bootstrapSignupRequestSchema = z.object({
-  otp: z.string().min(1).max(256),
-  username: z.string().min(1).max(32),
-  password: z.string().min(1).max(256),
-})
-
 /**
  * Lazy-initialized manual rate limiter for login endpoint.
  * Only counts failed attempts - successful logins don't increment counter.
@@ -262,6 +252,30 @@ function passkeyTimeoutMs(authConfig: ReturnType<typeof ServerAuth.get>): number
   return parseDuration(authConfig.passkeyChallengeTimeout ?? "5m") ?? 300000
 }
 
+function isUserAllowed(authConfig: ReturnType<typeof ServerAuth.get>, username: string): boolean {
+  const allowedUsers = authConfig.allowedUsers ?? []
+  if (!allowedUsers.length) return true
+  return allowedUsers.includes(username)
+}
+
+async function shouldPromptPasskeySetup(authConfig: ReturnType<typeof ServerAuth.get>, username: string): Promise<boolean> {
+  if (!authConfig.passkeysEnabled) return false
+  const credentials = await listUserPasskeys(username)
+  return credentials.length === 0
+}
+
+function passkeySetupPath(required: boolean, returnTo?: string): string {
+  const params = new URLSearchParams()
+  if (required) {
+    params.set("required", "1")
+  }
+  if (returnTo && isValidReturnUrl(returnTo)) {
+    params.set("returnTo", returnTo)
+  }
+  const query = params.toString()
+  return query.length > 0 ? `/auth/passkey/setup?${query}` : "/auth/passkey/setup"
+}
+
 /**
  * Generate login page HTML with security context.
  */
@@ -271,6 +285,8 @@ let cachedTwoFactorTemplate: string | undefined
 let cachedTwoFactorTemplatePath: string | undefined
 let cachedTwoFactorSetupTemplate: string | undefined
 let cachedTwoFactorSetupTemplatePath: string | undefined
+let cachedPasskeySetupTemplate: string | undefined
+let cachedPasskeySetupTemplatePath: string | undefined
 
 async function loadLoginTemplate(uiDir: string): Promise<string> {
   const templatePath = path.join(uiDir, "login.html")
@@ -296,7 +312,6 @@ function injectLoginBootstrap(
     bootstrap: {
       active: boolean
       available: boolean
-      passwordPolicyMessage: string
     }
   },
 ): string {
@@ -387,15 +402,51 @@ function injectTwoFactorSetupBootstrap(
   return `${template}\n${script}`
 }
 
+async function loadPasskeySetupTemplate(uiDir: string): Promise<string> {
+  const templatePath = path.join(uiDir, "passkey-setup.html")
+  if (cachedPasskeySetupTemplate && cachedPasskeySetupTemplatePath === templatePath) {
+    return cachedPasskeySetupTemplate
+  }
+
+  const file = Bun.file(templatePath)
+  const exists = await file.exists()
+  if (!exists) {
+    throw new Error(`Passkey setup HTML not found at ${templatePath}`)
+  }
+
+  cachedPasskeySetupTemplate = await file.text()
+  cachedPasskeySetupTemplatePath = templatePath
+  return cachedPasskeySetupTemplate
+}
+
+function injectPasskeySetupBootstrap(
+  template: string,
+  bootstrap: {
+    username: string
+    required: boolean
+    canSkip: boolean
+    returnTo: string
+  },
+): string {
+  const script = `<script>window.__OPENCODE_PASSKEY_SETUP__ = ${JSON.stringify(bootstrap)};</script>`
+  if (template.includes("</head>")) {
+    return template.replace("</head>", `${script}\n</head>`)
+  }
+  if (template.includes("</body>")) {
+    return template.replace("</body>", `${script}\n</body>`)
+  }
+  return `${template}\n${script}`
+}
+
 /**
  * Auth routes for session management.
  *
  * - GET /login - Login page (HTML)
  * - POST /bootstrap/verify - Verify first-boot one-time password
- * - POST /bootstrap/signup - Create first Linux user from one-time password flow
  * - POST /login - Login with username and password
  * - POST /passkey/auth/options - Get passkey authentication options
  * - POST /passkey/auth/verify - Verify passkey authentication response
+ * - GET /passkey/setup - Passkey setup prompt page (HTML)
  * - POST /passkey/register/options - Get passkey registration options
  * - POST /passkey/register/verify - Verify passkey registration response
  * - GET /passkey/list - List passkeys for current user
@@ -424,13 +475,12 @@ export const AuthRoutes = lazy(() =>
 
       try {
         const template = await loadLoginTemplate(uiDir)
-        return c.html(
+      return c.html(
           injectLoginBootstrap(template, {
             shouldBlock,
             bootstrap: {
               active: bootstrapStatus.active,
               available: bootstrapStatus.available,
-              passwordPolicyMessage: PASSWORD_POLICY_MESSAGE,
             },
           }),
         )
@@ -480,7 +530,67 @@ export const AuthRoutes = lazy(() =>
 
       const verifyResult = await verifyBootstrapOtp(parsed.data.otp)
       if (verifyResult.ok) {
-        return c.json({ success: true as const })
+        const userInfo = await getUserInfo(BOOTSTRAP_SETUP_USER)
+        if (!userInfo) {
+          return c.json(
+            {
+              error: "bootstrap_user_missing",
+              message:
+                "Bootstrap setup user is not available in this container. " +
+                "Rebuild the container image or create users with `occ user add <username>`.",
+            },
+            500,
+          )
+        }
+
+        const session = UserSession.create(
+          BOOTSTRAP_SETUP_USER,
+          c.req.header("User-Agent"),
+          {
+            uid: userInfo.uid,
+            gid: userInfo.gid,
+            home: userInfo.home,
+            shell: userInfo.shell,
+          },
+          false,
+        )
+        UserSession.setBootstrapPending(session.id, parsed.data.otp)
+        setSessionCookie(c, session.id, false)
+        setCSRFCookie(c, session.id)
+
+        const broker = new BrokerClient()
+        broker
+          .registerSession(session.id, {
+            username: BOOTSTRAP_SETUP_USER,
+            uid: userInfo.uid,
+            gid: userInfo.gid,
+            home: userInfo.home,
+            shell: userInfo.shell,
+          })
+          .catch((error) => {
+            log.warn("Failed to register bootstrap setup session with broker", { error })
+          })
+
+        logSecurityEvent({
+          type: "login_success",
+          ip: getRequestIP(c),
+          username: BOOTSTRAP_SETUP_USER,
+          reason: "bootstrap_otp_verified",
+          timestamp: new Date().toISOString(),
+          userAgent: c.req.header("User-Agent"),
+        })
+
+        return c.json({
+          success: true as const,
+          redirectTo: passkeySetupPath(true),
+          user: {
+            username: BOOTSTRAP_SETUP_USER,
+            uid: userInfo.uid,
+            gid: userInfo.gid,
+            home: userInfo.home,
+            shell: userInfo.shell,
+          },
+        })
       }
 
       if (verifyResult.code === "otp_invalid") {
@@ -515,221 +625,61 @@ export const AuthRoutes = lazy(() =>
       )
     })
     .post("/bootstrap/signup", async (c) => {
+      return c.json(
+        {
+          error: "bootstrap_signup_removed",
+          message:
+            "Bootstrap now uses passkey enrollment. Verify the initial one-time password and continue to passkey setup.",
+        },
+        410,
+      )
+    })
+    .get("/passkey/setup", async (c) => {
       const authConfig = ServerAuth.get()
       if (!authConfig.enabled) {
-        return c.json({ error: "auth_disabled", message: "Authentication is not enabled" }, 403)
+        return c.redirect("/auth/login")
       }
-      if (
-        shouldBlockInsecureLogin(c, {
-          requireHttps: authConfig.requireHttps,
-          trustProxy: authConfig.trustProxy,
-        })
-      ) {
-        return c.json({ error: "https_required", message: "HTTPS is required for login" }, 403)
+      if (!authConfig.passkeysEnabled) {
+        return c.redirect("/")
       }
 
-      const limiter = bootstrapRateLimiter()
-      if (limiter) {
-        const rateLimitResult = limiter.checkRateLimit(c)
-        if (rateLimitResult) {
-          return rateLimitResult
-        }
+      const sessionId = getCookie(c, "opencode_session")
+      if (!sessionId) {
+        return c.redirect("/auth/login")
+      }
+      const session = UserSession.get(sessionId)
+      if (!session) {
+        return c.redirect("/auth/login")
       }
 
-      const xrw = c.req.header("X-Requested-With")
-      if (!xrw) {
-        logSecurityEvent({
-          type: "csrf_violation",
-          ip: getRequestIP(c),
-          timestamp: new Date().toISOString(),
-          userAgent: c.req.header("User-Agent"),
-        })
-        return c.json({ error: "csrf_missing", message: "X-Requested-With header required" }, 400)
+      const required = session.bootstrapPending === true || c.req.query("required") === "1"
+      const requestedReturnTo = c.req.query("returnTo")
+      const returnTo = requestedReturnTo && isValidReturnUrl(requestedReturnTo) ? requestedReturnTo : "/"
+      const credentials = await listUserPasskeys(session.username)
+      if (session.bootstrapPending && credentials.length > 0) {
+        UserSession.clearBootstrapPending(session.id)
+        return c.redirect(returnTo)
       }
 
-      const body = await c.req.json().catch(() => ({}))
-      const parsed = bootstrapSignupRequestSchema.safeParse(body)
-      if (!parsed.success) {
-        return c.json(
-          {
-            error: "invalid_request",
-            message: "otp, username, and password are required.",
-          },
-          400,
+      const uiDir = getUiDir()
+      if (!uiDir) {
+        return c.text("Passkey setup UI is not configured. Build the app UI and set uiDir.", 500)
+      }
+
+      try {
+        const template = await loadPasskeySetupTemplate(uiDir)
+        return c.html(
+          injectPasskeySetupBootstrap(template, {
+            username: session.username,
+            required,
+            canSkip: !required,
+            returnTo,
+          }),
         )
+      } catch (error) {
+        log.error("Failed to load passkey setup HTML", { error })
+        return c.text("Passkey setup UI is missing. Run the app build to generate passkey-setup.html.", 500)
       }
-
-      const usernameResult = validateBootstrapUsername(parsed.data.username)
-      if (!usernameResult.valid) {
-        return c.json(
-          {
-            error: "invalid_username",
-            message: usernameResult.errors[0] ?? "Invalid username.",
-          },
-          400,
-        )
-      }
-
-      const passwordResult = validateBootstrapPassword(parsed.data.password)
-      if (!passwordResult.valid) {
-        return c.json(
-          {
-            error: "invalid_password",
-            message: passwordResult.errors[0] ?? "Invalid password.",
-            requirements: PASSWORD_POLICY_MESSAGE,
-          },
-          400,
-        )
-      }
-
-      const signupResult = await createBootstrapUser({
-        otp: parsed.data.otp,
-        username: parsed.data.username,
-        password: parsed.data.password,
-      })
-
-      if (!signupResult.ok) {
-        if (signupResult.code === "otp_invalid") {
-          limiter?.recordFailure(c)
-          logSecurityEvent({
-            type: "login_failed",
-            ip: getRequestIP(c),
-            username: parsed.data.username,
-            reason: "bootstrap_otp_invalid",
-            timestamp: new Date().toISOString(),
-            userAgent: c.req.header("User-Agent"),
-          })
-          return c.json(
-            {
-              error: "otp_invalid",
-              message: "Initial one-time password is invalid.",
-            },
-            401,
-          )
-        }
-
-        if (signupResult.code === "inactive") {
-          return c.json(
-            {
-              error: "bootstrap_inactive",
-              message: "Initial setup is no longer active. Sign in with an existing account.",
-            },
-            403,
-          )
-        }
-
-        if (signupResult.code === "username_exists") {
-          return c.json(
-            {
-              error: "username_exists",
-              message: "That username already exists. Choose another username.",
-            },
-            409,
-          )
-        }
-
-        if (signupResult.code === "unsupported_platform") {
-          return c.json(
-            {
-              error: "unsupported_platform",
-              message:
-                "Initial signup can only create Linux users on Ubuntu containers right now. " +
-                "Use `occ user add <username>` as an administrative fallback.",
-            },
-            400,
-          )
-        }
-
-        if (signupResult.code === "invalid_username") {
-          return c.json(
-            {
-              error: "invalid_username",
-              message: signupResult.message,
-            },
-            400,
-          )
-        }
-
-        if (signupResult.code === "invalid_password") {
-          return c.json(
-            {
-              error: "invalid_password",
-              message: signupResult.message,
-              requirements: PASSWORD_POLICY_MESSAGE,
-            },
-            400,
-          )
-        }
-
-        return c.json(
-          {
-            error: signupResult.code,
-            message:
-              "Failed to create the Linux user account. Check container logs and retry. " +
-              "As a fallback, run `occ user add <username>` from the host.",
-            details: signupResult.message,
-          },
-          normalizeApiStatus(signupResult.status, 500),
-        )
-      }
-
-      const userInfo = await getUserInfo(signupResult.username)
-      if (!userInfo) {
-        return c.json(
-          {
-            error: "create_failed",
-            message: "User was created but could not be loaded for session setup. Please sign in manually.",
-          },
-          500,
-        )
-      }
-
-      const session = UserSession.create(
-        signupResult.username,
-        c.req.header("User-Agent"),
-        {
-          uid: userInfo.uid,
-          gid: userInfo.gid,
-          home: userInfo.home,
-          shell: userInfo.shell,
-        },
-        false,
-      )
-      setSessionCookie(c, session.id, false)
-      setCSRFCookie(c, session.id)
-
-      const userInfoForBroker: UserInfo = {
-        username: signupResult.username,
-        uid: userInfo.uid,
-        gid: userInfo.gid,
-        home: userInfo.home,
-        shell: userInfo.shell,
-      }
-      const broker = new BrokerClient()
-      broker.registerSession(session.id, userInfoForBroker).catch((error) => {
-        log.warn("Failed to register bootstrap signup session with broker", { error })
-      })
-
-      logSecurityEvent({
-        type: "login_success",
-        ip: getRequestIP(c),
-        username: signupResult.username,
-        reason: "bootstrap_signup",
-        timestamp: new Date().toISOString(),
-        userAgent: c.req.header("User-Agent"),
-      })
-
-      return c.json({
-        success: true as const,
-        redirectTo: "/",
-        user: {
-          username: signupResult.username,
-          uid: userInfo.uid,
-          gid: userInfo.gid,
-          home: userInfo.home,
-          shell: userInfo.shell,
-        },
-      })
     })
     .get("/2fa", async (c) => {
       // Get token, username, timeout from query params
@@ -762,34 +712,25 @@ export const AuthRoutes = lazy(() =>
       "/login",
       describeRoute({
         summary: "Login with username and password",
-        description:
-          "Authenticate user credentials via PAM and create session. Returns 2fa_required if user has 2FA enabled.",
+        description: "Authenticate user credentials via PAM and create session.",
         operationId: "auth.login",
         responses: {
           200: {
-            description: "Login successful or 2FA required",
+            description: "Login successful",
             content: {
               "application/json": {
                 schema: resolver(
-                  z.union([
-                    z.object({
-                      success: z.literal(true),
-                      user: z.object({
-                        username: z.string(),
-                        uid: z.number(),
-                        gid: z.number(),
-                        home: z.string(),
-                        shell: z.string(),
-                      }),
-                    }),
-                    z.object({
-                      success: z.literal(false),
-                      error: z.literal("2fa_required"),
-                      twoFactorToken: z.string(),
+                  z.object({
+                    success: z.literal(true),
+                    user: z.object({
                       username: z.string(),
-                      timeoutSeconds: z.number(),
+                      uid: z.number(),
+                      gid: z.number(),
+                      home: z.string(),
+                      shell: z.string(),
                     }),
-                  ]),
+                    redirectTo: z.string().optional(),
+                  }),
                 ),
               },
             },
@@ -916,13 +857,27 @@ export const AuthRoutes = lazy(() =>
           return c.json({ error: "invalid_return_url", message: "Invalid return URL" }, 400)
         }
 
-        // 7. Authenticate via broker
-        const broker = new BrokerClient()
-        const authResult = await broker.authenticate(username, password)
-
         const ip = getRequestIP(c)
         const timestamp = new Date().toISOString()
         const userAgent = c.req.header("User-Agent")
+
+        // 7. Enforce configured user allowlist before password auth.
+        if (!isUserAllowed(authConfig, username)) {
+          logSecurityEvent({
+            type: "login_failed",
+            ip,
+            username,
+            reason: "user_not_allowed",
+            timestamp,
+            userAgent,
+          })
+          limiter?.recordFailure(c)
+          return c.json({ error: "auth_failed", message: "Authentication failed" }, 401)
+        }
+
+        // 7. Authenticate via broker
+        const broker = new BrokerClient()
+        const authResult = await broker.authenticate(username, password)
 
         if (!authResult.success) {
           // Log failed login attempt
@@ -991,102 +946,6 @@ export const AuthRoutes = lazy(() =>
           return c.json({ error: "auth_failed", message: "Authentication failed" }, 401)
         }
 
-        // 8a. Check if 2FA is required
-        if (authConfig.twoFactorEnabled) {
-          const has2fa = await broker.check2fa(username, userInfo.home)
-          const preference = await getTwoFactorPreference(username)
-          const skipSetup = preference.skipSetup && !authConfig.twoFactorRequired
-
-          if (has2fa) {
-            // Check device trust cookie first
-            const deviceTrustCookie = getCookie(c, "opencode_device_trust")
-            let deviceTrusted = false
-
-            if (deviceTrustCookie) {
-              const fingerprint = createDeviceFingerprint(userAgent ?? "")
-              const trustedUser = await verifyDeviceTrustToken(deviceTrustCookie, fingerprint, getTokenSecret())
-              if (trustedUser === username) {
-                // Device is trusted - skip 2FA, continue to session creation
-                deviceTrusted = true
-              }
-            }
-
-            if (!deviceTrusted) {
-              // Device not trusted or token invalid - require 2FA
-              const tfaUserInfo: TwoFactorUserInfo = {
-                username,
-                uid: userInfo.uid,
-                gid: userInfo.gid,
-                home: userInfo.home,
-                shell: userInfo.shell,
-              }
-
-              const timeoutMs = parseDuration(authConfig.twoFactorTokenTimeout ?? "5m") ?? 300000
-              const timeoutSec = Math.floor(timeoutMs / 1000)
-
-              const twoFactorToken = await create2FAToken(
-                tfaUserInfo,
-                timeoutSec,
-                getTokenSecret(),
-                ip, // Bind to requesting IP
-              )
-
-              return c.json(
-                {
-                  success: false as const,
-                  error: "2fa_required" as const,
-                  twoFactorToken,
-                  username,
-                  timeoutSeconds: timeoutSec,
-                },
-                200,
-              ) // 200 because password was valid, just need 2FA
-            }
-          } else if (!skipSetup) {
-            // User doesn't have 2FA configured - redirect to setup
-            // Create session with twoFactorPending flag
-            const tempSession = UserSession.create(
-              username,
-              c.req.header("User-Agent"),
-              {
-                uid: userInfo.uid,
-                gid: userInfo.gid,
-                home: userInfo.home,
-                shell: userInfo.shell,
-              },
-              false, // Don't use rememberMe for setup session
-            )
-            // Mark session as pending 2FA setup
-            tempSession.twoFactorPending = true
-            setSessionCookie(c, tempSession.id, false)
-            setCSRFCookie(c, tempSession.id)
-
-            const userInfoForBroker: UserInfo = {
-              username,
-              uid: userInfo.uid,
-              gid: userInfo.gid,
-              home: userInfo.home,
-              shell: userInfo.shell,
-            }
-            const brokerForRegistration = new BrokerClient()
-            brokerForRegistration.registerSession(tempSession.id, userInfoForBroker).catch((err) => {
-              log.warn("Failed to register setup session with broker", { error: err })
-            })
-
-            return c.json(
-              {
-                success: false as const,
-                error: "2fa_setup_required" as const,
-                message: authConfig.twoFactorRequired
-                  ? "Two-factor authentication setup is required"
-                  : "Two-factor authentication is recommended",
-                canSkip: !authConfig.twoFactorRequired,
-              },
-              200,
-            )
-          }
-        }
-
         // 9. Create session with full user info
         const session = UserSession.create(
           username,
@@ -1130,9 +989,13 @@ export const AuthRoutes = lazy(() =>
           userAgent,
         })
 
+        const needsPasskeySetup = await shouldPromptPasskeySetup(authConfig, username)
+        const redirectTo = needsPasskeySetup ? passkeySetupPath(false, returnUrl) : (returnUrl ?? "/")
+
         // 13. Return success with user info
         return c.json({
           success: true as const,
+          redirectTo,
           user: {
             username: session.username,
             uid: userInfo.uid,
@@ -1506,6 +1369,17 @@ export const AuthRoutes = lazy(() =>
         if (!userInfo) {
           return c.json({ error: "auth_failed", message: "Authentication failed" }, 401)
         }
+        if (!isUserAllowed(authConfig, verifyResult.username)) {
+          logSecurityEvent({
+            type: "login_failed",
+            ip: getClientIP(c),
+            username: verifyResult.username,
+            reason: "user_not_allowed",
+            timestamp: new Date().toISOString(),
+            userAgent: c.req.header("User-Agent"),
+          })
+          return c.json({ error: "auth_failed", message: "Authentication failed" }, 401)
+        }
 
         const rememberMe = parsed.data.rememberMe ?? false
         const session = UserSession.create(
@@ -1695,8 +1569,35 @@ export const AuthRoutes = lazy(() =>
           return c.json({ error: "passkey_failed", message: "Passkey registration failed" }, 401)
         }
 
+        const bootstrapPending = session.bootstrapPending === true
+        if (bootstrapPending) {
+          const otp = session.bootstrapOtp
+          if (!otp) {
+            return c.json(
+              {
+                error: "bootstrap_state_invalid",
+                message: "Bootstrap setup state expired. Retry initial setup from the login page.",
+              },
+              401,
+            )
+          }
+
+          const completeResult = await completeBootstrapOtp(otp)
+          if (!completeResult.ok && completeResult.code !== "inactive") {
+            return c.json(
+              {
+                error: "bootstrap_finalize_failed",
+                message: "Passkey was registered, but bootstrap finalization failed. Please retry.",
+              },
+              normalizeApiStatus(completeResult.status, 500),
+            )
+          }
+          UserSession.clearBootstrapPending(session.id)
+        }
+
         return c.json({
           success: true as const,
+          redirectTo: bootstrapPending ? "/" : undefined,
           credential: {
             credentialId: verifyResult.credential.credentialId,
             deviceLabel: verifyResult.credential.deviceLabel,

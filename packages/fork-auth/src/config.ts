@@ -78,7 +78,7 @@ export const AuthConfig = z
     deviceTrustDuration: Duration.optional().default("30d").describe("How long 'remember this device' lasts for 2FA"),
     otpRateLimitMax: z.number().optional().default(5).describe("Maximum OTP attempts per rate limit window"),
     otpRateLimitWindow: Duration.optional().default("15m").describe("OTP rate limit window duration"),
-    passkeysEnabled: z.boolean().optional().default(false).describe("Enable WebAuthn passkey authentication"),
+    passkeysEnabled: z.boolean().optional().default(true).describe("Enable WebAuthn passkey authentication"),
     passkeyRpName: z.string().optional().default("opencode").describe("Relying party name for passkeys"),
     passkeyRpId: z.string().optional().describe("Override relying party ID for passkeys"),
     passkeyAllowedOrigins: z

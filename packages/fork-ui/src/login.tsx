@@ -6,7 +6,6 @@ type LoginBootstrap = {
   bootstrap?: {
     active?: boolean
     available?: boolean
-    passwordPolicyMessage?: string
   }
 }
 
@@ -29,13 +28,6 @@ type PasskeyAuthOptionsResult = {
   challengeToken: string
 }
 
-type PasskeyAuthVerifySuccess = {
-  success: true
-  user: {
-    username: string
-  }
-}
-
 declare global {
   interface Window {
     __OPENCODE_LOGIN__?: LoginBootstrap
@@ -48,34 +40,6 @@ function shouldWarnForHttpConnection(): boolean {
   const hostname = window.location.hostname
   const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1"
   return window.location.protocol === "http:" && !isLocalhost
-}
-
-function validateBootstrapUsername(username: string): string | undefined {
-  if (!/^[a-z_][a-z0-9_-]{0,31}$/.test(username)) {
-    return "Username must match ^[a-z_][a-z0-9_-]{0,31}$."
-  }
-  if (username === "opencode") {
-    return "Username 'opencode' is reserved."
-  }
-  return undefined
-}
-
-function validateBootstrapPassword(password: string): string | undefined {
-  if (password.length < 12) {
-    return "Password must be at least 12 characters."
-  }
-
-  let classes = 0
-  if (/[A-Z]/.test(password)) classes += 1
-  if (/[a-z]/.test(password)) classes += 1
-  if (/[0-9]/.test(password)) classes += 1
-  if (/[^A-Za-z0-9]/.test(password)) classes += 1
-
-  if (classes < 3) {
-    return "Password must include at least 3 of 4 classes: uppercase, lowercase, number, symbol."
-  }
-
-  return undefined
 }
 
 function base64urlToArrayBuffer(value: string): ArrayBuffer {
@@ -160,9 +124,6 @@ export function LoginApp() {
   const shouldWarn = shouldWarnForHttpConnection()
   const shouldBlock = Boolean(bootstrap.shouldBlock)
   const bootstrapActive = Boolean(bootstrap.bootstrap?.active)
-  const bootstrapPasswordPolicy =
-    bootstrap.bootstrap?.passwordPolicyMessage ??
-    "Use at least 12 characters and include at least 3 of these: uppercase, lowercase, number, symbol."
 
   const [state, setState] = createStore({
     username: "",
@@ -183,13 +144,6 @@ export function LoginApp() {
     bootstrapOtpVerifying: false,
     bootstrapOtpVerified: false,
     bootstrapOtpError: "",
-    bootstrapSignupError: "",
-    bootstrapUsername: "",
-    bootstrapPassword: "",
-    bootstrapConfirmPassword: "",
-    bootstrapSignupSubmitting: false,
-    bootstrapShowPassword: false,
-    bootstrapShowConfirmPassword: false,
   })
 
   let conditionalController: AbortController | undefined
@@ -420,27 +374,9 @@ export function LoginApp() {
 
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>
 
-      if (data.error === "2fa_required") {
-        setState("submitLabel", "Redirecting...")
-        const params = new URLSearchParams({
-          token: String(data.twoFactorToken ?? ""),
-          username: String(data.username ?? ""),
-          timeout: String(data.timeoutSeconds ?? "300"),
-        })
-        window.location.href = `/auth/2fa?${params.toString()}`
-        return
-      }
-
-      if (data.error === "2fa_setup_required") {
-        setState("submitLabel", "Redirecting to 2FA setup...")
-        const setupUrl = data.canSkip ? "/auth/2fa/setup" : "/auth/2fa/setup?required=1"
-        window.location.href = setupUrl
-        return
-      }
-
       if (res.ok && data.success) {
         setState("submitLabel", "Redirecting...")
-        window.location.href = "/"
+        window.location.href = typeof data.redirectTo === "string" && data.redirectTo ? data.redirectTo : "/"
         return
       }
 
@@ -471,7 +407,6 @@ export function LoginApp() {
     setState({
       bootstrapOtpVerifying: true,
       bootstrapOtpError: "",
-      bootstrapSignupError: "",
     })
 
     try {
@@ -491,6 +426,8 @@ export function LoginApp() {
           bootstrapOtpVerifying: false,
           bootstrapOtpError: "",
         })
+        window.location.href =
+          typeof data?.redirectTo === "string" && data.redirectTo ? data.redirectTo : "/auth/passkey/setup?required=1"
         return
       }
 
@@ -503,70 +440,6 @@ export function LoginApp() {
       setState({
         bootstrapOtpVerifying: false,
         bootstrapOtpError: "Connection error while verifying initial one-time password.",
-      })
-    }
-  }
-
-  const handleBootstrapSignup = async (event: Event) => {
-    event.preventDefault()
-    if (shouldBlock || state.bootstrapSignupSubmitting || !state.bootstrapOtpVerified) return
-
-    setState({
-      bootstrapSignupError: "",
-    })
-
-    const username = state.bootstrapUsername.trim()
-    const password = state.bootstrapPassword
-    const confirmPassword = state.bootstrapConfirmPassword
-
-    const usernameError = validateBootstrapUsername(username)
-    if (usernameError) {
-      setState("bootstrapSignupError", usernameError)
-      return
-    }
-
-    const passwordError = validateBootstrapPassword(password)
-    if (passwordError) {
-      setState("bootstrapSignupError", passwordError)
-      return
-    }
-
-    if (password !== confirmPassword) {
-      setState("bootstrapSignupError", "Password confirmation does not match.")
-      return
-    }
-
-    setState("bootstrapSignupSubmitting", true)
-
-    try {
-      const res = await fetch("/auth/bootstrap/signup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Requested-With": "XMLHttpRequest",
-        },
-        body: JSON.stringify({
-          otp: state.bootstrapOtp,
-          username,
-          password,
-        }),
-      })
-      const data = await res.json().catch(() => ({}))
-
-      if (res.ok && data.success) {
-        window.location.href = typeof data.redirectTo === "string" && data.redirectTo ? data.redirectTo : "/"
-        return
-      }
-
-      setState({
-        bootstrapSignupSubmitting: false,
-        bootstrapSignupError:
-          typeof data?.message === "string" ? data.message : "Failed to create account from initial setup.",
-      })
-    } catch {
-      setState({
-        bootstrapSignupSubmitting: false,
-        bootstrapSignupError: "Connection error while creating account.",
       })
     }
   }
@@ -817,13 +690,6 @@ export function LoginApp() {
           border-radius: 4px;
           padding: 0 0.35rem;
         }
-        .bootstrap-policy {
-          color: #93c5fd;
-          font-size: 0.72rem;
-          line-height: 1.4;
-          margin-top: -0.45rem;
-        }
-        }
         .http-warning {
           background: rgba(234, 179, 8, 0.15);
           border: 1px solid rgba(234, 179, 8, 0.4);
@@ -899,8 +765,8 @@ export function LoginApp() {
           <div class="bootstrap-panel">
             <div class="bootstrap-title">Initial One-Time Password Setup</div>
             <div class="bootstrap-text">
-              For first-time containers with no users: find the Initial One-Time Password (IOTP) in your Docker
-              container logs. It is invalidated after the first successful signup.
+              For first-time containers with no configured users, enter the Initial One-Time Password (IOTP) from
+              container logs. After verification, you will enroll a passkey for the <code>opencoder</code> account.
             </div>
 
             <form onSubmit={handleBootstrapVerify} class="bootstrap-step">
@@ -933,128 +799,13 @@ export function LoginApp() {
               </div>
               <Show when={!state.bootstrapOtpVerified && !shouldBlock}>
                 <button type="submit" disabled={state.bootstrapOtpVerifying}>
-                  {state.bootstrapOtpVerifying ? "Verifying..." : "Verify One-Time Password"}
+                  {state.bootstrapOtpVerifying ? "Verifying..." : "Continue to passkey setup"}
                 </button>
               </Show>
             </form>
 
             <Show when={Boolean(state.bootstrapOtpError)}>
               <div class="error visible">{state.bootstrapOtpError}</div>
-            </Show>
-
-            <Show when={state.bootstrapOtpVerified}>
-              <form onSubmit={handleBootstrapSignup} class="bootstrap-step">
-                <div class="bootstrap-step-title">Step 2: Create First Account</div>
-                <div class="field">
-                  <label for="bootstrapUsername">Username</label>
-                  <div class="input-wrapper">
-                    <input
-                      id="bootstrapUsername"
-                      type="text"
-                      disabled={shouldBlock || state.bootstrapSignupSubmitting}
-                      value={state.bootstrapUsername}
-                      onInput={(event) => {
-                        setState({
-                          bootstrapUsername: event.currentTarget.value,
-                          bootstrapSignupError: "",
-                        })
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div class="field">
-                  <label for="bootstrapPassword">Password</label>
-                  <div class="input-wrapper">
-                    <input
-                      id="bootstrapPassword"
-                      type={state.bootstrapShowPassword ? "text" : "password"}
-                      autocomplete="new-password"
-                      class="password-input"
-                      disabled={shouldBlock || state.bootstrapSignupSubmitting}
-                      value={state.bootstrapPassword}
-                      onInput={(event) => {
-                        setState({
-                          bootstrapPassword: event.currentTarget.value,
-                          bootstrapSignupError: "",
-                        })
-                      }}
-                    />
-                    <button
-                      type="button"
-                      class="password-toggle"
-                      classList={{ active: state.bootstrapShowPassword }}
-                      aria-label={state.bootstrapShowPassword ? "Hide password" : "Show password"}
-                      aria-pressed={state.bootstrapShowPassword}
-                      disabled={shouldBlock || state.bootstrapSignupSubmitting}
-                      onClick={() => setState("bootstrapShowPassword", !state.bootstrapShowPassword)}
-                    >
-                      <svg
-                        viewBox="0 0 20 20"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      >
-                        <path d="M10 4.58325C5.83333 4.58325 2.5 9.99992 2.5 9.99992C2.5 9.99992 5.83333 15.4166 10 15.4166C14.1667 15.4166 17.5 9.99992 17.5 9.99992C17.5 9.99992 14.1667 4.58325 10 4.58325Z" />
-                        <circle cx="10" cy="10" r="2.5" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-
-                <div class="field">
-                  <label for="bootstrapConfirmPassword">Confirm password</label>
-                  <div class="input-wrapper">
-                    <input
-                      id="bootstrapConfirmPassword"
-                      type={state.bootstrapShowConfirmPassword ? "text" : "password"}
-                      autocomplete="new-password"
-                      class="password-input"
-                      disabled={shouldBlock || state.bootstrapSignupSubmitting}
-                      value={state.bootstrapConfirmPassword}
-                      onInput={(event) => {
-                        setState({
-                          bootstrapConfirmPassword: event.currentTarget.value,
-                          bootstrapSignupError: "",
-                        })
-                      }}
-                    />
-                    <button
-                      type="button"
-                      class="password-toggle"
-                      classList={{ active: state.bootstrapShowConfirmPassword }}
-                      aria-label={state.bootstrapShowConfirmPassword ? "Hide password" : "Show password"}
-                      aria-pressed={state.bootstrapShowConfirmPassword}
-                      disabled={shouldBlock || state.bootstrapSignupSubmitting}
-                      onClick={() => setState("bootstrapShowConfirmPassword", !state.bootstrapShowConfirmPassword)}
-                    >
-                      <svg
-                        viewBox="0 0 20 20"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      >
-                        <path d="M10 4.58325C5.83333 4.58325 2.5 9.99992 2.5 9.99992C2.5 9.99992 5.83333 15.4166 10 15.4166C14.1667 15.4166 17.5 9.99992 17.5 9.99992C17.5 9.99992 14.1667 4.58325 10 4.58325Z" />
-                        <circle cx="10" cy="10" r="2.5" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-
-                <div class="bootstrap-policy">{bootstrapPasswordPolicy}</div>
-
-                <Show when={!shouldBlock}>
-                  <button type="submit" disabled={state.bootstrapSignupSubmitting}>
-                    {state.bootstrapSignupSubmitting ? "Creating account..." : "Create first account"}
-                  </button>
-                </Show>
-              </form>
-            </Show>
-
-            <Show when={Boolean(state.bootstrapSignupError)}>
-              <div class="error visible">{state.bootstrapSignupError}</div>
             </Show>
           </div>
         </Show>
@@ -1066,6 +817,19 @@ export function LoginApp() {
           <div class="error" classList={{ visible: Boolean(state.error) }}>
             {state.error}
           </div>
+
+          <Show when={state.passkeySupported && !shouldBlock}>
+            <button
+              type="button"
+              class="passkey-button"
+              disabled={state.submitting || state.passkeySubmitting}
+              onClick={handlePasskeyLogin}
+            >
+              {state.passkeyLabel}
+            </button>
+            <div class="passkey-hint">Use a passkey first. You can still sign in with username and password below.</div>
+            <div class="divider">or use password</div>
+          </Show>
 
           <div class="field">
             <label for="username">Username</label>
@@ -1153,19 +917,6 @@ export function LoginApp() {
             <button type="submit" disabled={state.submitting || state.passkeySubmitting}>
               {state.submitLabel}
             </button>
-
-            <Show when={state.passkeySupported}>
-              <div class="divider">or</div>
-              <button
-                type="button"
-                class="passkey-button"
-                disabled={state.submitting || state.passkeySubmitting}
-                onClick={handlePasskeyLogin}
-              >
-                {state.passkeyLabel}
-              </button>
-              <div class="passkey-hint">Use a passkey. If needed, enter username first.</div>
-            </Show>
           </Show>
         </form>
       </div>

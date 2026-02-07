@@ -186,6 +186,14 @@ export const authMiddleware = createMiddleware<AuthEnv>(async (c, next) => {
   // Update lastAccessTime (sliding expiration)
   UserSession.touch(sessionId)
 
+  // Force first-time bootstrap sessions through passkey setup before app access.
+  if (session.bootstrapPending) {
+    if (isApiCall()) {
+      return c.json({ error: "passkey_setup_required", message: "Passkey setup is required" }, 403)
+    }
+    return c.redirect("/auth/passkey/setup?required=1")
+  }
+
   // Check if user needs to complete 2FA setup
   if (session.twoFactorPending && authConfig.twoFactorRequired) {
     // User must complete 2FA setup before accessing other pages

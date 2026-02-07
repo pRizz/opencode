@@ -12,7 +12,9 @@ interface HelperResponse {
   ok?: boolean
   active?: boolean
   created?: boolean
+  completed?: boolean
   created_at?: string
+  completed_at?: string
   username?: string
   code?: string
   reason?: string
@@ -41,6 +43,7 @@ export interface BootstrapStatusResult {
   active: boolean
   available: boolean
   createdAt?: string
+  completedAt?: string
   reason?: string
 }
 
@@ -57,6 +60,18 @@ export type BootstrapCreateUserResult =
   | {
       ok: true
       username: string
+    }
+  | {
+      ok: false
+      code: BootstrapErrorCode
+      message: string
+      status: number
+    }
+
+export type BootstrapCompleteResult =
+  | {
+      ok: true
+      username?: string
     }
   | {
       ok: false
@@ -162,6 +177,13 @@ function normalizeErrorResponse(response: HelperResponse | undefined): {
   if (reason === "inactive" || reason === "user_exists" || reason === "not_initialized") {
     return { code: "inactive", message: response.message ?? "Bootstrap flow is not active.", status: 403 }
   }
+  if (reason === "completed") {
+    return {
+      code: "inactive",
+      message: response.message ?? "Bootstrap flow is already complete.",
+      status: 403,
+    }
+  }
   if (reason === "username_exists") {
     return { code: "username_exists", message: response.message ?? "Username already exists.", status: 409 }
   }
@@ -216,6 +238,7 @@ export async function getBootstrapStatus(): Promise<BootstrapStatusResult> {
       active: false,
       available: true,
       reason: parsed.reason ?? "inactive",
+      completedAt: parsed.completed_at,
     }
   }
 
@@ -259,6 +282,22 @@ export async function createBootstrapUser(params: {
 
   const parsed = parseHelperJson(result.stdout)
   if (parsed?.ok === true && parsed.created === true && typeof parsed.username === "string") {
+    return { ok: true, username: parsed.username }
+  }
+
+  const normalized = normalizeErrorResponse(parsed)
+  return { ok: false, ...normalized }
+}
+
+export async function completeBootstrapOtp(otp: string): Promise<BootstrapCompleteResult> {
+  const result = await runHelper("complete", { otp })
+  if (!result || result.exitCode !== 0) {
+    const failure = helperFailureResult(result)
+    return { ok: false, ...failure }
+  }
+
+  const parsed = parseHelperJson(result.stdout)
+  if (parsed?.ok === true && parsed.completed === true) {
     return { ok: true, username: parsed.username }
   }
 

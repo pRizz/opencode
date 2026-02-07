@@ -40,8 +40,8 @@ export function validateBootstrapUsername(username: string): PasswordPolicyResul
     errors.push("Username must match ^[a-z_][a-z0-9_-]{0,31}$.")
   }
 
-  if (username === "opencode") {
-    errors.push("Username 'opencode' is reserved.")
+  if (username === "opencoder") {
+    errors.push("Username 'opencoder' is reserved.")
   }
 
   return {
