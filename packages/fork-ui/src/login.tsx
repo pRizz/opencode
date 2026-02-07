@@ -453,11 +453,14 @@ export function LoginApp() {
           background: #0a0a0a;
           color: #e5e5e5;
           min-height: 100vh;
+          min-height: 100dvh;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
+          justify-content: safe center;
           padding: 2rem;
+          overflow-y: auto;
         }
         .logo {
           width: 80px;
@@ -734,6 +737,13 @@ export function LoginApp() {
         @media (max-width: 480px) {
           .card { padding: 1.2rem; border-radius: 8px; }
           .logo { width: 60px; height: 75px; margin-bottom: 1.5rem; }
+        }
+        @media (max-height: 760px) {
+          body {
+            justify-content: flex-start;
+            padding-top: 1.25rem;
+            padding-bottom: 1.25rem;
+          }
         }
       `}</style>
       <svg class="logo" viewBox="0 0 80 100" fill="none" xmlns="http://www.w3.org/2000/svg">
