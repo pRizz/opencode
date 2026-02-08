@@ -521,7 +521,7 @@ export namespace File {
       entries = await fs.promises.readdir(resolved, { withFileTypes: true })
     } catch (error) {
       log.error("list_failed", { path: resolved, error: error instanceof Error ? error.message : String(error) })
-      throw new Error(`Unable to list directory: ${resolved}`)
+      throw new Error(`Unable to list directory: ${dir || "."}`)
     }
     for (const entry of entries) {
       if (exclude.includes(entry.name)) continue
