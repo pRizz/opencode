@@ -223,7 +223,9 @@ function isNonFastForward(text: string) {
 }
 
 async function pushBackupBranch(branch: string) {
-  const result = await $`git push ${REMOTE_ORIGIN} HEAD:${branch}`.nothrow()
+  // Disable husky pre-push hook — claude-code-action may override the bun
+  // version, causing the hook's version check to fail in CI.
+  const result = await $`git push ${REMOTE_ORIGIN} HEAD:${branch}`.env({ HUSKY: "0" }).nothrow()
   if (result.exitCode === 0) {
     return `Backup branch pushed: ${branch}`
   }
@@ -292,7 +294,8 @@ async function runMergePhase() {
   await $`git checkout -B ${DEV_BRANCH} ${REMOTE_ORIGIN}/${DEV_BRANCH}`
 
   await $`git branch -f ${PARENT_BRANCH} ${REMOTE_UPSTREAM}/${UPSTREAM_BRANCH}`
-  await $`git push ${REMOTE_ORIGIN} ${PARENT_BRANCH} --force`
+  // Disable husky pre-push hook — not needed for CI mirror pushes.
+  await $`git push ${REMOTE_ORIGIN} ${PARENT_BRANCH} --force`.env({ HUSKY: "0" })
 
   const mergeBase = (await $`git merge-base ${PARENT_BRANCH} ${DEV_BRANCH}`.text()).trim()
   const counts = (await $`git rev-list --left-right --count ${PARENT_BRANCH}...${DEV_BRANCH}`.text())
@@ -380,7 +383,9 @@ async function runPostResolvePhase(opts: {
       break
     }
 
-    const push = await $`git push ${REMOTE_ORIGIN} HEAD:${DEV_BRANCH}`.nothrow()
+    // Disable husky pre-push hook — tests already passed in the test gate,
+    // and claude-code-action may have overridden the bun version.
+    const push = await $`git push ${REMOTE_ORIGIN} HEAD:${DEV_BRANCH}`.env({ HUSKY: "0" }).nothrow()
     log = `${push.stdout.toString()}\n${push.stderr.toString()}`
     if (push.exitCode === 0) {
       console.log("Sync pushed directly to dev.")
