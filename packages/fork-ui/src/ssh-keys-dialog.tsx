@@ -1,9 +1,31 @@
 import { createMemo, createResource, For, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { Button } from "@opencode-ai/ui/button"
+import { Select } from "@opencode-ai/ui/select"
 import { TextField } from "@opencode-ai/ui/text-field"
+import { Tooltip } from "@opencode-ai/ui/tooltip"
 import { showToast } from "@opencode-ai/ui/toast"
 import type { OpencodeClient, SshKey } from "@opencode-ai/sdk/v2/client"
+
+interface HostKeyCheckOption {
+  value: string
+  label: string
+  description: string
+}
+
+const HOST_KEY_CHECK_OPTIONS: HostKeyCheckOption[] = [
+  {
+    value: "accept-new",
+    label: "Accept new",
+    description: "Accept on first connection, reject if key changes (recommended)",
+  },
+  { value: "yes", label: "Yes", description: "Always require host key in known_hosts" },
+  { value: "no", label: "No", description: "Never verify host keys (insecure)" },
+  { value: "off", label: "Off", description: "Alias for no — never verify host keys" },
+  { value: "ask", label: "Ask", description: "Prompt before accepting unknown host keys" },
+]
+
+const DEFAULT_HOST_KEY_CHECK = HOST_KEY_CHECK_OPTIONS[0]
 
 interface SshKeysDialogProps {
   client: Pick<OpencodeClient, "sshKeys">
@@ -190,6 +212,32 @@ export function SshKeysDialog(props: SshKeysDialogProps) {
           disabled={state.isSaving}
         />
         <div class="text-12-regular text-text-weak">Comma-separated host patterns for this key.</div>
+        <div class="flex flex-col gap-1">
+          <div class="flex items-center gap-2">
+            <span class="text-12-medium text-text-strong">Host key verification</span>
+            <Tooltip value="Only &quot;Accept new&quot; is currently supported. More options will be available in a future update.">
+              <span class="text-12-regular text-text-weak cursor-help">ⓘ</span>
+            </Tooltip>
+          </div>
+          <Select
+            options={HOST_KEY_CHECK_OPTIONS}
+            current={DEFAULT_HOST_KEY_CHECK}
+            value={(item) => item.value}
+            label={(item) => item.label}
+            disabled
+            size="normal"
+          >
+            {(item) => (
+              <div class="flex flex-col">
+                <span class="text-12-medium">{item?.label}</span>
+                <span class="text-11-regular text-text-weak">{item?.description}</span>
+              </div>
+            )}
+          </Select>
+          <div class="text-11-regular text-text-weak">
+            Controls SSH host key verification via <code class="text-11-regular">StrictHostKeyChecking</code>.
+          </div>
+        </div>
         <TextAreaField
           label="Public key"
           placeholder="ssh-ed25519 AAAA..."

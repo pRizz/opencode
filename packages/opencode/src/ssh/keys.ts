@@ -4,8 +4,10 @@ import { createHash } from "crypto"
 import z from "zod"
 import { Storage } from "../storage/storage"
 import { Global } from "../global"
+import { Log } from "../util/log"
 
 export namespace SshKey {
+  const log = Log.create({ service: "ssh-keys" })
   const MANAGED_BEGIN = "# opencode:begin"
   const MANAGED_END = "# opencode:end"
   const KEY_DIR = "opencode"
@@ -127,6 +129,10 @@ export namespace SshKey {
     if (next !== existing) {
       await fs.writeFile(configPath, next, { mode: 0o600 })
       await fs.chmod(configPath, 0o600).catch(() => {})
+      log.info("config.updated", {
+        config_path: configPath,
+        managed_key_count: records.filter((r) => r.installed && r.hosts.length > 0).length,
+      })
     }
 
     return configPath
@@ -169,6 +175,13 @@ export namespace SshKey {
     const home = resolveHome(options.home)
     const fingerprint = fingerprintFromPublicKey(parsed.publicKey)
 
+    log.info("create", {
+      name: parsed.name,
+      hosts: parsed.hosts,
+      username: options.username,
+      home,
+    })
+
     const sshDir = path.join(home, ".ssh")
     const keyDir = path.join(sshDir, KEY_DIR)
     await ensureDir(sshDir, 0o700)
@@ -180,6 +193,13 @@ export namespace SshKey {
     await fs.writeFile(publicKeyPath, `${parsed.publicKey.trimEnd()}\n`, { mode: 0o644 })
     await fs.chmod(privateKeyPath, 0o600).catch(() => {})
     await fs.chmod(publicKeyPath, 0o644).catch(() => {})
+
+    log.info("create.installed", {
+      id,
+      fingerprint,
+      private_key_path: privateKeyPath,
+      hosts: parsed.hosts,
+    })
 
     const record: Stored = {
       ...parsed,
@@ -212,6 +232,7 @@ export namespace SshKey {
   }
 
   export async function remove(keyId: string, options: { username: string; home?: string }) {
+    log.info("remove", { key_id: keyId, username: options.username })
     const record = await Storage.read<Stored>(["ssh-keys", options.username, keyId])
     const home = resolveHome(options.home)
 
@@ -225,6 +246,7 @@ export namespace SshKey {
     await Storage.remove(["ssh-keys", options.username, keyId])
     const records = await listStored(options.username)
     await updateConfig(home, records)
+    log.info("remove.complete", { key_id: keyId })
     return true
   }
 }

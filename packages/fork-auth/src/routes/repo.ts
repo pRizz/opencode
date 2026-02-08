@@ -5,7 +5,10 @@ import z from "zod"
 import { Repo } from "../../../opencode/src/repo/repo"
 import { errors } from "../../../opencode/src/server/error"
 import { lazy } from "../../../opencode/src/util/lazy"
+import { Log } from "../../../opencode/src/util/log"
 import { getAuthContext } from "../middleware/auth"
+
+const log = Log.create({ service: "repo-routes" })
 
 const RepoError = Repo.CloneErrorInfo.extend({
   code: z.string().optional(),
@@ -225,6 +228,13 @@ export const RepoRoutes = lazy(() =>
       async (c) => {
         const input = c.req.valid("json")
         const auth = getAuthContext(c)
+        log.info("clone.request", {
+          url: Repo.safeCloneUrl(input.url),
+          method: "POST",
+          has_credentials: !!input.credentials,
+          credential_type: input.credentials?.type,
+          username: auth?.username,
+        })
         if (!isSshCloneUrl(input.url)) {
           const info = unsupportedHttpsCloneError()
           Repo.audit("clone.blocked", cloneBlockedAuditDetails(input, auth, info.code ?? HTTPS_CLONE_UNSUPPORTED_CODE))
@@ -236,13 +246,24 @@ export const RepoRoutes = lazy(() =>
         })
         const audit = cloneAuditDetails(input, destination, auth)
         Repo.audit("clone.start", audit)
+        const startTime = Date.now()
         try {
           const result = await Repo.clone(input)
           Repo.audit("clone.complete", { ...audit, repo_id: result.repo.id })
+          log.info("clone.complete", {
+            url: Repo.safeCloneUrl(input.url),
+            repo_id: result.repo.id,
+            duration: Date.now() - startTime,
+          })
           return c.json(result)
         } catch (error) {
           const info = cloneErrorInfo(error)
           Repo.audit("clone.error", { ...audit, error: info.message })
+          log.error("clone.failed", {
+            url: Repo.safeCloneUrl(input.url),
+            error: info.message,
+            duration: Date.now() - startTime,
+          })
           return c.json({ error: info }, 400)
         }
       },
@@ -274,6 +295,11 @@ export const RepoRoutes = lazy(() =>
       async (c) => {
         const input = c.req.valid("query")
         const auth = getAuthContext(c)
+        log.info("clone.request", {
+          url: Repo.safeCloneUrl(input.url),
+          method: "GET",
+          username: auth?.username,
+        })
         if (!isSshCloneUrl(input.url)) {
           const info = unsupportedHttpsCloneError()
           Repo.audit("clone.blocked", cloneBlockedAuditDetails(input, auth, info.code ?? HTTPS_CLONE_UNSUPPORTED_CODE))
@@ -289,6 +315,7 @@ export const RepoRoutes = lazy(() =>
         const audit = cloneAuditDetails(input, destination, auth)
         Repo.audit("clone.start", audit)
 
+        const startTime = Date.now()
         return streamSSE(c, async (stream) => {
           let closed = false
           stream.onAbort(() => {
@@ -310,10 +337,20 @@ export const RepoRoutes = lazy(() =>
               },
             })
             Repo.audit("clone.complete", { ...audit, repo_id: result.repo.id })
+            log.info("clone.complete", {
+              url: Repo.safeCloneUrl(input.url),
+              repo_id: result.repo.id,
+              duration: Date.now() - startTime,
+            })
             await send(result, "complete")
           } catch (error) {
             const info = cloneErrorInfo(error)
             Repo.audit("clone.error", { ...audit, error: info.message })
+            log.error("clone.failed", {
+              url: Repo.safeCloneUrl(input.url),
+              error: info.message,
+              duration: Date.now() - startTime,
+            })
             await send(info, "clone_error")
           } finally {
             stream.close()
@@ -342,6 +379,13 @@ export const RepoRoutes = lazy(() =>
       async (c) => {
         const input = c.req.valid("json")
         const auth = getAuthContext(c)
+        log.info("clone.request", {
+          url: Repo.safeCloneUrl(input.url),
+          method: "POST_SSE",
+          has_credentials: !!input.credentials,
+          credential_type: input.credentials?.type,
+          username: auth?.username,
+        })
         if (!isSshCloneUrl(input.url)) {
           const info = unsupportedHttpsCloneError()
           Repo.audit("clone.blocked", cloneBlockedAuditDetails(input, auth, info.code ?? HTTPS_CLONE_UNSUPPORTED_CODE))
@@ -359,6 +403,7 @@ export const RepoRoutes = lazy(() =>
         const audit = cloneAuditDetails(input, destination, auth)
         Repo.audit("clone.start", audit)
 
+        const startTime = Date.now()
         return streamSSE(c, async (stream) => {
           let closed = false
           stream.onAbort(() => {
@@ -380,10 +425,20 @@ export const RepoRoutes = lazy(() =>
               },
             })
             Repo.audit("clone.complete", { ...audit, repo_id: result.repo.id })
+            log.info("clone.complete", {
+              url: Repo.safeCloneUrl(input.url),
+              repo_id: result.repo.id,
+              duration: Date.now() - startTime,
+            })
             await send({ type: "complete", data: result })
           } catch (error) {
             const info = cloneErrorInfo(error)
             Repo.audit("clone.error", { ...audit, error: info.message })
+            log.error("clone.failed", {
+              url: Repo.safeCloneUrl(input.url),
+              error: info.message,
+              duration: Date.now() - startTime,
+            })
             await send({ type: "error", data: info })
           } finally {
             stream.close()

@@ -120,6 +120,8 @@ export namespace Repo {
     indexed_deltas: 0,
   }
 
+  const CLONE_TIMEOUT_MS = 5 * 60 * 1000
+
   function resolveWorkspaceRoot(root?: string) {
     if (!root) return path.join(Global.Path.home, "opencode")
     if (root.startsWith("~/")) return path.join(Global.Path.home, root.slice(2))
@@ -225,6 +227,43 @@ export namespace Repo {
         can_retry_with_credentials: true,
       }
     }
+    if (normalized.includes("host key verification failed")) {
+      return {
+        message: "SSH host key verification failed. The remote host is not in known_hosts.",
+        help_steps: [
+          "Try cloning again — the SSH configuration has been updated to accept new host keys.",
+          "If the problem persists, verify the repository host is reachable.",
+        ],
+        auth_type: "ssh",
+        can_retry_with_credentials: false,
+      }
+    }
+    if (
+      normalized.includes("connection timed out") ||
+      normalized.includes("no route to host") ||
+      normalized.includes("network is unreachable")
+    ) {
+      return {
+        message: "Could not connect to the remote host.",
+        help_steps: [
+          "Check your network connection.",
+          "Verify the repository URL is correct.",
+          "Ensure the host allows SSH connections on port 22.",
+        ],
+        auth_type: "ssh",
+        can_retry_with_credentials: false,
+      }
+    }
+    if (normalized.includes("clone operation timed out")) {
+      return {
+        message: "Clone operation timed out.",
+        help_steps: [
+          "The repository may be very large. Try a smaller repository or a shallow clone.",
+          "Check your network connection speed.",
+        ],
+        can_retry_with_credentials: false,
+      }
+    }
     return {
       message: output || "Clone failed.",
       help_steps: ["Verify the repository URL and your network connection."],
@@ -267,7 +306,14 @@ export namespace Repo {
     let cloneUrl = url
     let cleanup: (() => Promise<void>) | undefined
 
+    // Always set StrictHostKeyChecking=accept-new for SSH clones to prevent
+    // "Host key verification failed" in non-interactive environments (containers).
+    // accept-new is TOFU: accept on first connect, reject if key changes later.
+    // Matches the pattern in tunnel.rs and provision.rs.
+    const sshParts = ["ssh", "-o", "StrictHostKeyChecking=accept-new"]
+
     if (!credentials || !url) {
+      env.GIT_SSH_COMMAND = sshParts.join(" ")
       return { env, cloneUrl, cleanup }
     }
 
@@ -310,13 +356,14 @@ export namespace Repo {
       env.SSH_ASKPASS_REQUIRE = "force"
       env.DISPLAY = env.DISPLAY ?? "1"
       if (credentials.key_path) {
-        env.GIT_SSH_COMMAND = `ssh -i ${credentials.key_path} -o IdentitiesOnly=yes`
+        sshParts.push("-i", credentials.key_path, "-o", "IdentitiesOnly=yes")
       }
       cleanup = async () => {
         await fs.rm(dir, { recursive: true, force: true })
       }
     }
 
+    env.GIT_SSH_COMMAND = sshParts.join(" ")
     return { env, cloneUrl, cleanup }
   }
 
@@ -422,26 +469,67 @@ export namespace Repo {
     if (input.branch) args.push("--branch", input.branch)
     args.push(cloneUrl ?? input.url, destination)
 
+    const safeUrl = sanitizeCloneUrl(input.url)
+    log.info("clone.exec", {
+      url: safeUrl,
+      destination,
+      branch: input.branch,
+      has_credentials: !!input.credentials,
+      credential_type: input.credentials?.type,
+      git_ssh_command: env.GIT_SSH_COMMAND,
+    })
+
+    const startTime = Date.now()
     const result = await new Promise<{ code: number; stdout: string; stderr: string }>((resolve, reject) => {
       const proc = spawn("git", args, { cwd: workspaceRoot, env })
       let stdout = ""
       let stderr = ""
+      let killed = false
+
+      const timer = setTimeout(() => {
+        killed = true
+        proc.kill("SIGTERM")
+        setTimeout(() => proc.kill("SIGKILL"), 5000)
+      }, CLONE_TIMEOUT_MS)
+
       proc.stdout?.on("data", (chunk) => {
         stdout += chunk.toString()
       })
       proc.stderr?.on("data", (chunk) => {
         stderr += chunk.toString()
       })
-      proc.on("error", reject)
-      proc.on("close", (code) => resolve({ code: code ?? 1, stdout, stderr }))
+      proc.on("error", (err) => {
+        clearTimeout(timer)
+        reject(err)
+      })
+      proc.on("close", (code) => {
+        clearTimeout(timer)
+        if (killed) {
+          resolve({ code: 1, stdout, stderr: stderr + "\nClone operation timed out after 5 minutes." })
+        } else {
+          resolve({ code: code ?? 1, stdout, stderr })
+        }
+      })
     }).finally(async () => {
       await cleanup?.()
     })
 
     if (result.code !== 0) {
       const output = sanitizeOutput([result.stderr, result.stdout].filter(Boolean).join("\n"))
+      log.error("clone.failed", {
+        url: safeUrl,
+        exit_code: result.code,
+        stderr: sanitizeOutput(result.stderr),
+        duration: Date.now() - startTime,
+      })
       throw new CloneError(classifyCloneError(output))
     }
+
+    log.info("clone.success", {
+      url: safeUrl,
+      destination,
+      duration: Date.now() - startTime,
+    })
 
     const repo: Info = {
       id: crypto.randomUUID(),
@@ -484,6 +572,17 @@ export namespace Repo {
     if (input.branch) args.push("--branch", input.branch)
     args.push(cloneUrl ?? input.url, destination)
 
+    const safeUrl = sanitizeCloneUrl(input.url)
+    log.info("clone.exec", {
+      url: safeUrl,
+      destination,
+      branch: input.branch,
+      has_credentials: !!input.credentials,
+      credential_type: input.credentials?.type,
+      git_ssh_command: env.GIT_SSH_COMMAND,
+    })
+
+    const startTime = Date.now()
     const progress = { ...DEFAULT_PROGRESS }
     const proc = spawn("git", args, {
       cwd: workspaceRoot,
@@ -493,6 +592,13 @@ export namespace Repo {
     let stderrBuffer = ""
     let stdoutBuffer = ""
     let progressBuffer = ""
+    let killed = false
+
+    const timer = setTimeout(() => {
+      killed = true
+      proc.kill("SIGTERM")
+      setTimeout(() => proc.kill("SIGKILL"), 5000)
+    }, CLONE_TIMEOUT_MS)
 
     const handleChunk = (chunk: Buffer) => {
       progressBuffer += chunk.toString()
@@ -515,16 +621,39 @@ export namespace Repo {
     })
 
     const exitCode = await new Promise<number>((resolve, reject) => {
-      proc.on("error", reject)
-      proc.on("close", (code) => resolve(code ?? 1))
+      proc.on("error", (err) => {
+        clearTimeout(timer)
+        reject(err)
+      })
+      proc.on("close", (code) => {
+        clearTimeout(timer)
+        if (killed) {
+          resolve(1)
+          stderrBuffer += "\nClone operation timed out after 5 minutes."
+        } else {
+          resolve(code ?? 1)
+        }
+      })
     }).finally(async () => {
       await cleanup?.()
     })
 
     if (exitCode !== 0) {
       const output = sanitizeOutput([stderrBuffer, stdoutBuffer].filter(Boolean).join("\n"))
+      log.error("clone.failed", {
+        url: safeUrl,
+        exit_code: exitCode,
+        stderr: sanitizeOutput(stderrBuffer),
+        duration: Date.now() - startTime,
+      })
       throw new CloneError(classifyCloneError(output))
     }
+
+    log.info("clone.success", {
+      url: safeUrl,
+      destination,
+      duration: Date.now() - startTime,
+    })
 
     const repo: Info = {
       id: crypto.randomUUID(),
