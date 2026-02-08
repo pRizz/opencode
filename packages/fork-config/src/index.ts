@@ -1,3 +1,4 @@
+export { epoch } from "./epoch"
 import z from "zod"
 import path from "node:path"
 import { validateAuthConfig } from "@opencode-ai/fork-auth"

@@ -15,6 +15,7 @@ import { getFilename } from "@opencode-ai/util/path"
 import { showToast } from "@opencode-ai/ui/toast"
 import { cmp, normalizeProviderList } from "./utils"
 import type { State, VcsCache } from "./types"
+import { checkEpoch } from "@opencode-ai/fork-ui"
 
 type GlobalStore = {
   ready: boolean
@@ -37,6 +38,7 @@ export async function bootstrapGlobal(input: {
     .health()
     .then((x) => x.data)
     .catch(() => undefined)
+  if (health?.epoch) checkEpoch(health.epoch) // guard: old servers without epoch field skip the check
   if (!health?.healthy) {
     showToast({
       variant: "error",

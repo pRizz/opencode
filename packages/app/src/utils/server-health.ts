@@ -1,6 +1,6 @@
 import { createOpencodeClient } from "@opencode-ai/sdk/v2/client"
 
-export type ServerHealth = { healthy: boolean; version?: string }
+export type ServerHealth = { healthy: boolean; version?: string; epoch?: string }
 
 interface CheckServerHealthOptions {
   timeoutMs?: number
@@ -24,6 +24,6 @@ export async function checkServerHealth(
   })
   return sdk.global
     .health()
-    .then((x) => ({ healthy: x.data?.healthy === true, version: x.data?.version }))
+    .then((x) => ({ healthy: x.data?.healthy === true, version: x.data?.version, epoch: x.data?.epoch }))
     .catch(() => ({ healthy: false }))
 }
