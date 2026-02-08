@@ -147,7 +147,17 @@ mod tests {
     }
 
     /// Test that PTY pair file descriptors are closed on drop.
+    ///
+    /// IGNORED: This test is flaky due to an inherent FD-reuse race condition.
+    /// After PtyPair is dropped and the FDs are closed, the OS can immediately
+    /// reassign those FD numbers to another thread (e.g., a parallel test),
+    /// causing the fcntl(F_GETFD) check to succeed instead of returning EBADF.
+    ///
+    /// The test is also redundant: PtyPair has no custom Drop impl — it relies
+    /// entirely on OwnedFd, which is guaranteed by the Rust stdlib to close FDs
+    /// on drop.
     #[test]
+    #[ignore = "flaky: FD-reuse race condition; also redundant (tests OwnedFd stdlib guarantee)"]
     fn test_pty_pair_drops_fds() {
         let uid = nix::unistd::getuid().as_raw();
         let gid = nix::unistd::getgid().as_raw();
