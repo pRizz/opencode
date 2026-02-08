@@ -19,6 +19,20 @@ function mockContext(url: string, headers: Record<string, string> = {}): Context
   } as unknown as Context
 }
 
+function withRailwayEnv<T>(callback: () => T): T {
+  const previous = process.env.RAILWAY_ENVIRONMENT
+  process.env.RAILWAY_ENVIRONMENT = "production"
+  try {
+    return callback()
+  } finally {
+    if (previous === undefined) {
+      delete process.env.RAILWAY_ENVIRONMENT
+    } else {
+      process.env.RAILWAY_ENVIRONMENT = previous
+    }
+  }
+}
+
 describe("isLocalhost", () => {
   test("returns true for localhost", () => {
     const c = mockContext("http://localhost/test", { Host: "localhost" })
@@ -113,6 +127,56 @@ describe("isSecureConnection", () => {
       "X-Forwarded-Proto": "https",
     })
     expect(isSecureConnection(c, false)).toBe(false)
+  })
+
+  test("treats trustProxy auto as off when not in managed proxy env", () => {
+    const previous = process.env.RAILWAY_ENVIRONMENT
+    delete process.env.RAILWAY_ENVIRONMENT
+    try {
+      const c = mockContext("http://example.com/test", {
+        Host: "example.com",
+        "X-Forwarded-Proto": "https",
+      })
+      expect(isSecureConnection(c, "auto")).toBe(false)
+    } finally {
+      if (previous !== undefined) {
+        process.env.RAILWAY_ENVIRONMENT = previous
+      }
+    }
+  })
+
+  test("accepts X-Forwarded-Proto when trustProxy is auto in managed proxy env", () => {
+    withRailwayEnv(() => {
+      const c = mockContext("http://example.com/test", {
+        Host: "example.com",
+        "X-Forwarded-Proto": "https",
+      })
+      expect(isSecureConnection(c, "auto")).toBe(true)
+    })
+  })
+
+  test("uses secure-context hint as tie-breaker in managed proxy env", () => {
+    withRailwayEnv(() => {
+      const c = mockContext("http://example.com/test", {
+        Host: "example.com",
+        Origin: "https://example.com",
+        "X-Opencode-Secure-Context": "1",
+        "X-Opencode-Window-Origin": "https://example.com",
+      })
+      expect(isSecureConnection(c, "auto")).toBe(true)
+    })
+  })
+
+  test("rejects secure-context hint when hint origin host mismatches request host", () => {
+    withRailwayEnv(() => {
+      const c = mockContext("http://example.com/test", {
+        Host: "example.com",
+        Origin: "https://evil.example.com",
+        "X-Opencode-Secure-Context": "1",
+        "X-Opencode-Window-Origin": "https://evil.example.com",
+      })
+      expect(isSecureConnection(c, "auto")).toBe(false)
+    })
   })
 })
 

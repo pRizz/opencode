@@ -165,83 +165,53 @@
       "post": {
         "operationId": "auth.login",
         "summary": "Login with username and password",
-        "description": "Authenticate user credentials via PAM and create session. Returns 2fa_required if user has 2FA enabled.",
+        "description": "Authenticate user credentials via PAM and create session.",
         "responses": {
           "200": {
-            "description": "Login successful or 2FA required",
+            "description": "Login successful",
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "type": "object",
-                      "properties": {
-                        "success": {
-                          "type": "boolean",
-                          "const": true
-                        },
-                        "user": {
-                          "type": "object",
-                          "properties": {
-                            "username": {
-                              "type": "string"
-                            },
-                            "uid": {
-                              "type": "number"
-                            },
-                            "gid": {
-                              "type": "number"
-                            },
-                            "home": {
-                              "type": "string"
-                            },
-                            "shell": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "username",
-                            "uid",
-                            "gid",
-                            "home",
-                            "shell"
-                          ]
-                        }
-                      },
-                      "required": [
-                        "success",
-                        "user"
-                      ]
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
                     },
-                    {
+                    "user": {
                       "type": "object",
                       "properties": {
-                        "success": {
-                          "type": "boolean",
-                          "const": false
-                        },
-                        "error": {
-                          "type": "string",
-                          "const": "2fa_required"
-                        },
-                        "twoFactorToken": {
-                          "type": "string"
-                        },
                         "username": {
                           "type": "string"
                         },
-                        "timeoutSeconds": {
+                        "uid": {
                           "type": "number"
+                        },
+                        "gid": {
+                          "type": "number"
+                        },
+                        "home": {
+                          "type": "string"
+                        },
+                        "shell": {
+                          "type": "string"
                         }
                       },
                       "required": [
-                        "success",
-                        "error",
-                        "twoFactorToken",
                         "username",
-                        "timeoutSeconds"
+                        "uid",
+                        "gid",
+                        "home",
+                        "shell"
                       ]
+                    },
+                    "redirectTo": {
+                      "type": "string"
                     }
+                  },
+                  "required": [
+                    "success",
+                    "user"
                   ]
                 }
               }
@@ -11014,6 +10984,10 @@
           "model": {
             "type": "string"
           },
+          "variant": {
+            "description": "Default model variant for this agent (applies only when using the agent's configured model).",
+            "type": "string"
+          },
           "temperature": {
             "type": "number"
           },
@@ -11595,8 +11569,17 @@
             "type": "boolean"
           },
           "trustProxy": {
-            "description": "Trust X-Forwarded-Proto header for reverse proxy detection",
-            "type": "boolean"
+            "description": "Proxy trust mode for forwarded headers: false=never trust, true=always trust, auto=trust in managed proxy environments",
+            "default": "auto",
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "string",
+                "const": "auto"
+              }
+            ]
           },
           "csrfVerboseErrors": {
             "description": "Enable verbose CSRF error messages for debugging",
@@ -11642,7 +11625,7 @@
           },
           "passkeysEnabled": {
             "description": "Enable WebAuthn passkey authentication",
-            "default": false,
+            "default": true,
             "type": "boolean"
           },
           "passkeyRpName": {

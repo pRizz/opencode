@@ -1678,9 +1678,9 @@ export type AuthConfig = {
    */
   sessionPersistence?: boolean
   /**
-   * Trust X-Forwarded-Proto header for reverse proxy detection
+   * Proxy trust mode for forwarded headers: false=never trust, true=always trust, auto=trust in managed proxy environments
    */
-  trustProxy?: boolean
+  trustProxy?: boolean | "auto"
   /**
    * Enable verbose CSRF error messages for debugging
    */

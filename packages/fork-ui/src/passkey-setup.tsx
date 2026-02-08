@@ -48,6 +48,24 @@ function getCsrfToken(): string {
   return match ? decodeURIComponent(match[1]) : ""
 }
 
+function getPasskeyClientHeaders(): Record<string, string> {
+  return {
+    "X-Opencode-Secure-Context": window.isSecureContext ? "1" : "0",
+    "X-Opencode-Window-Origin": window.location.origin,
+  }
+}
+
+function getPasskeyApiMessage(input: { error?: string; message?: string; fallback: string }): string {
+  const message = input.message ?? input.fallback
+  if (input.error !== "passkey_requires_https" || !window.isSecureContext) {
+    return message
+  }
+  return (
+    "Browser reports a secure context, but the server rejected HTTPS detection. " +
+    "Check auth.trustProxy and ensure your reverse proxy forwards Forwarded or X-Forwarded-Proto."
+  )
+}
+
 function base64urlToArrayBuffer(value: string): ArrayBuffer {
   const base64 = value.replace(/-/g, "+").replace(/_/g, "/")
   const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4)
@@ -255,12 +273,14 @@ export function PasskeySetupApp() {
         headers: {
           "Content-Type": "application/json",
           "X-Requested-With": "XMLHttpRequest",
+          ...getPasskeyClientHeaders(),
           ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
         },
         body: JSON.stringify({}),
       })
       const optionsBody = (await optionsRes.json().catch(() => ({}))) as {
         success?: boolean
+        error?: string
         challengeToken?: string
         options?: PasskeyCreationOptionsJSON
         message?: string
@@ -271,7 +291,11 @@ export function PasskeySetupApp() {
         rpID = optionsBody.options.rp.id
       }
       if (!optionsRes.ok || !optionsBody.success || !optionsBody.challengeToken || !optionsBody.options) {
-        const message = optionsBody.message ?? "Could not start passkey setup."
+        const message = getPasskeyApiMessage({
+          error: optionsBody.error,
+          message: optionsBody.message,
+          fallback: "Could not start passkey setup.",
+        })
         setError(message)
         logPasskeySetupFailure({
           stage,
@@ -322,6 +346,7 @@ export function PasskeySetupApp() {
         headers: {
           "Content-Type": "application/json",
           "X-Requested-With": "XMLHttpRequest",
+          ...getPasskeyClientHeaders(),
           ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
         },
         body: JSON.stringify({
@@ -331,13 +356,18 @@ export function PasskeySetupApp() {
       })
       const verifyBody = (await verifyRes.json().catch(() => ({}))) as {
         success?: boolean
+        error?: string
         message?: string
         redirectTo?: string
       }
       verifyStatus = verifyRes.status
       verifyMessage = verifyBody.message
       if (!verifyRes.ok || !verifyBody.success) {
-        const message = verifyBody.message ?? "Passkey setup failed."
+        const message = getPasskeyApiMessage({
+          error: verifyBody.error,
+          message: verifyBody.message,
+          fallback: "Passkey setup failed.",
+        })
         setError(message)
         logPasskeySetupFailure({
           stage,

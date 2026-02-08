@@ -1,6 +1,7 @@
 import { rateLimiter } from "hono-rate-limiter"
 import type { Context } from "hono"
 import { Log } from "../../../opencode/src/util/log"
+import { resolveTrustProxyMode, shouldTrustForwardedHeaders, type TrustProxySetting } from "./request-context"
 
 const log = Log.create({ service: "rate-limit" })
 
@@ -10,7 +11,7 @@ const log = Log.create({ service: "rate-limit" })
 export interface RateLimitConfig {
   windowMs?: number // default: 15 * 60 * 1000 (15 min)
   limit?: number // default: 5
-  trustProxy?: boolean
+  trustProxy?: TrustProxySetting
   keyGenerator?: (c: Context) => string
 }
 
@@ -53,7 +54,7 @@ export interface ManualRateLimiter {
 export function createManualRateLimiter(config?: RateLimitConfig): ManualRateLimiter {
   const windowMs = config?.windowMs ?? 15 * 60 * 1000 // 15 minutes
   const limit = config?.limit ?? 5
-  const keyGenerator = config?.keyGenerator ?? ((c: Context) => getClientIP(c, config?.trustProxy ?? false))
+  const keyGenerator = config?.keyGenerator ?? ((c: Context) => getClientIP(c, config?.trustProxy))
   const failureStore = new Map<string, RateLimitEntry>()
 
   // Keep counters scoped to this limiter instance to avoid cross-route interference.
@@ -138,11 +139,12 @@ export function createManualRateLimiter(config?: RateLimitConfig): ManualRateLim
 /**
  * Extract client IP address from request headers.
  *
- * With trustProxy=false (default), forwarded headers are ignored to avoid spoofing.
+ * With trustProxy=false, forwarded headers are ignored to avoid spoofing.
  * With trustProxy=true, checks X-Forwarded-For then X-Real-IP before direct socket IP.
+ * With trustProxy=auto, forwarded headers are trusted only in managed proxy environments.
  */
-export function getClientIP(c: Context, trustProxy = false): string {
-  if (trustProxy) {
+export function getClientIP(c: Context, trustProxy: TrustProxySetting = false): string {
+  if (shouldTrustForwardedHeaders(resolveTrustProxyMode(trustProxy))) {
     // Check X-Forwarded-For (comma-separated list, take first)
     const xForwardedFor = c.req.header("X-Forwarded-For")
     if (xForwardedFor) {
@@ -221,7 +223,7 @@ function requestIPFromTarget(target: unknown, request: Request): string | undefi
 export function createLoginRateLimiter(config?: RateLimitConfig) {
   const windowMs = config?.windowMs ?? 15 * 60 * 1000 // 15 minutes
   const limit = config?.limit ?? 5
-  const keyGenerator = config?.keyGenerator ?? ((c: Context) => getClientIP(c, config?.trustProxy ?? false))
+  const keyGenerator = config?.keyGenerator ?? ((c: Context) => getClientIP(c, config?.trustProxy))
 
   return rateLimiter({
     windowMs,
@@ -271,7 +273,7 @@ export function createLoginRateLimiter(config?: RateLimitConfig) {
 export function createOtpRateLimiter(config?: RateLimitConfig) {
   const windowMs = config?.windowMs ?? 15 * 60 * 1000 // 15 minutes
   const limit = config?.limit ?? 5
-  const keyGenerator = config?.keyGenerator ?? ((c: Context) => getClientIP(c, config?.trustProxy ?? false))
+  const keyGenerator = config?.keyGenerator ?? ((c: Context) => getClientIP(c, config?.trustProxy))
 
   return rateLimiter({
     windowMs,

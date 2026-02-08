@@ -65,6 +65,24 @@ function getCsrfToken(): string | undefined {
   return match ? match[1] : undefined
 }
 
+function getPasskeyClientHeaders(): Record<string, string> {
+  return {
+    "X-Opencode-Secure-Context": window.isSecureContext ? "1" : "0",
+    "X-Opencode-Window-Origin": window.location.origin,
+  }
+}
+
+function getPasskeyApiMessage(input: { error?: string; message?: string; fallback: string }): string {
+  const message = input.message ?? input.fallback
+  if (input.error !== "passkey_requires_https" || !window.isSecureContext) {
+    return message
+  }
+  return (
+    "Browser reports a secure context, but the server rejected HTTPS detection. " +
+    "Check auth.trustProxy and ensure your reverse proxy forwards Forwarded or X-Forwarded-Proto."
+  )
+}
+
 function formatTime(value: number | undefined): string {
   if (!value) return "Never used"
   return new Date(value).toLocaleString()
@@ -282,6 +300,7 @@ export function PasskeyManagerPanel(props: PasskeyManagerPanelProps) {
         headers: {
           "Content-Type": "application/json",
           "X-Requested-With": "XMLHttpRequest",
+          ...getPasskeyClientHeaders(),
           ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
         },
         body: JSON.stringify({}),
@@ -289,6 +308,7 @@ export function PasskeyManagerPanel(props: PasskeyManagerPanelProps) {
 
       const optionsBody = (await optionsRes.json().catch(() => ({}))) as {
         success?: boolean
+        error?: string
         challengeToken?: string
         options?: PasskeyCreationOptionsJSON
         message?: string
@@ -300,7 +320,11 @@ export function PasskeyManagerPanel(props: PasskeyManagerPanelProps) {
       }
 
       if (!optionsRes.ok || !optionsBody.success || !optionsBody.challengeToken || !optionsBody.options) {
-        const message = optionsBody.message ?? "Try again in a moment."
+        const message = getPasskeyApiMessage({
+          error: optionsBody.error,
+          message: optionsBody.message,
+          fallback: "Try again in a moment.",
+        })
         logPasskeySetupFailure({
           stage,
           serverUrl: url,
@@ -362,6 +386,7 @@ export function PasskeyManagerPanel(props: PasskeyManagerPanelProps) {
         headers: {
           "Content-Type": "application/json",
           "X-Requested-With": "XMLHttpRequest",
+          ...getPasskeyClientHeaders(),
           ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
         },
         body: JSON.stringify({
@@ -372,13 +397,18 @@ export function PasskeyManagerPanel(props: PasskeyManagerPanelProps) {
 
       const verifyBody = (await verifyRes.json().catch(() => ({}))) as {
         success?: boolean
+        error?: string
         message?: string
       }
       verifyStatus = verifyRes.status
       verifyMessage = verifyBody.message
 
       if (!verifyRes.ok || !verifyBody.success) {
-        const message = verifyBody.message ?? "Try again."
+        const message = getPasskeyApiMessage({
+          error: verifyBody.error,
+          message: verifyBody.message,
+          fallback: "Try again.",
+        })
         logPasskeySetupFailure({
           stage,
           serverUrl: url,

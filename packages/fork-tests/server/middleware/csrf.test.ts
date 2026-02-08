@@ -4,10 +4,27 @@ import { csrfMiddleware, setCSRFCookie, clearCSRFCookie } from "../../../../open
 import { getCookie } from "hono/cookie"
 import { ServerAuth } from "../../../../opencode/src/config/server-auth"
 import type { AuthConfig } from "../../../../opencode/src/config/auth"
-import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from "../../../../opencode/src/server/security/csrf"
+import {
+  CSRF_COOKIE_NAME,
+  CSRF_HEADER_NAME,
+  generateCSRFToken,
+  getCSRFSecret,
+} from "../../../../opencode/src/server/security/csrf"
 
 // Type for test context with sessionId variable
 type TestEnv = { Variables: { sessionId: string } }
+
+function withRailwayEnv<T>(callback: () => Promise<T>): Promise<T> {
+  const previous = process.env.RAILWAY_ENVIRONMENT
+  process.env.RAILWAY_ENVIRONMENT = "production"
+  return callback().finally(() => {
+    if (previous === undefined) {
+      delete process.env.RAILWAY_ENVIRONMENT
+      return
+    }
+    process.env.RAILWAY_ENVIRONMENT = previous
+  })
+}
 
 describe("CSRF middleware", () => {
   let app: Hono<TestEnv>
@@ -41,6 +58,7 @@ describe("CSRF middleware", () => {
       otpRateLimitMax: 5,
       otpRateLimitWindow: "15m",
       twoFactorRequired: false,
+      trustProxy: "auto",
     }
 
     // Mock ServerAuth.get
@@ -398,6 +416,86 @@ describe("CSRF middleware", () => {
 
       const setCookieHeader = res.headers.get("Set-Cookie")
       expect(setCookieHeader).toContain("Secure")
+    })
+
+    it("sets Secure flag for proxied HTTPS when trustProxy is auto in managed env", async () => {
+      const sessionId = "test-session"
+      mockAuthConfig.trustProxy = "auto"
+
+      app.get("/test", (c) => {
+        setCSRFCookie(c, sessionId)
+        return c.json({ success: true })
+      })
+
+      await withRailwayEnv(async () => {
+        const res = await app.request("http://example.com/test", {
+          headers: {
+            Host: "example.com",
+            "X-Forwarded-Proto": "https",
+          },
+        })
+        const setCookieHeader = res.headers.get("Set-Cookie")
+        expect(setCookieHeader).toContain("Secure")
+      })
+    })
+
+    it("does not set Secure flag on spoofed forwarded proto outside managed env", async () => {
+      const sessionId = "test-session"
+      mockAuthConfig.trustProxy = "auto"
+
+      app.get("/test", (c) => {
+        setCSRFCookie(c, sessionId)
+        return c.json({ success: true })
+      })
+
+      const previous = process.env.RAILWAY_ENVIRONMENT
+      delete process.env.RAILWAY_ENVIRONMENT
+      try {
+        const res = await app.request("http://example.com/test", {
+          headers: {
+            Host: "example.com",
+            "X-Forwarded-Proto": "https",
+          },
+        })
+        const setCookieHeader = res.headers.get("Set-Cookie")
+        expect(setCookieHeader).not.toContain("Secure")
+      } finally {
+        if (previous !== undefined) {
+          process.env.RAILWAY_ENVIRONMENT = previous
+        }
+      }
+    })
+
+    it("sets Secure on CSRF backfill cookie for proxied HTTPS in managed env", async () => {
+      const sessionId = "test-session"
+      mockAuthConfig.trustProxy = "auto"
+
+      app.use((c, next) => {
+        c.set("sessionId", sessionId)
+        return next()
+      })
+      app.use(csrfMiddleware)
+      app.post("/test", (c) => c.json({ success: true }))
+
+      const csrfToken = generateCSRFToken(sessionId, getCSRFSecret())
+
+      await withRailwayEnv(async () => {
+        const res = await app.request("http://example.com/test", {
+          method: "POST",
+          headers: {
+            Host: "example.com",
+            "Content-Type": "application/json",
+            "X-Forwarded-Proto": "https",
+            [CSRF_HEADER_NAME]: csrfToken,
+          },
+          body: JSON.stringify({ data: "test" }),
+        })
+
+        expect(res.status).toBe(200)
+        const setCookieHeader = res.headers.get("Set-Cookie")
+        expect(setCookieHeader).toContain(CSRF_COOKIE_NAME)
+        expect(setCookieHeader).toContain("Secure")
+      })
     })
   })
 

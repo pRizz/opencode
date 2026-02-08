@@ -539,31 +539,34 @@ Access from other devices: `http://192.168.1.100`
 
 ## trustProxy Configuration
 
-The `trustProxy` option tells opencode whether to trust the `X-Forwarded-Proto` header.
+The `trustProxy` option controls whether opencode trusts forwarded proxy headers.
+Accepted values are `false`, `true`, and `"auto"` (default).
 
 ### What trustProxy Does
 
-When `trustProxy` is enabled, opencode:
+With `trustProxy: true`, opencode:
 
 1. Reads the `X-Forwarded-Proto` header from requests
 2. Treats requests with `X-Forwarded-Proto: https` as secure (HTTPS)
 3. Allows authentication over HTTP if the header indicates HTTPS
 
-Without `trustProxy`, opencode:
+With `trustProxy: false`, opencode:
 
 1. Ignores `X-Forwarded-Proto` header
 2. Only treats direct TLS connections as secure
 3. Blocks/warns about authentication over HTTP
 
+With `trustProxy: "auto"` (default), opencode only trusts forwarded headers when running in a managed proxy environment (for example Railway) and otherwise behaves like `false`.
+
 ### When to Enable trustProxy
 
-**Enable `trustProxy: true` when:**
+**Use `trustProxy: true` when:**
 
 - opencode is behind a reverse proxy (nginx, Caddy, ALB, etc.)
 - The reverse proxy terminates TLS
 - The proxy sets `X-Forwarded-Proto` header correctly
 
-**Keep `trustProxy: false` (default) when:**
+**Use `trustProxy: false` when:**
 
 - opencode is directly exposed to the internet
 - opencode terminates TLS itself
@@ -581,6 +584,7 @@ curl -H "X-Forwarded-Proto: https" http://your-server.com/
 ```
 
 If `trustProxy: true` without a real proxy, opencode will treat this as HTTPS, allowing authentication over plain HTTP.
+`trustProxy: "auto"` avoids this in non-managed environments.
 
 **With a reverse proxy**, the proxy:
 
@@ -597,7 +601,19 @@ If `trustProxy: true` without a real proxy, opencode will treat this as HTTPS, a
   "auth": {
     "enabled": true,
     "requireHttps": "block", // Require HTTPS for authentication
-    "trustProxy": true // Trust X-Forwarded-Proto from reverse proxy
+    "trustProxy": "auto" // Default: managed proxy detection
+  }
+}
+```
+
+For a known reverse proxy deployment, you can still force always-on trust:
+
+```json
+{
+  "auth": {
+    "enabled": true,
+    "requireHttps": "block",
+    "trustProxy": true
   }
 }
 ```
@@ -615,14 +631,14 @@ If `trustProxy: true` without a real proxy, opencode will treat this as HTTPS, a
 **Environment variable:**
 
 ```bash
-OPENCODE_AUTH_TRUST_PROXY=true opencode
+OPENCODE_AUTH_TRUST_PROXY=auto opencode
 ```
 
 ### Verification
 
 Test that `trustProxy` works correctly:
 
-1. **With trustProxy enabled**, access opencode through reverse proxy:
+1. **With trustProxy enabled (`auto` or `true`)**, access opencode through reverse proxy:
 
    ```bash
    curl -i https://<YOUR_DOMAIN>/

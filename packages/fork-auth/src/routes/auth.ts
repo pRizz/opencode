@@ -14,6 +14,7 @@ import { Log } from "../../../opencode/src/util/log"
 import { createManualRateLimiter, getClientIP, type ManualRateLimiter } from "../security/rate-limit"
 import { parseDuration } from "../../../opencode/src/util/duration"
 import { shouldBlockInsecureLogin } from "../security/https-detection"
+import { getEffectiveRequestUrl, isEffectiveHttps } from "../security/request-context"
 import { verify2FAToken } from "../auth/two-factor-token"
 import { verifyDeviceTrustToken, createDeviceTrustToken, createDeviceFingerprint } from "../auth/device-trust"
 import { getTokenSecret } from "../security/token-secret"
@@ -107,7 +108,7 @@ function maskUsername(username: string): string {
 
 function getRequestIP(c: Parameters<ManualRateLimiter["checkRateLimit"]>[0]): string {
   const authConfig = ServerAuth.get()
-  return getClientIP(c, authConfig.trustProxy ?? false)
+  return getClientIP(c, authConfig.trustProxy)
 }
 
 type ApiStatusCode = 400 | 401 | 403 | 409 | 429 | 500 | 503
@@ -174,7 +175,7 @@ const loginRateLimiter = lazy((): ManualRateLimiter | undefined => {
   return createManualRateLimiter({
     windowMs,
     limit: authConfig.rateLimitMax ?? 5,
-    keyGenerator: (c) => getClientIP(c, authConfig.trustProxy ?? false),
+    keyGenerator: (c) => getClientIP(c, authConfig.trustProxy),
   })
 })
 
@@ -191,7 +192,7 @@ const otpRateLimiter = lazy((): ManualRateLimiter | undefined => {
   return createManualRateLimiter({
     windowMs,
     limit: authConfig.otpRateLimitMax ?? 5,
-    keyGenerator: (c) => getClientIP(c, authConfig.trustProxy ?? false),
+    keyGenerator: (c) => getClientIP(c, authConfig.trustProxy),
   })
 })
 
@@ -205,7 +206,7 @@ const bootstrapRateLimiter = lazy((): ManualRateLimiter | undefined => {
   return createManualRateLimiter({
     windowMs: 15 * 60 * 1000,
     limit: 3,
-    keyGenerator: (c) => getClientIP(c, authConfig.trustProxy ?? false),
+    keyGenerator: (c) => getClientIP(c, authConfig.trustProxy),
   })
 })
 
@@ -237,10 +238,13 @@ function isValidReturnUrl(url: string): boolean {
   return false
 }
 
-function passkeyRpID(c: { req: { url: string } }, authConfig: ReturnType<typeof ServerAuth.get>): string {
+function passkeyRpID(
+  c: { req: { url: string; header: (name: string) => string | undefined } },
+  authConfig: ReturnType<typeof ServerAuth.get>,
+): string {
   const configValue = authConfig.passkeyRpId?.trim()
   if (configValue) return configValue
-  return new URL(c.req.url).hostname
+  return getEffectiveRequestUrl(c, authConfig.trustProxy).hostname
 }
 
 function normalizeHostname(hostname: string): string {
@@ -262,10 +266,10 @@ function buildPasskeyDomainErrorMessage(hostname: string, requestUrl: URL): stri
 }
 
 function validatePasskeyDomain(
-  c: { req: { url: string } },
+  c: { req: { url: string; header: (name: string) => string | undefined } },
   authConfig: ReturnType<typeof ServerAuth.get>,
 ): { invalidHost: string; rpID: string; message: string } | undefined {
-  const requestUrl = new URL(c.req.url)
+  const requestUrl = getEffectiveRequestUrl(c, authConfig.trustProxy)
   const requestHost = normalizeHostname(requestUrl.hostname)
   const rpID = normalizeHostname(passkeyRpID(c, authConfig))
 
@@ -281,10 +285,13 @@ function validatePasskeyDomain(
   }
 }
 
-function passkeyOrigins(c: { req: { url: string } }, authConfig: ReturnType<typeof ServerAuth.get>): string[] {
+function passkeyOrigins(
+  c: { req: { url: string; header: (name: string) => string | undefined } },
+  authConfig: ReturnType<typeof ServerAuth.get>,
+): string[] {
   const list = authConfig.passkeyAllowedOrigins?.filter((item) => item.trim().length > 0) ?? []
   if (list.length) return list
-  return [new URL(c.req.url).origin]
+  return [getEffectiveRequestUrl(c, authConfig.trustProxy).origin]
 }
 
 function passkeyTimeoutMs(authConfig: ReturnType<typeof ServerAuth.get>): number {
@@ -1261,7 +1268,7 @@ export const AuthRoutes = lazy(() =>
           setCookie(c, "opencode_device_trust", trustToken, {
             path: "/",
             httpOnly: true,
-            secure: c.req.url.startsWith("https"),
+            secure: isEffectiveHttps(c, authConfig.trustProxy),
             sameSite: "Strict",
             maxAge: trustDurationSec,
           })
@@ -1345,7 +1352,7 @@ export const AuthRoutes = lazy(() =>
 
         const invalidDomain = validatePasskeyDomain(c, authConfig)
         if (invalidDomain) {
-          const requestUrl = new URL(c.req.url)
+          const requestUrl = getEffectiveRequestUrl(c, authConfig.trustProxy)
           log.warn("Blocking passkey auth options request for invalid domain", {
             path: requestUrl.pathname,
             host: requestUrl.host,
@@ -1367,7 +1374,7 @@ export const AuthRoutes = lazy(() =>
         }
 
         const timeoutMs = passkeyTimeoutMs(authConfig)
-        const ip = getClientIP(c)
+        const ip = getRequestIP(c)
         const generated = await createPasskeyAuthenticationOptions({
           username: parsed.data.username?.trim(),
           rpID: passkeyRpID(c, authConfig),
@@ -1436,13 +1443,13 @@ export const AuthRoutes = lazy(() =>
           timeoutSeconds: Math.max(1, Math.floor(passkeyTimeoutMs(authConfig) / 1000)),
           requireUserVerification: authConfig.passkeyRequireUserVerification ?? true,
           secret: getTokenSecret(),
-          ip: getClientIP(c),
+          ip: getRequestIP(c),
         })
 
         if (!verifyResult.verified || !verifyResult.username) {
           logSecurityEvent({
             type: "login_failed",
-            ip: getClientIP(c),
+            ip: getRequestIP(c),
             reason: verifyResult.error ?? "passkey_failed",
             timestamp: new Date().toISOString(),
             userAgent: c.req.header("User-Agent"),
@@ -1464,7 +1471,7 @@ export const AuthRoutes = lazy(() =>
         if (!isUserAllowed(authConfig, verifyResult.username)) {
           logSecurityEvent({
             type: "login_failed",
-            ip: getClientIP(c),
+            ip: getRequestIP(c),
             username: verifyResult.username,
             reason: "user_not_allowed",
             timestamp: new Date().toISOString(),
@@ -1504,7 +1511,7 @@ export const AuthRoutes = lazy(() =>
 
         logSecurityEvent({
           type: "login_success",
-          ip: getClientIP(c),
+          ip: getRequestIP(c),
           username: verifyResult.username,
           timestamp: new Date().toISOString(),
           userAgent: c.req.header("User-Agent"),
@@ -1555,7 +1562,7 @@ export const AuthRoutes = lazy(() =>
 
         const invalidDomain = validatePasskeyDomain(c, authConfig)
         if (invalidDomain) {
-          const requestUrl = new URL(c.req.url)
+          const requestUrl = getEffectiveRequestUrl(c, authConfig.trustProxy)
           log.warn("Blocking passkey register options request for invalid domain", {
             path: requestUrl.pathname,
             host: requestUrl.host,
@@ -1591,7 +1598,7 @@ export const AuthRoutes = lazy(() =>
           timeoutSeconds: Math.max(1, Math.floor(timeoutMs / 1000)),
           requireUserVerification: authConfig.passkeyRequireUserVerification ?? true,
           secret: getTokenSecret(),
-          ip: getClientIP(c),
+          ip: getRequestIP(c),
         })
 
         return c.json({
@@ -1660,7 +1667,7 @@ export const AuthRoutes = lazy(() =>
           timeoutSeconds: Math.max(1, Math.floor(passkeyTimeoutMs(authConfig) / 1000)),
           requireUserVerification: authConfig.passkeyRequireUserVerification ?? true,
           secret: getTokenSecret(),
-          ip: getClientIP(c),
+          ip: getRequestIP(c),
         })
 
         if (!verifyResult.verified || !verifyResult.credential) {
@@ -1916,11 +1923,12 @@ export const AuthRoutes = lazy(() =>
         },
       }),
       async (c) => {
+        const authConfig = ServerAuth.get()
         // Clear device trust cookie by setting maxAge to 0
         setCookie(c, "opencode_device_trust", "", {
           path: "/",
           httpOnly: true,
-          secure: c.req.url.startsWith("https"),
+          secure: isEffectiveHttps(c, authConfig.trustProxy),
           sameSite: "Strict",
           maxAge: 0,
         })
@@ -2273,10 +2281,10 @@ export const AuthRoutes = lazy(() =>
         },
       }),
       async (c) => {
+        const authConfig = ServerAuth.get()
         const session = c.get("session")
         if (session) {
           // Unregister all sessions from broker (fire-and-forget)
-          const authConfig = ServerAuth.get()
           if (authConfig.enabled) {
             const sessionIds = UserSession.getSessionIdsForUser(session.username)
             const brokerForUnregistration = new BrokerClient()
@@ -2294,7 +2302,7 @@ export const AuthRoutes = lazy(() =>
         setCookie(c, "opencode_device_trust", "", {
           path: "/",
           httpOnly: true,
-          secure: c.req.url.startsWith("https"),
+          secure: isEffectiveHttps(c, authConfig.trustProxy),
           sameSite: "Strict",
           maxAge: 0,
         })

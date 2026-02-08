@@ -889,7 +889,7 @@ All authentication options from `packages/opencode/src/config/auth.ts`:
 | `rateLimitMax`          | number                     | `5`          | Maximum login attempts per window                                                |
 | `allowedUsers`          | string[]                   | `[]`         | Users allowed to authenticate. Empty array allows any system user                |
 | `sessionPersistence`    | boolean                    | `true`       | Persist sessions to disk across restarts                                         |
-| `trustProxy`            | boolean                    | `undefined`  | Trust X-Forwarded-Proto header for reverse proxy HTTPS detection                 |
+| `trustProxy`            | boolean \| "auto"          | `"auto"`     | Proxy trust mode for HTTPS detection (`false`, `true`, or managed-env `auto`)    |
 | `csrfVerboseErrors`     | boolean                    | `false`      | Enable verbose CSRF error messages for debugging                                 |
 | `csrfAllowlist`         | string[]                   | `[]`         | Additional routes to exclude from CSRF validation                                |
 | `twoFactorEnabled`      | boolean                    | `false`      | Enable two-factor authentication support                                         |
@@ -1073,7 +1073,7 @@ Configure HTTPS requirement:
 
 **Localhost exemption:** `localhost` and `127.0.0.1` are always allowed over HTTP (developer experience).
 
-**Behind reverse proxy:** Use `trustProxy: true` to trust `X-Forwarded-Proto` header.
+**Behind reverse proxy:** `trustProxy: "auto"` is the default. Use `trustProxy: true` to force proxy-header trust in known proxy deployments.
 
 ### Session Security
 

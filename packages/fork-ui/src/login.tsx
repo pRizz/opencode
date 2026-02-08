@@ -119,6 +119,23 @@ function isPasskeySupported() {
   return typeof window.PublicKeyCredential !== "undefined" && typeof navigator.credentials !== "undefined"
 }
 
+function getPasskeyClientHeaders(): Record<string, string> {
+  return {
+    "X-Opencode-Secure-Context": window.isSecureContext ? "1" : "0",
+    "X-Opencode-Window-Origin": window.location.origin,
+  }
+}
+
+function getPasskeyApiMessage(message: string | undefined): string {
+  if (!window.isSecureContext) {
+    return message || "Passkey sign-in is unavailable"
+  }
+  return (
+    "Browser reports a secure context, but the server rejected HTTPS detection. " +
+    "Check auth.trustProxy and ensure your reverse proxy forwards Forwarded or X-Forwarded-Proto."
+  )
+}
+
 function passkeyErrorDetails(error: unknown) {
   if (!(error instanceof Error)) return { name: "UnknownError", message: String(error) }
   return { name: error.name, message: error.message }
@@ -197,6 +214,7 @@ export function LoginApp() {
       headers: {
         "Content-Type": "application/json",
         "X-Requested-With": "XMLHttpRequest",
+        ...getPasskeyClientHeaders(),
       },
       body: JSON.stringify(input.username ? { username: input.username } : {}),
     })
@@ -204,7 +222,11 @@ export function LoginApp() {
     const body = (await res.json().catch(() => ({}))) as Record<string, unknown>
     if (!res.ok || body.success !== true) {
       if (!input.quiet) {
-        setState("error", (typeof body.message === "string" && body.message) || "Passkey sign-in is unavailable")
+        const isHttpsMismatch = body.error === "passkey_requires_https"
+        const message = isHttpsMismatch
+          ? getPasskeyApiMessage(typeof body.message === "string" ? body.message : undefined)
+          : (typeof body.message === "string" && body.message) || "Passkey sign-in is unavailable"
+        setState("error", message)
       }
       return null
     }
@@ -226,6 +248,7 @@ export function LoginApp() {
       headers: {
         "Content-Type": "application/json",
         "X-Requested-With": "XMLHttpRequest",
+        ...getPasskeyClientHeaders(),
       },
       body: JSON.stringify({
         challengeToken: input.challengeToken,
@@ -242,9 +265,11 @@ export function LoginApp() {
     }
 
     if (!input.quiet) {
-      const message =
-        (typeof body.message === "string" && body.message) ||
-        (state.username.trim() ? "Passkey authentication failed" : "No passkey found. Enter a username and try again.")
+      const isHttpsMismatch = body.error === "passkey_requires_https"
+      const message = isHttpsMismatch
+        ? getPasskeyApiMessage(typeof body.message === "string" ? body.message : undefined)
+        : (typeof body.message === "string" && body.message) ||
+          (state.username.trim() ? "Passkey authentication failed" : "No passkey found. Enter a username and try again.")
       setState("error", message)
     }
 

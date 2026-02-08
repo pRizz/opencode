@@ -69,6 +69,7 @@ let mockAuthConfig: AuthConfig = {
   passkeyAllowedOrigins: [],
   passkeyChallengeTimeout: "5m",
   passkeyRequireUserVerification: true,
+  trustProxy: "auto",
 }
 
 // Mock for registerSession (fire-and-forget, just needs to not throw)
@@ -142,6 +143,7 @@ mock.module("../../../src/config/server-auth", () => ({
         passkeyAllowedOrigins: [],
         passkeyChallengeTimeout: "5m",
         passkeyRequireUserVerification: true,
+        trustProxy: "auto",
       }
     },
   },
@@ -179,6 +181,7 @@ mock.module("@opencode-ai/fork-auth/server-auth", () => ({
         passkeyAllowedOrigins: [],
         passkeyChallengeTimeout: "5m",
         passkeyRequireUserVerification: true,
+        trustProxy: "auto",
       }
     },
   },
@@ -217,8 +220,21 @@ function setMockAuthConfig(config: Partial<AuthConfig>) {
     passkeyAllowedOrigins: [],
     passkeyChallengeTimeout: "5m",
     passkeyRequireUserVerification: true,
+    trustProxy: "auto",
     ...config,
   }
+}
+
+function withRailwayEnv<T>(callback: () => Promise<T>): Promise<T> {
+  const previous = process.env.RAILWAY_ENVIRONMENT
+  process.env.RAILWAY_ENVIRONMENT = "production"
+  return callback().finally(() => {
+    if (previous === undefined) {
+      delete process.env.RAILWAY_ENVIRONMENT
+      return
+    }
+    process.env.RAILWAY_ENVIRONMENT = previous
+  })
 }
 
 describe("POST /auth/login", () => {
@@ -618,6 +634,106 @@ describe("Passkey routes", () => {
     expect(body.challengeToken).toBe("challenge-token")
   })
 
+  test("POST /auth/passkey/auth/options accepts proxied HTTPS when trustProxy is auto in managed env", async () => {
+    setMockAuthConfig({
+      enabled: true,
+      passkeysEnabled: true,
+      trustProxy: "auto",
+    })
+
+    await withRailwayEnv(async () => {
+      const res = await app.request("http://example.com/auth/passkey/auth/options", {
+        method: "POST",
+        headers: {
+          Host: "example.com",
+          "X-Forwarded-Proto": "https",
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+        body: JSON.stringify({}),
+      })
+      expect(res.status).toBe(200)
+    })
+  })
+
+  test("POST /auth/passkey/auth/options accepts secure-context hint as tie-breaker in managed env", async () => {
+    setMockAuthConfig({
+      enabled: true,
+      passkeysEnabled: true,
+      trustProxy: "auto",
+    })
+
+    await withRailwayEnv(async () => {
+      const res = await app.request("http://example.com/auth/passkey/auth/options", {
+        method: "POST",
+        headers: {
+          Host: "example.com",
+          Origin: "https://example.com",
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+          "X-Opencode-Secure-Context": "1",
+          "X-Opencode-Window-Origin": "https://example.com",
+        },
+        body: JSON.stringify({}),
+      })
+      expect(res.status).toBe(200)
+    })
+  })
+
+  test("POST /auth/passkey/auth/options rejects invalid secure-context hint", async () => {
+    setMockAuthConfig({
+      enabled: true,
+      passkeysEnabled: true,
+      trustProxy: "auto",
+    })
+
+    await withRailwayEnv(async () => {
+      const res = await app.request("http://example.com/auth/passkey/auth/options", {
+        method: "POST",
+        headers: {
+          Host: "example.com",
+          Origin: "https://evil.example.com",
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+          "X-Opencode-Secure-Context": "1",
+          "X-Opencode-Window-Origin": "https://evil.example.com",
+        },
+        body: JSON.stringify({}),
+      })
+      expect(res.status).toBe(403)
+      expect((await res.json()).error).toBe("passkey_requires_https")
+    })
+  })
+
+  test("POST /auth/passkey/auth/options keeps HTTP blocked when trustProxy auto is not in managed env", async () => {
+    setMockAuthConfig({
+      enabled: true,
+      passkeysEnabled: true,
+      trustProxy: "auto",
+    })
+
+    const previous = process.env.RAILWAY_ENVIRONMENT
+    delete process.env.RAILWAY_ENVIRONMENT
+    try {
+      const res = await app.request("http://example.com/auth/passkey/auth/options", {
+        method: "POST",
+        headers: {
+          Host: "example.com",
+          "X-Forwarded-Proto": "https",
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+        body: JSON.stringify({}),
+      })
+      expect(res.status).toBe(403)
+      expect((await res.json()).error).toBe("passkey_requires_https")
+    } finally {
+      if (previous !== undefined) {
+        process.env.RAILWAY_ENVIRONMENT = previous
+      }
+    }
+  })
+
   test("POST /auth/passkey/auth/options returns 400 for loopback IP hostnames", async () => {
     const res = await app.request("http://127.0.0.1:3000/auth/passkey/auth/options", {
       method: "POST",
@@ -694,6 +810,48 @@ describe("Passkey routes", () => {
 
     expect(res.status).toBe(401)
     expect((await res.json()).error).toBe("token_expired")
+  })
+
+  test("POST /auth/passkey/register/options uses https origin behind managed proxy in auto mode", async () => {
+    setMockAuthConfig({
+      enabled: true,
+      passkeysEnabled: true,
+      trustProxy: "auto",
+    })
+
+    const authed = new Hono()
+    authed.use("/auth/passkey/*", async (c, next) => {
+      c.set("session", {
+        id: "session-id",
+        username: "testuser",
+        uid: 1000,
+        gid: 1000,
+        home: "/home/testuser",
+        shell: "/bin/bash",
+        createdAt: Date.now(),
+        lastAccessTime: Date.now(),
+      })
+      return next()
+    })
+    authed.route("/auth", AuthRoutes())
+
+    await withRailwayEnv(async () => {
+      const res = await authed.request("http://example.com/auth/passkey/register/options", {
+        method: "POST",
+        headers: {
+          Host: "example.com",
+          "X-Forwarded-Proto": "https",
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+        body: JSON.stringify({}),
+      })
+      expect(res.status).toBe(200)
+      const call = mockCreatePasskeyRegistrationOptions.mock.calls.at(-1)?.[0] as
+        | { origins?: string[] }
+        | undefined
+      expect(call?.origins).toEqual(["https://example.com"])
+    })
   })
 
   test("GET /auth/passkey/list requires an authenticated session", async () => {

@@ -7,6 +7,7 @@ import { parseDuration } from "../../../opencode/src/util/duration"
 import { getUiDir } from "../../../opencode/src/server/ui-dir"
 import { Filesystem } from "../../../opencode/src/util/filesystem"
 import nodePath from "node:path"
+import { isEffectiveHttps } from "../security/request-context"
 
 /**
  * Auth context with essential session information.
@@ -43,8 +44,8 @@ const DEFAULT_TIMEOUT_MS = 604800000 // 7 days
  * @param rememberMe - If true, set persistent cookie with rememberMeDuration
  */
 export function setSessionCookie(c: Context, sessionId: string, rememberMe?: boolean): void {
-  const isHttps = c.req.url.startsWith("https://")
   const authConfig = ServerAuth.get()
+  const isHttps = isEffectiveHttps(c, authConfig.trustProxy)
 
   const cookieOptions: Parameters<typeof setCookie>[3] = {
     path: "/",

@@ -50,7 +50,13 @@ export const AuthConfig = z
       .default([])
       .describe("Users allowed to authenticate. Empty array allows any system user"),
     sessionPersistence: z.boolean().optional().default(true).describe("Persist sessions to disk across restarts"),
-    trustProxy: z.boolean().optional().describe("Trust X-Forwarded-Proto header for reverse proxy detection"),
+    trustProxy: z
+      .union([z.boolean(), z.literal("auto")])
+      .optional()
+      .default("auto")
+      .describe(
+        "Proxy trust mode for forwarded headers: false=never trust, true=always trust, auto=trust in managed proxy environments",
+      ),
     csrfVerboseErrors: z
       .boolean()
       .optional()

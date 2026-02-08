@@ -10,6 +10,7 @@ import {
 } from "../security/csrf"
 import { ServerAuth } from "../server-auth"
 import { Log } from "../../../opencode/src/util/log"
+import { isEffectiveHttps } from "../security/request-context"
 
 const log = Log.create({ service: "csrf-middleware" })
 
@@ -24,8 +25,8 @@ const log = Log.create({ service: "csrf-middleware" })
 export function setCSRFCookie(c: Context, sessionId: string): void {
   const secret = getCSRFSecret()
   const token = generateCSRFToken(sessionId, secret)
-
-  const isHttps = c.req.url.startsWith("https://")
+  const authConfig = ServerAuth.get()
+  const isHttps = isEffectiveHttps(c, authConfig.trustProxy)
 
   setCookie(c, CSRF_COOKIE_NAME, token, {
     httpOnly: false, // Required for double-submit pattern - client needs to read it
@@ -158,7 +159,7 @@ export const csrfMiddleware = createMiddleware(async (c, next) => {
   }
 
   if (!cookieToken && requestToken) {
-    const isHttps = c.req.url.startsWith("https://")
+    const isHttps = isEffectiveHttps(c, authConfig.trustProxy)
     setCookie(c, CSRF_COOKIE_NAME, requestToken, {
       httpOnly: false,
       secure: isHttps,
