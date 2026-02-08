@@ -54,7 +54,7 @@ export function SettingsRepositoriesTab(props: SettingsRepositoriesTabProps) {
       <div class="flex flex-col gap-1">
         <div class="text-20-medium text-text-strong">Repositories</div>
         <div class="text-12-regular text-text-weak">
-          Manage repository access for this workspace. HTTPS clone URLs are unsupported; use SSH keys.
+          Manage repository access for this workspace. HTTPS clone URLs are not yet supported; use SSH keys.
         </div>
       </div>
 

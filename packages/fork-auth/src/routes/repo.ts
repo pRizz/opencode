@@ -75,7 +75,7 @@ function isSshCloneUrl(url: string) {
 function unsupportedHttpsCloneError(): z.infer<typeof RepoError> {
   return {
     code: HTTPS_CLONE_UNSUPPORTED_CODE,
-    message: "HTTPS cloning is unsupported. Use an SSH clone URL and add SSH keys in Settings > Repositories.",
+    message: "HTTPS cloning is not yet supported. Use an SSH clone URL and add SSH keys in Settings > Repositories.",
     help_steps: [
       "Use an SSH URL such as git@github.com:owner/repo.git.",
       "Add an SSH key in Settings > Repositories before cloning.",

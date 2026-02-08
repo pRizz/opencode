@@ -160,7 +160,7 @@ export function CloneDialog(props: CloneDialogProps) {
     }
     if (isHttpUrl()) {
       showToast({
-        title: "HTTPS cloning is unsupported",
+        title: "HTTPS cloning is not yet supported",
         description: "Use an SSH URL and add your SSH key in Settings > Repositories.",
       })
       return
@@ -193,7 +193,7 @@ export function CloneDialog(props: CloneDialogProps) {
   return (
     <Dialog
       title="Clone from URL"
-      description="Enter an SSH git URL to clone the repository. HTTPS clone URLs are currently unsupported."
+      description="Enter an SSH git URL to clone the repository. HTTPS clone URLs are not yet supported."
       class="max-w-[520px]"
     >
       <div class="flex flex-col gap-4 px-2 pb-3" data-action="repo-clone-dialog">
@@ -221,10 +221,18 @@ export function CloneDialog(props: CloneDialogProps) {
             class="rounded-md border border-border-weak-base bg-surface-warning-base/30 p-3"
             data-action="repo-clone-https-warning"
           >
-            <div class="text-12-medium text-text-strong">HTTPS cloning is not supported in this fork.</div>
+            <div class="text-12-medium text-text-strong">
+              HTTPS cloning is not yet supported in this fork of OpenCode. Stay updated by Watching our repo at{" "}
+              <a href="https://github.com/pRizz/opencode-cloud" target="_blank" rel="noopener noreferrer" class="underline">
+                github.com/pRizz/opencode-cloud
+              </a>{" "}
+              or give feedback at{" "}
+              <a href="https://github.com/pRizz/opencode-cloud/issues" target="_blank" rel="noopener noreferrer" class="underline">
+                github.com/pRizz/opencode-cloud/issues
+              </a>
+            </div>
             <div class="mt-1 text-12-regular text-text-weak">
-              Use an SSH URL and an SSH key. Password, PAT, and token-based HTTPS auth are intentionally unsupported
-              right now.
+              Use an SSH URL and an SSH key. Password, PAT, and token-based HTTPS auth are not yet supported.
             </div>
           </div>
         </Show>
