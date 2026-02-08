@@ -38,9 +38,14 @@ Use the local runner to create a temp sandbox, seed data, and run the tests.
 bunx playwright install
 bun run test:e2e:local
 bun run test:e2e:local -- --grep "settings"
+bun run test:e2e:repo:integration
+bun run test:e2e:repo:smoke
 ```
 
 `test:e2e` alone does not provision the local backend harness; use `test:e2e:local` for local sandboxed runs.
+
+- `test:e2e:repo:integration`: full repo accessibility checks against the local seeded backend harness.
+- `test:e2e:repo:smoke`: backend-free fast smoke for repo CTA + clone dialog policy UI.
 
 ### Visual and Interactive Runs
 

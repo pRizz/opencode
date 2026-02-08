@@ -26,6 +26,14 @@ export { createSessionExpirationWarning } from "./session-expiration-warning"
 export { AuthGate, AuthRedirect } from "./auth-gate"
 export { createCsrfFetch } from "./csrf-fetch"
 export { formatAuthInitError } from "./auth-error"
+export { CloneDialog } from "./repo/clone-dialog"
+export { RepoSelector } from "./repo/repo-selector"
+export { RepoSettingsDialog } from "./repo/repo-settings-dialog"
+export { RepositoryManagerDialog } from "./repo/repository-manager-dialog"
+export { formatRepoError, formatRepoErrorWithContext } from "./repo/repo-errors"
+export { isHttpCloneUrl, isHttpsCloneUnsupported, isSshCloneUrl } from "./repo/clone-url-policy"
+export { SshKeysDialog } from "./ssh-keys-dialog"
+export { SettingsRepositoriesTab } from "./settings-repositories-tab"
 export {
   useCloneProgress,
   type CloneAuthType,

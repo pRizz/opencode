@@ -153,6 +153,27 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 - Behavior:
   - Session view tweaks, terminal UI changes, dialogs.
 
+### C3. Repository + SSH management restoration (fork-owned)
+- Files:
+  - `packages/fork-ui/src/repo/clone-dialog.tsx`
+  - `packages/fork-ui/src/repo/repo-selector.tsx`
+  - `packages/fork-ui/src/repo/repo-settings-dialog.tsx`
+  - `packages/fork-ui/src/repo/repository-manager-dialog.tsx`
+  - `packages/fork-ui/src/repo/repo-errors.ts`
+  - `packages/fork-ui/src/repo/clone-url-policy.ts`
+  - `packages/fork-ui/src/ssh-keys-dialog.tsx`
+  - `packages/fork-ui/src/settings-repositories-tab.tsx`
+  - `packages/app/src/components/repo/*.tsx` (thin wrappers only)
+  - `packages/app/src/components/settings/ssh-keys-dialog.tsx` (thin wrapper only)
+  - `packages/app/src/components/dialog-settings.tsx` (Repositories tab surface)
+  - `packages/app/src/components/session/session-new-view.tsx` (New Session CTA/selector surface)
+  - `packages/app/src/pages/home.tsx` (Home clone/manage CTA surface)
+  - `packages/fork-auth/src/routes/repo.ts` (SSH-only clone policy guard)
+- Behavior:
+  - Restores durable repository/SSH access entrypoints in Home, New Session, and Settings.
+  - Enforces SSH-only cloning at route policy layer; HTTPS clone URLs return `error.code = "https_clone_unsupported"` and emit `clone.blocked` audit events.
+  - Adds stable `data-action` hooks for regression tests on repo/SSH entrypoints and clone warning states.
+
 ## D. Terminal & PTY Behavior
 
 ### D1. Broker-backed PTY
@@ -217,6 +238,10 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 ## H. Tests
 
 - Fork auth/security/PTY/integration tests under `packages/fork-tests/**`
+- Repo clone policy guard tests:
+  - `packages/fork-tests/server/routes/repo.test.ts`
+- Repo/SSH accessibility regression tests:
+  - `packages/app/e2e/repo/repo-accessibility.spec.ts`
 - Upstream test tree remains mostly clean; two fork tests were moved out of opencode test tree:
   - `packages/opencode/test/server/session-list.test.ts` (deleted, moved to fork-tests)
   - `packages/opencode/test/server/session-select.test.ts` (deleted, moved to fork-tests)

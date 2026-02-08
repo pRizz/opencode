@@ -65,7 +65,26 @@ const CheckoutResult = z
     ref: "RepoCheckoutResult",
   })
 
-function cloneErrorInfo(error: unknown): z.infer<typeof Repo.CloneErrorInfo> {
+const HTTPS_CLONE_UNSUPPORTED_CODE = "https_clone_unsupported"
+
+function isSshCloneUrl(url: string) {
+  const trimmed = url.trim().toLowerCase()
+  return trimmed.startsWith("git@") || trimmed.startsWith("ssh://")
+}
+
+function unsupportedHttpsCloneError(): z.infer<typeof RepoError> {
+  return {
+    code: HTTPS_CLONE_UNSUPPORTED_CODE,
+    message: "HTTPS cloning is unsupported. Use an SSH clone URL and add SSH keys in Settings > Repositories.",
+    help_steps: [
+      "Use an SSH URL such as git@github.com:owner/repo.git.",
+      "Add an SSH key in Settings > Repositories before cloning.",
+    ],
+    can_retry_with_credentials: false,
+  }
+}
+
+function cloneErrorInfo(error: unknown): z.infer<typeof RepoError> {
   if (error instanceof Repo.CloneError) {
     return error.info
   }
@@ -90,6 +109,24 @@ function cloneAuditDetails(
     repo: destination.name,
     destination: destination.destination,
     workspace_root: destination.workspaceRoot,
+    timestamp: new Date().toISOString(),
+  }
+}
+
+function cloneBlockedAuditDetails(
+  input: { url: string; branch?: string; workspaceRoot?: string },
+  auth: ReturnType<typeof getAuthContext>,
+  reason: string,
+) {
+  return {
+    username: auth?.username,
+    uid: auth?.uid,
+    gid: auth?.gid,
+    session_id: auth?.sessionId,
+    url: Repo.safeCloneUrl(input.url),
+    branch: input.branch,
+    workspace_root: input.workspaceRoot,
+    reason,
     timestamp: new Date().toISOString(),
   }
 }
@@ -188,6 +225,11 @@ export const RepoRoutes = lazy(() =>
       async (c) => {
         const input = c.req.valid("json")
         const auth = getAuthContext(c)
+        if (!isSshCloneUrl(input.url)) {
+          const info = unsupportedHttpsCloneError()
+          Repo.audit("clone.blocked", cloneBlockedAuditDetails(input, auth, info.code ?? HTTPS_CLONE_UNSUPPORTED_CODE))
+          return c.json({ error: info }, 400)
+        }
         const destination = await Repo.getCloneDestination({
           url: input.url,
           workspaceRoot: input.workspaceRoot,
@@ -232,6 +274,17 @@ export const RepoRoutes = lazy(() =>
       async (c) => {
         const input = c.req.valid("query")
         const auth = getAuthContext(c)
+        if (!isSshCloneUrl(input.url)) {
+          const info = unsupportedHttpsCloneError()
+          Repo.audit("clone.blocked", cloneBlockedAuditDetails(input, auth, info.code ?? HTTPS_CLONE_UNSUPPORTED_CODE))
+          return streamSSE(c, async (stream) => {
+            await stream.writeSSE({
+              event: "clone_error",
+              data: JSON.stringify(info),
+            })
+            stream.close()
+          })
+        }
         const destination = await Repo.getCloneDestination({ url: input.url })
         const audit = cloneAuditDetails(input, destination, auth)
         Repo.audit("clone.start", audit)
@@ -289,6 +342,16 @@ export const RepoRoutes = lazy(() =>
       async (c) => {
         const input = c.req.valid("json")
         const auth = getAuthContext(c)
+        if (!isSshCloneUrl(input.url)) {
+          const info = unsupportedHttpsCloneError()
+          Repo.audit("clone.blocked", cloneBlockedAuditDetails(input, auth, info.code ?? HTTPS_CLONE_UNSUPPORTED_CODE))
+          return streamSSE(c, async (stream) => {
+            await stream.writeSSE({
+              data: JSON.stringify({ type: "error", data: info }),
+            })
+            stream.close()
+          })
+        }
         const destination = await Repo.getCloneDestination({
           url: input.url,
           workspaceRoot: input.workspaceRoot,

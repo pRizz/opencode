@@ -1,9 +1,18 @@
 import { Show, createMemo } from "solid-js"
 import { DateTime } from "luxon"
+import { useNavigate } from "@solidjs/router"
+import { base64Encode } from "@opencode-ai/util/encode"
+import { useDialog } from "@opencode-ai/ui/context/dialog"
+import { Button } from "@opencode-ai/ui/button"
+import { Icon } from "@opencode-ai/ui/icon"
+import type { Repo } from "@opencode-ai/sdk/v2/client"
+import { getDirectory, getFilename } from "@opencode-ai/util/path"
 import { useSync } from "@/context/sync"
 import { useLanguage } from "@/context/language"
-import { Icon } from "@opencode-ai/ui/icon"
-import { getDirectory, getFilename } from "@opencode-ai/util/path"
+import { useLayout } from "@/context/layout"
+import { CloneDialog } from "@/components/repo/clone-dialog"
+import { RepoSelector } from "@/components/repo/repo-selector"
+import { RepositoryManagerDialog } from "@/components/repo/repository-manager-dialog"
 
 const MAIN_WORKTREE = "main"
 const CREATE_WORKTREE = "create"
@@ -16,6 +25,9 @@ interface NewSessionViewProps {
 export function NewSessionView(props: NewSessionViewProps) {
   const sync = useSync()
   const language = useLanguage()
+  const layout = useLayout()
+  const navigate = useNavigate()
+  const dialog = useDialog()
 
   const sandboxes = createMemo(() => sync.project?.sandboxes ?? [])
   const options = createMemo(() => [MAIN_WORKTREE, ...sandboxes(), CREATE_WORKTREE])
@@ -30,6 +42,11 @@ export function NewSessionView(props: NewSessionViewProps) {
     if (!project) return false
     return sync.data.path.directory !== project.worktree
   })
+
+  const openRepo = (repo: Repo) => {
+    layout.projects.open(repo.path)
+    navigate(`/${base64Encode(repo.path)}/session`)
+  }
 
   const label = (value: string) => {
     if (value === MAIN_WORKTREE) {
@@ -58,6 +75,32 @@ export function NewSessionView(props: NewSessionViewProps) {
         <Icon name="branch" size="small" />
         <div class="text-12-medium text-text-weak select-text ml-2">{label(current())}</div>
       </div>
+
+      <div class="w-full flex flex-wrap items-center gap-2" data-action="new-session-repo-actions">
+        <Button
+          size="normal"
+          variant="ghost"
+          onClick={() => dialog.show(() => <CloneDialog onCloneSuccess={openRepo} />)}
+          data-action="new-session-repo-clone-cta"
+        >
+          <Icon name="download" size="small" />
+          Clone repo
+        </Button>
+        <Button
+          size="normal"
+          variant="ghost"
+          onClick={() => dialog.show(() => <RepositoryManagerDialog onOpenRepo={openRepo} />)}
+          data-action="new-session-repo-manage-cta"
+        >
+          <Icon name="folder" size="small" />
+          Manage repos
+        </Button>
+      </div>
+
+      <div class="w-full" data-action="new-session-repo-selector">
+        <RepoSelector currentPath={sync.data.path.directory} onOpenRepo={openRepo} />
+      </div>
+
       <Show when={sync.project}>
         {(project) => (
           <div class="flex justify-center items-center gap-3">

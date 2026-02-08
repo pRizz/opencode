@@ -4,26 +4,32 @@
 
 ```bash
 # Run all e2e tests
-bun test:e2e
+bun run test:e2e
 
 # Run specific test file
-bun test:e2e -- app/home.spec.ts
+bun run test:e2e -- e2e/app/home.spec.ts
 
 # Run single test by title
-bun test:e2e -- -g "home renders and shows core entrypoints"
+bun run test:e2e -- -g "home renders and shows core entrypoints"
 
 # Run tests with UI mode (for debugging)
-bun test:e2e:ui
+bun run test:e2e:ui
 
 # Run tests locally with full server setup
-bun test:e2e:local
+bun run test:e2e:local
+
+# Repo-specific suites
+bun run test:e2e:repo:integration
+bun run test:e2e:repo:smoke
 
 # View test report
-bun test:e2e:report
+bun run test:e2e:report
 
 # Typecheck
-bun typecheck
+bun run typecheck
 ```
+
+`test:e2e` does not provision the local backend harness. Use `test:e2e:local` for integration scenarios that require seeded server state.
 
 ## Test Structure
 
@@ -90,15 +96,13 @@ test("test description", async ({ page, sdk, gotoSession }) => {
 
 ### Imports
 
-Always import from `../fixtures`, not `@playwright/test`:
+Integration specs should import from `../fixtures` so they can use shared `gotoSession`/`sdk` setup:
 
 ```typescript
-// ✅ Good
 import { test, expect } from "../fixtures"
-
-// ❌ Bad
-import { test, expect } from "@playwright/test"
 ```
+
+Backend-free smoke specs may import from `@playwright/test` directly, but should avoid fixture-only helpers and mock required network edges inline.
 
 ### Naming Conventions
 

@@ -1,22 +1,45 @@
 import { Component } from "solid-js"
+import { useNavigate } from "@solidjs/router"
+import { base64Encode } from "@opencode-ai/util/encode"
 import { Dialog } from "@opencode-ai/ui/dialog"
 import { Tabs } from "@opencode-ai/ui/tabs"
 import { Icon } from "@opencode-ai/ui/icon"
+import { useDialog } from "@opencode-ai/ui/context/dialog"
 import {
   SettingsAuthFooterLogout,
   SettingsAuthPasskeysTab,
   SettingsAuthProvider,
   SettingsAuthSessionTab,
   SettingsAuthTwoFactorTab,
+  SettingsRepositoriesTab,
   useSettingsAuth,
 } from "@opencode-ai/fork-ui"
+import type { Repo } from "@opencode-ai/sdk/v2/client"
 import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { useServer } from "@/context/server"
+import { useGlobalSDK } from "@/context/global-sdk"
+import { useGlobalSync } from "@/context/global-sync"
+import { useLayout } from "@/context/layout"
+import { DialogSelectDirectory } from "./dialog-select-directory"
 import { SettingsGeneral } from "./settings-general"
 import { SettingsKeybinds } from "./settings-keybinds"
 import { SettingsProviders } from "./settings-providers"
 import { SettingsModels } from "./settings-models"
+
+type DialogSettingsTab =
+  | "general"
+  | "shortcuts"
+  | "providers"
+  | "models"
+  | "repositories"
+  | "auth-session"
+  | "auth-passkeys"
+  | "auth-2fa"
+
+interface DialogSettingsProps {
+  initialTab?: DialogSettingsTab
+}
 
 const SettingsAuthenticationTabs: Component = () => {
   const auth = useSettingsAuth()
@@ -43,15 +66,39 @@ const SettingsAuthenticationTabs: Component = () => {
   )
 }
 
-export const DialogSettings: Component = () => {
+export const DialogSettings: Component<DialogSettingsProps> = (props) => {
   const language = useLanguage()
   const platform = usePlatform()
   const server = useServer()
+  const globalSDK = useGlobalSDK()
+  const sync = useGlobalSync()
+  const layout = useLayout()
+  const navigate = useNavigate()
+  const dialog = useDialog()
+
+  const selectDirectory = (input: { title: string; multiple: boolean }) => {
+    return new Promise<string | string[] | null>((resolve) => {
+      dialog.show(
+        () => <DialogSelectDirectory title={input.title} multiple={input.multiple} onSelect={resolve} />,
+        () => resolve(null),
+      )
+    })
+  }
+
+  const openRepo = (repo: Repo) => {
+    layout.projects.open(repo.path)
+    navigate(`/${base64Encode(repo.path)}/session`)
+  }
 
   return (
     <SettingsAuthProvider getServerUrl={() => server.url}>
       <Dialog size="x-large" transition>
-        <Tabs orientation="vertical" variant="settings" defaultValue="general" class="h-full settings-dialog">
+        <Tabs
+          orientation="vertical"
+          variant="settings"
+          defaultValue={props.initialTab ?? "general"}
+          class="h-full settings-dialog"
+        >
           <Tabs.List>
             <div class="flex flex-col justify-between h-full w-full">
               <div class="flex flex-col gap-3 w-full pt-3">
@@ -81,6 +128,10 @@ export const DialogSettings: Component = () => {
                         <Icon name="models" />
                         {language.t("settings.models.title")}
                       </Tabs.Trigger>
+                      <Tabs.Trigger value="repositories" data-action="settings-tab-repositories">
+                        <Icon name="folder" />
+                        Repositories
+                      </Tabs.Trigger>
                     </div>
                   </div>
 
@@ -105,6 +156,16 @@ export const DialogSettings: Component = () => {
           </Tabs.Content>
           <Tabs.Content value="models" class="no-scrollbar">
             <SettingsModels />
+          </Tabs.Content>
+          <Tabs.Content value="repositories" class="no-scrollbar">
+            <SettingsRepositoriesTab
+              client={globalSDK.client}
+              server={server}
+              platform={platform}
+              homePath={sync.data.path.home}
+              onOpenRepo={openRepo}
+              onSelectDirectory={selectDirectory}
+            />
           </Tabs.Content>
           <Tabs.Content value="auth-session" class="no-scrollbar">
             <SettingsAuthSessionTab />

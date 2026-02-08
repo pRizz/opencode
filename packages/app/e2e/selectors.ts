@@ -32,6 +32,21 @@ export const settingsAuthenticationMenuPasskeysSelector = '[data-action="setting
 export const settingsAuthenticationMenuLogoutSelector = '[data-action="settings-authentication-menu-logout"]'
 export const settingsAuthenticationMenuLogoutAllSelector = '[data-action="settings-authentication-menu-logout-all"]'
 export const settingsAuthenticationMenuForgetDeviceSelector = '[data-action="settings-authentication-menu-forget-device"]'
+export const settingsRepositoriesTabSelector = '[data-action="settings-tab-repositories"]'
+export const settingsRepositoriesRootSelector = '[data-action="settings-repositories-tab"]'
+export const settingsRepositoriesOpenCloneSelector = '[data-action="settings-repositories-open-clone"]'
+export const settingsRepositoriesSshKeysSelector = '[data-action="settings-repositories-ssh-keys"]'
+
+export const homeRepoCloneCtaSelector = '[data-action="home-repo-clone-cta"]'
+export const homeRepoManageCtaSelector = '[data-action="home-repo-manage-cta"]'
+
+export const newSessionRepoSelector = '[data-action="new-session-repo-selector"]'
+export const newSessionRepoCloneCtaSelector = '[data-action="new-session-repo-clone-cta"]'
+export const newSessionRepoManageCtaSelector = '[data-action="new-session-repo-manage-cta"]'
+
+export const repoSelectorCloneSelector = '[data-action="repo-selector-clone"]'
+export const repoCloneHttpsWarningSelector = '[data-action="repo-clone-https-warning"]'
+export const repoCloneSubmitSelector = '[data-action="repo-clone-submit"]'
 
 export const sidebarNavSelector = '[data-component="sidebar-nav-desktop"]'
 

@@ -13,6 +13,9 @@ import { DialogSelectServer } from "@/components/dialog-select-server"
 import { useServer } from "@/context/server"
 import { useGlobalSync } from "@/context/global-sync"
 import { useLanguage } from "@/context/language"
+import type { Repo } from "@opencode-ai/sdk/v2/client"
+import { CloneDialog } from "@/components/repo/clone-dialog"
+import { RepositoryManagerDialog } from "@/components/repo/repository-manager-dialog"
 
 export default function Home() {
   const sync = useGlobalSync()
@@ -33,6 +36,10 @@ export default function Home() {
     layout.projects.open(directory)
     server.projects.touch(directory)
     navigate(`/${base64Encode(directory)}`)
+  }
+
+  function openRepo(repo: Repo) {
+    openProject(repo.path)
   }
 
   async function chooseProject() {
@@ -60,6 +67,14 @@ export default function Home() {
     }
   }
 
+  function openCloneDialog() {
+    dialog.show(() => <CloneDialog onCloneSuccess={openRepo} />)
+  }
+
+  function openRepositoryManager() {
+    dialog.show(() => <RepositoryManagerDialog onOpenRepo={openRepo} />)
+  }
+
   return (
     <div class="mx-auto mt-55 w-full md:w-auto px-4">
       <Logo class="md:w-xl opacity-12" />
@@ -79,6 +94,16 @@ export default function Home() {
         />
         {server.name}
       </Button>
+      <div class="mt-5 mx-auto flex items-center justify-center gap-2">
+        <Button class="px-3" variant="ghost" onClick={openCloneDialog} data-action="home-repo-clone-cta">
+          <Icon name="download" size="small" />
+          Clone repo
+        </Button>
+        <Button class="px-3" variant="ghost" onClick={openRepositoryManager} data-action="home-repo-manage-cta">
+          <Icon name="folder" size="small" />
+          Manage repos
+        </Button>
+      </div>
       <Switch>
         <Match when={sync.data.project.length > 0}>
           <div class="mt-20 w-full flex flex-col gap-4">
