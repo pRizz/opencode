@@ -5,6 +5,7 @@ type PasskeySetupBootstrap = {
   required?: boolean
   canSkip?: boolean
   returnTo?: string
+  bootstrapSignupUrl?: string
 }
 
 type PasskeyCreationOptionsJSON = {
@@ -213,6 +214,7 @@ export function PasskeySetupApp() {
   const required = Boolean(bootstrap.required)
   const canSkip = bootstrap.canSkip !== false
   const returnTo = bootstrap.returnTo || "/"
+  const bootstrapSignupUrl = bootstrap.bootstrapSignupUrl
 
   const [passkeys, setPasskeys] = createSignal<Passkey[]>([])
   const [loading, setLoading] = createSignal(true)
@@ -576,6 +578,11 @@ export function PasskeySetupApp() {
           <div class="required-banner">
             Passkey setup is required to finish initial account setup. Add at least one passkey to continue.
           </div>
+        </Show>
+        <Show when={required && Boolean(bootstrapSignupUrl)}>
+          <button class="ghost" onClick={() => (window.location.href = bootstrapSignupUrl!)}>
+            Use username/password instead
+          </button>
         </Show>
 
         <Show when={Boolean(error())}>

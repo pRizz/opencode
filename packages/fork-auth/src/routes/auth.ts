@@ -20,7 +20,7 @@ import { verifyDeviceTrustToken, createDeviceTrustToken, createDeviceFingerprint
 import { getTokenSecret } from "../security/token-secret"
 import { generateTotpSetup, getGoogleAuthenticatorSetupCommand, verifyTotpCode } from "../auth/totp-setup"
 import { getTwoFactorPreference, setTwoFactorPreference } from "../auth/two-factor-preference"
-import { completeBootstrapOtp, getBootstrapStatus, verifyBootstrapOtp } from "../auth/bootstrap"
+import { completeBootstrapOtp, createBootstrapUser, getBootstrapStatus, verifyBootstrapOtp } from "../auth/bootstrap"
 import { getUiDir } from "../../../opencode/src/server/ui-dir"
 import {
   createPasskeyAuthenticationOptions,
@@ -160,6 +160,11 @@ const passkeyRemoveRequestSchema = z.object({
 
 const bootstrapVerifyRequestSchema = z.object({
   otp: z.string().min(1).max(256),
+})
+
+const bootstrapSignupRequestSchema = z.object({
+  username: z.string().min(1).max(32),
+  password: z.string().min(1).max(256),
 })
 
 /**
@@ -322,6 +327,15 @@ function passkeySetupPath(required: boolean, returnTo?: string): string {
   return query.length > 0 ? `/auth/passkey/setup?${query}` : "/auth/passkey/setup"
 }
 
+function bootstrapSignupPath(returnTo?: string): string {
+  const params = new URLSearchParams()
+  if (returnTo && isValidReturnUrl(returnTo)) {
+    params.set("returnTo", returnTo)
+  }
+  const query = params.toString()
+  return query.length > 0 ? `/auth/bootstrap/signup?${query}` : "/auth/bootstrap/signup"
+}
+
 /**
  * Generate login page HTML with security context.
  */
@@ -333,6 +347,8 @@ let cachedTwoFactorSetupTemplate: string | undefined
 let cachedTwoFactorSetupTemplatePath: string | undefined
 let cachedPasskeySetupTemplate: string | undefined
 let cachedPasskeySetupTemplatePath: string | undefined
+let cachedBootstrapSignupTemplate: string | undefined
+let cachedBootstrapSignupTemplatePath: string | undefined
 
 async function loadLoginTemplate(uiDir: string): Promise<string> {
   const templatePath = path.join(uiDir, "login.html")
@@ -506,6 +522,39 @@ async function loadPasskeySetupTemplate(uiDir: string): Promise<string> {
   return cachedPasskeySetupTemplate
 }
 
+async function loadBootstrapSignupTemplate(uiDir: string): Promise<string> {
+  const templatePath = path.join(uiDir, "bootstrap-signup.html")
+  if (cachedBootstrapSignupTemplate && cachedBootstrapSignupTemplatePath === templatePath) {
+    return cachedBootstrapSignupTemplate
+  }
+
+  const file = Bun.file(templatePath)
+  const exists = await file.exists()
+  if (!exists) {
+    throw new Error(`Bootstrap signup HTML not found at ${templatePath}`)
+  }
+
+  cachedBootstrapSignupTemplate = await file.text()
+  cachedBootstrapSignupTemplatePath = templatePath
+  return cachedBootstrapSignupTemplate
+}
+
+function injectBootstrapSignupBootstrap(
+  template: string,
+  bootstrap: {
+    passkeySetupUrl: string
+  },
+): string {
+  const script = `<script>window.__OPENCODE_BOOTSTRAP_SIGNUP__ = ${JSON.stringify(bootstrap)};</script>`
+  if (template.includes("</head>")) {
+    return template.replace("</head>", `${script}\n</head>`)
+  }
+  if (template.includes("</body>")) {
+    return template.replace("</body>", `${script}\n</body>`)
+  }
+  return `${template}\n${script}`
+}
+
 function injectPasskeySetupBootstrap(
   template: string,
   bootstrap: {
@@ -513,6 +562,7 @@ function injectPasskeySetupBootstrap(
     required: boolean
     canSkip: boolean
     returnTo: string
+    bootstrapSignupUrl?: string
   },
 ): string {
   const script = `<script>window.__OPENCODE_PASSKEY_SETUP__ = ${JSON.stringify(bootstrap)};</script>`
@@ -530,6 +580,8 @@ function injectPasskeySetupBootstrap(
  *
  * - GET /login - Login page (HTML)
  * - POST /bootstrap/verify - Verify first-boot one-time password
+ * - GET /bootstrap/signup - Bootstrap username/password signup page (HTML)
+ * - POST /bootstrap/signup - Create first managed user via verified bootstrap session
  * - POST /login - Login with username and password
  * - POST /passkey/auth/options - Get passkey authentication options
  * - POST /passkey/auth/verify - Verify passkey authentication response
@@ -562,7 +614,7 @@ export const AuthRoutes = lazy(() =>
 
       try {
         const template = await loadLoginTemplate(uiDir)
-      return c.html(
+        return c.html(
           injectLoginBootstrap(template, {
             shouldBlock,
             bootstrap: {
@@ -711,15 +763,207 @@ export const AuthRoutes = lazy(() =>
         status,
       )
     })
+    .get("/bootstrap/signup", async (c) => {
+      const authConfig = ServerAuth.get()
+      if (!authConfig.enabled) {
+        return c.redirect("/auth/login")
+      }
+      if (
+        shouldBlockInsecureLogin(c, {
+          requireHttps: authConfig.requireHttps,
+          trustProxy: authConfig.trustProxy,
+        })
+      ) {
+        return c.redirect("/auth/login")
+      }
+
+      const sessionId = getCookie(c, "opencode_session")
+      if (!sessionId) {
+        return c.redirect("/auth/login")
+      }
+      const session = UserSession.get(sessionId)
+      if (!session) {
+        return c.redirect("/auth/login")
+      }
+      if (session.bootstrapPending !== true) {
+        return c.redirect("/")
+      }
+      if (!session.bootstrapOtp) {
+        UserSession.clearBootstrapPending(session.id)
+        return c.redirect("/auth/login")
+      }
+
+      const requestedReturnTo = c.req.query("returnTo")
+      const returnTo = requestedReturnTo && isValidReturnUrl(requestedReturnTo) ? requestedReturnTo : "/"
+      const passkeySetupUrl = passkeySetupPath(true, returnTo)
+
+      const uiDir = getUiDir()
+      if (!uiDir) {
+        return c.text("Bootstrap signup UI is not configured. Build the app UI and set uiDir.", 500)
+      }
+
+      try {
+        const template = await loadBootstrapSignupTemplate(uiDir)
+        return c.html(
+          injectBootstrapSignupBootstrap(template, {
+            passkeySetupUrl,
+          }),
+        )
+      } catch (error) {
+        log.error("Failed to load bootstrap signup HTML", { error })
+        return c.text("Bootstrap signup UI is missing. Run the app build to generate bootstrap-signup.html.", 500)
+      }
+    })
     .post("/bootstrap/signup", async (c) => {
-      return c.json(
+      const authConfig = ServerAuth.get()
+      if (!authConfig.enabled) {
+        return c.json({ error: "auth_disabled", message: "Authentication is not enabled" }, 403)
+      }
+      if (
+        shouldBlockInsecureLogin(c, {
+          requireHttps: authConfig.requireHttps,
+          trustProxy: authConfig.trustProxy,
+        })
+      ) {
+        return c.json({ error: "https_required", message: "HTTPS is required for login" }, 403)
+      }
+
+      const limiter = bootstrapRateLimiter()
+      if (limiter) {
+        const rateLimitResult = limiter.checkRateLimit(c)
+        if (rateLimitResult) {
+          return rateLimitResult
+        }
+      }
+
+      const xrw = c.req.header("X-Requested-With")
+      if (!xrw) {
+        logSecurityEvent({
+          type: "csrf_violation",
+          ip: getRequestIP(c),
+          timestamp: new Date().toISOString(),
+          userAgent: c.req.header("User-Agent"),
+        })
+        return c.json({ error: "csrf_missing", message: "X-Requested-With header required" }, 400)
+      }
+
+      const sessionId = getCookie(c, "opencode_session")
+      if (!sessionId) {
+        return c.json({ error: "not_authenticated", message: "Not authenticated" }, 401)
+      }
+      const session = UserSession.get(sessionId)
+      if (!session) {
+        return c.json({ error: "not_authenticated", message: "Not authenticated" }, 401)
+      }
+      if (session.bootstrapPending !== true || !session.bootstrapOtp) {
+        return c.json(
+          {
+            error: "bootstrap_state_invalid",
+            message: "Bootstrap setup session is not active. Restart initial setup from the login page.",
+          },
+          403,
+        )
+      }
+
+      const body = await c.req.json().catch(() => ({}))
+      const parsed = bootstrapSignupRequestSchema.safeParse(body)
+      if (!parsed.success) {
+        return c.json({ error: "invalid_request", message: "Username and password are required." }, 400)
+      }
+
+      const createResult = await createBootstrapUser({
+        otp: session.bootstrapOtp,
+        username: parsed.data.username,
+        password: parsed.data.password,
+      })
+      if (!createResult.ok) {
+        if (createResult.code === "otp_invalid") {
+          limiter?.recordFailure(c)
+          logSecurityEvent({
+            type: "login_failed",
+            ip: getRequestIP(c),
+            reason: "bootstrap_otp_invalid",
+            timestamp: new Date().toISOString(),
+            userAgent: c.req.header("User-Agent"),
+          })
+        }
+        const status = normalizeApiStatus(createResult.status, 500)
+        return c.json(
+          {
+            error: createResult.code,
+            message: createResult.message,
+          },
+          status,
+        )
+      }
+
+      const userInfo = await getUserInfo(createResult.username)
+      if (!userInfo) {
+        return c.json(
+          {
+            error: "bootstrap_user_missing",
+            message:
+              "User was created, but account details could not be loaded. " +
+              "Sign in manually from the login page.",
+          },
+          500,
+        )
+      }
+
+      const newSession = UserSession.create(
+        createResult.username,
+        c.req.header("User-Agent"),
         {
-          error: "bootstrap_signup_removed",
-          message:
-            "Bootstrap now uses passkey enrollment. Verify the initial one-time password and continue to passkey setup.",
+          uid: userInfo.uid,
+          gid: userInfo.gid,
+          home: userInfo.home,
+          shell: userInfo.shell,
         },
-        410,
+        false,
       )
+      setSessionCookie(c, newSession.id, false)
+      setCSRFCookie(c, newSession.id)
+
+      const brokerForRegistration = new BrokerClient()
+      brokerForRegistration
+        .registerSession(newSession.id, {
+          username: createResult.username,
+          uid: userInfo.uid,
+          gid: userInfo.gid,
+          home: userInfo.home,
+          shell: userInfo.shell,
+        })
+        .catch((error) => {
+          log.warn("Failed to register bootstrap signup session with broker", { error })
+        })
+
+      const oldSessionId = session.id
+      const brokerForUnregistration = new BrokerClient()
+      brokerForUnregistration.unregisterSession(oldSessionId).catch((error) => {
+        log.warn("Failed to unregister bootstrap setup session from broker", { error })
+      })
+      UserSession.remove(oldSessionId)
+
+      logSecurityEvent({
+        type: "login_success",
+        ip: getRequestIP(c),
+        username: createResult.username,
+        reason: "bootstrap_signup_complete",
+        timestamp: new Date().toISOString(),
+        userAgent: c.req.header("User-Agent"),
+      })
+
+      return c.json({
+        success: true as const,
+        redirectTo: "/",
+        user: {
+          username: createResult.username,
+          uid: userInfo.uid,
+          gid: userInfo.gid,
+          home: userInfo.home,
+          shell: userInfo.shell,
+        },
+      })
     })
     .get("/passkey/setup", async (c) => {
       const authConfig = ServerAuth.get()
@@ -761,6 +1005,7 @@ export const AuthRoutes = lazy(() =>
             required,
             canSkip: !required,
             returnTo,
+            bootstrapSignupUrl: session.bootstrapPending ? bootstrapSignupPath(returnTo) : undefined,
           }),
         )
       } catch (error) {

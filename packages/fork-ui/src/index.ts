@@ -7,6 +7,7 @@ export function wrapRoutes<T>(routes: T): T {
 }
 
 export { LoginApp } from "./login"
+export { BootstrapSignupApp } from "./bootstrap-signup"
 export { TwoFactorApp } from "./two-factor"
 export { TwoFactorSetupApp } from "./two-factor-setup"
 export { PasskeySetupApp } from "./passkey-setup"

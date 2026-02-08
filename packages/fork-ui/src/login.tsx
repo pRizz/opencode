@@ -839,7 +839,8 @@ export function LoginApp() {
             <div class="bootstrap-title">Initial One-Time Password Setup</div>
             <div class="bootstrap-text">
               For first-time containers with no configured users, enter the Initial One-Time Password (IOTP) from
-              container logs. After verification, you will enroll a passkey for the <code>opencoder</code> account.
+              container logs. After verification, continue to passkey setup where you can enroll a passkey or choose
+              username/password registration.
             </div>
 
             <form onSubmit={handleBootstrapVerify} class="bootstrap-step">

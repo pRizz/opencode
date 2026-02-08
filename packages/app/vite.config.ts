@@ -105,6 +105,7 @@ export default defineConfig({
       input: {
         main: fileURLToPath(new URL("./index.html", import.meta.url)),
         login: fileURLToPath(new URL("./login.html", import.meta.url)),
+        bootstrapSignup: fileURLToPath(new URL("./bootstrap-signup.html", import.meta.url)),
         twoFactor: fileURLToPath(new URL("./2fa.html", import.meta.url)),
         twoFactorSetup: fileURLToPath(new URL("./2fa-setup.html", import.meta.url)),
         passkeySetup: fileURLToPath(new URL("./passkey-setup.html", import.meta.url)),

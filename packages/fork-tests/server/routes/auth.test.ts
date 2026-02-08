@@ -4,6 +4,7 @@ import path from "path"
 import type { AuthResult } from "../../../src/auth/broker-client"
 import type { UnixUserInfo } from "../../../src/auth/user-info"
 import type { AuthConfig } from "../../../src/config/auth"
+import { UserSession } from "../../../src/session/user-session"
 
 // Mock state with explicit types
 const mockAuthenticate = mock<() => Promise<AuthResult>>(() => Promise.resolve({ success: true }))
@@ -42,6 +43,18 @@ const mockVerifyPasskeyRegistration = mock<
 >(() => Promise.resolve({ verified: false, error: "failed" }))
 const mockListUserPasskeys = mock<() => Promise<Array<Record<string, unknown>>>>(() => Promise.resolve([]))
 const mockRemoveUserPasskey = mock<() => Promise<boolean>>(() => Promise.resolve(false))
+const mockGetBootstrapStatus = mock<
+  () => Promise<{ active: boolean; available: boolean; createdAt?: string; completedAt?: string; reason?: string }>
+>(() => Promise.resolve({ active: false, available: false }))
+const mockVerifyBootstrapOtp = mock<
+  () => Promise<{ ok: true } | { ok: false; code: string; message: string; status: number }>
+>(() => Promise.resolve({ ok: false, code: "inactive", message: "inactive", status: 403 }))
+const mockCreateBootstrapUser = mock<
+  () => Promise<{ ok: true; username: string } | { ok: false; code: string; message: string; status: number }>
+>(() => Promise.resolve({ ok: false, code: "inactive", message: "inactive", status: 403 }))
+const mockCompleteBootstrapOtp = mock<
+  () => Promise<{ ok: true; username?: string } | { ok: false; code: string; message: string; status: number }>
+>(() => Promise.resolve({ ok: true, username: "opencoder" }))
 
 // Server auth config state for mocking
 let mockAuthConfig: AuthConfig = {
@@ -74,18 +87,21 @@ let mockAuthConfig: AuthConfig = {
 
 // Mock for registerSession (fire-and-forget, just needs to not throw)
 const mockRegisterSession = mock<() => Promise<boolean>>(() => Promise.resolve(true))
+const mockUnregisterSession = mock<() => Promise<boolean>>(() => Promise.resolve(true))
 
 // Apply mocks before importing the module under test
 mock.module("../../../src/auth/broker-client", () => ({
   BrokerClient: class {
     authenticate = mockAuthenticate
     registerSession = mockRegisterSession
+    unregisterSession = mockUnregisterSession
   },
 }))
 mock.module("@opencode-ai/fork-auth/auth/broker-client", () => ({
   BrokerClient: class {
     authenticate = mockAuthenticate
     registerSession = mockRegisterSession
+    unregisterSession = mockUnregisterSession
   },
 }))
 mock.module("../../../src/auth/user-info", () => ({
@@ -109,6 +125,18 @@ mock.module("@opencode-ai/fork-auth/auth/passkey", () => ({
   verifyPasskeyRegistration: mockVerifyPasskeyRegistration,
   listUserPasskeys: mockListUserPasskeys,
   removeUserPasskey: mockRemoveUserPasskey,
+}))
+mock.module("../../../src/auth/bootstrap", () => ({
+  getBootstrapStatus: mockGetBootstrapStatus,
+  verifyBootstrapOtp: mockVerifyBootstrapOtp,
+  createBootstrapUser: mockCreateBootstrapUser,
+  completeBootstrapOtp: mockCompleteBootstrapOtp,
+}))
+mock.module("@opencode-ai/fork-auth/auth/bootstrap", () => ({
+  getBootstrapStatus: mockGetBootstrapStatus,
+  verifyBootstrapOtp: mockVerifyBootstrapOtp,
+  createBootstrapUser: mockCreateBootstrapUser,
+  completeBootstrapOtp: mockCompleteBootstrapOtp,
 }))
 mock.module("../../../src/config/server-auth", () => ({
   ServerAuth: {
@@ -553,6 +581,226 @@ describe("GET /auth/status", () => {
 
     const res = await app.request("/auth/status")
     expect(res.status).toBe(200)
+  })
+})
+
+describe("Bootstrap signup routes", () => {
+  let app: Hono
+
+  beforeEach(() => {
+    mockAuthenticate.mockClear()
+    mockGetUserInfo.mockClear()
+    mockRegisterSession.mockClear()
+    mockUnregisterSession.mockClear()
+    mockCreateBootstrapUser.mockClear()
+    mockGetBootstrapStatus.mockClear()
+    mockVerifyBootstrapOtp.mockClear()
+    mockCompleteBootstrapOtp.mockClear()
+    mockListUserPasskeys.mockClear()
+
+    mockGetBootstrapStatus.mockResolvedValue({ active: false, available: false })
+    mockCreateBootstrapUser.mockResolvedValue({ ok: false, code: "inactive", message: "inactive", status: 403 })
+    mockGetUserInfo.mockResolvedValue({
+      username: "testuser",
+      uid: 1000,
+      gid: 1000,
+      gecos: "Test User",
+      home: "/home/testuser",
+      shell: "/bin/bash",
+    })
+    mockListUserPasskeys.mockResolvedValue([])
+
+    setMockAuthConfig({
+      enabled: true,
+      method: "pam",
+      passkeysEnabled: true,
+    })
+    app = new Hono().route("/auth", AuthRoutes())
+  })
+
+  test("GET /auth/bootstrap/signup redirects to login without session", async () => {
+    const res = await app.request("/auth/bootstrap/signup")
+    expect(res.status).toBe(302)
+    expect(res.headers.get("Location")).toBe("/auth/login")
+  })
+
+  test("GET /auth/bootstrap/signup rejects non-bootstrap sessions", async () => {
+    const session = UserSession.create("testuser", "test-agent", {
+      uid: 1000,
+      gid: 1000,
+      home: "/home/testuser",
+      shell: "/bin/bash",
+    })
+
+    const res = await app.request("/auth/bootstrap/signup", {
+      headers: {
+        Cookie: `opencode_session=${session.id}`,
+      },
+    })
+
+    expect(res.status).toBe(302)
+    expect(res.headers.get("Location")).toBe("/")
+    UserSession.remove(session.id)
+  })
+
+  test("GET /auth/bootstrap/signup returns html for valid bootstrap session", async () => {
+    const session = UserSession.create("opencoder", "test-agent", {
+      uid: 1000,
+      gid: 1000,
+      home: "/home/opencoder",
+      shell: "/bin/bash",
+    })
+    UserSession.setBootstrapPending(session.id, "otp-token")
+
+    const res = await app.request("/auth/bootstrap/signup", {
+      headers: {
+        Cookie: `opencode_session=${session.id}`,
+      },
+    })
+
+    expect(res.status).toBe(200)
+    const html = await res.text()
+    expect(html).toContain("window.__OPENCODE_BOOTSTRAP_SIGNUP__")
+    expect(html).toContain('"passkeySetupUrl":"/auth/passkey/setup?required=1&returnTo=%2F"')
+    UserSession.remove(session.id)
+  })
+
+  test("POST /auth/bootstrap/signup rejects requests without X-Requested-With header", async () => {
+    const session = UserSession.create("opencoder", "test-agent", {
+      uid: 1000,
+      gid: 1000,
+      home: "/home/opencoder",
+      shell: "/bin/bash",
+    })
+    UserSession.setBootstrapPending(session.id, "otp-token")
+
+    const res = await app.request("/auth/bootstrap/signup", {
+      method: "POST",
+      headers: {
+        Cookie: `opencode_session=${session.id}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ username: "alice", password: "Password123!" }),
+    })
+
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.error).toBe("csrf_missing")
+    UserSession.remove(session.id)
+  })
+
+  test("POST /auth/bootstrap/signup propagates bootstrap helper errors", async () => {
+    const session = UserSession.create("opencoder", "test-agent", {
+      uid: 1000,
+      gid: 1000,
+      home: "/home/opencoder",
+      shell: "/bin/bash",
+    })
+    UserSession.setBootstrapPending(session.id, "otp-token")
+    mockCreateBootstrapUser.mockResolvedValue({
+      ok: false,
+      code: "invalid_password",
+      message: "Password must be at least 12 characters and include 3 of 4 classes.",
+      status: 400,
+    })
+
+    const res = await app.request("/auth/bootstrap/signup", {
+      method: "POST",
+      headers: {
+        Cookie: `opencode_session=${session.id}`,
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body: JSON.stringify({ username: "alice", password: "weak" }),
+    })
+
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.error).toBe("invalid_password")
+    expect(body.message).toContain("Password")
+    UserSession.remove(session.id)
+  })
+
+  test("POST /auth/bootstrap/signup creates a new session and removes old bootstrap session", async () => {
+    const session = UserSession.create("opencoder", "test-agent", {
+      uid: 1000,
+      gid: 1000,
+      home: "/home/opencoder",
+      shell: "/bin/bash",
+    })
+    UserSession.setBootstrapPending(session.id, "otp-token")
+    mockCreateBootstrapUser.mockResolvedValue({ ok: true, username: "alice" })
+    mockGetUserInfo.mockResolvedValue({
+      username: "alice",
+      uid: 1001,
+      gid: 1001,
+      gecos: "Alice",
+      home: "/home/alice",
+      shell: "/bin/bash",
+    })
+
+    const res = await app.request("/auth/bootstrap/signup", {
+      method: "POST",
+      headers: {
+        Cookie: `opencode_session=${session.id}`,
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body: JSON.stringify({ username: "alice", password: "StrongPassword123!" }),
+    })
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.success).toBe(true)
+    expect(body.redirectTo).toBe("/")
+    expect(body.user.username).toBe("alice")
+
+    expect(UserSession.get(session.id)).toBeUndefined()
+
+    const cookie = res.headers.get("Set-Cookie")
+    expect(cookie).toContain("opencode_session=")
+    const match = cookie?.match(/opencode_session=([^;]+)/)
+    expect(match).toBeDefined()
+    const newSession = match ? UserSession.get(match[1]) : undefined
+    expect(newSession?.username).toBe("alice")
+  })
+
+  test("GET /auth/passkey/setup includes bootstrap signup url only when bootstrap is pending", async () => {
+    const bootstrapSession = UserSession.create("opencoder", "test-agent", {
+      uid: 1000,
+      gid: 1000,
+      home: "/home/opencoder",
+      shell: "/bin/bash",
+    })
+    UserSession.setBootstrapPending(bootstrapSession.id, "otp-token")
+
+    const normalSession = UserSession.create("testuser", "test-agent", {
+      uid: 1000,
+      gid: 1000,
+      home: "/home/testuser",
+      shell: "/bin/bash",
+    })
+
+    const bootstrapRes = await app.request("/auth/passkey/setup?required=1", {
+      headers: {
+        Cookie: `opencode_session=${bootstrapSession.id}`,
+      },
+    })
+    expect(bootstrapRes.status).toBe(200)
+    const bootstrapHtml = await bootstrapRes.text()
+    expect(bootstrapHtml).toContain('"bootstrapSignupUrl":"/auth/bootstrap/signup?returnTo=%2F"')
+
+    const normalRes = await app.request("/auth/passkey/setup", {
+      headers: {
+        Cookie: `opencode_session=${normalSession.id}`,
+      },
+    })
+    expect(normalRes.status).toBe(200)
+    const normalHtml = await normalRes.text()
+    expect(normalHtml).not.toContain('"bootstrapSignupUrl"')
+
+    UserSession.remove(bootstrapSession.id)
+    UserSession.remove(normalSession.id)
   })
 })
 
