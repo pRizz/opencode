@@ -22,6 +22,10 @@ export interface UnixUserInfo {
  * @returns User info or null if not found
  */
 export async function getUserInfo(username: string): Promise<UnixUserInfo | null> {
+  if (username.trim().length === 0) {
+    return null
+  }
+
   // Try getent first (works on Linux, some macOS setups)
   const getentResult = await tryGetent(username)
   if (getentResult) {
