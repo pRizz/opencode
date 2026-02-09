@@ -1800,3 +1800,91 @@ describe("OPENCODE_DISABLE_PROJECT_CONFIG", () => {
     }
   })
 })
+
+describe("OPENCODE_CONFIG_CONTENT precedence", () => {
+  test("inline config content overrides auth enabled from project .opencode config", async () => {
+    const originalInlineConfig = process.env["OPENCODE_CONFIG_CONTENT"]
+
+    try {
+      process.env["OPENCODE_CONFIG_CONTENT"] = JSON.stringify({
+        auth: { enabled: false },
+      })
+
+      await using tmp = await tmpdir({
+        init: async (dir) => {
+          const projectDir = path.join(dir, "project")
+          const opencodeDir = path.join(projectDir, ".opencode")
+          await fs.mkdir(opencodeDir, { recursive: true })
+          await Bun.write(
+            path.join(opencodeDir, "opencode.jsonc"),
+            JSON.stringify({
+              $schema: "https://opencode.ai/config.json",
+              auth: {
+                enabled: true,
+              },
+            }),
+          )
+        },
+      })
+
+      await Instance.provide({
+        directory: path.join(tmp.path, "project"),
+        fn: async () => {
+          const config = await Config.get()
+          expect(config.auth?.enabled).toBe(false)
+        },
+      })
+    } finally {
+      if (originalInlineConfig === undefined) {
+        delete process.env["OPENCODE_CONFIG_CONTENT"]
+      } else {
+        process.env["OPENCODE_CONFIG_CONTENT"] = originalInlineConfig
+      }
+    }
+  })
+
+  test("inline auth disable prevents PAM validation errors from project .opencode config", async () => {
+    const originalInlineConfig = process.env["OPENCODE_CONFIG_CONTENT"]
+    const pamService = `opencode-ci-guard-${Date.now()}`
+
+    try {
+      process.env["OPENCODE_CONFIG_CONTENT"] = JSON.stringify({
+        auth: { enabled: false },
+      })
+
+      await using tmp = await tmpdir({
+        init: async (dir) => {
+          const projectDir = path.join(dir, "project")
+          const opencodeDir = path.join(projectDir, ".opencode")
+          await fs.mkdir(opencodeDir, { recursive: true })
+          await Bun.write(
+            path.join(opencodeDir, "opencode.jsonc"),
+            JSON.stringify({
+              $schema: "https://opencode.ai/config.json",
+              auth: {
+                enabled: true,
+                pam: {
+                  service: pamService,
+                },
+              },
+            }),
+          )
+        },
+      })
+
+      await Instance.provide({
+        directory: path.join(tmp.path, "project"),
+        fn: async () => {
+          const config = await Config.get()
+          expect(config.auth?.enabled).toBe(false)
+        },
+      })
+    } finally {
+      if (originalInlineConfig === undefined) {
+        delete process.env["OPENCODE_CONFIG_CONTENT"]
+      } else {
+        process.env["OPENCODE_CONFIG_CONTENT"] = originalInlineConfig
+      }
+    }
+  })
+})

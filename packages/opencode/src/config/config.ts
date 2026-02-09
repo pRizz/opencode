@@ -44,6 +44,23 @@ export namespace Config {
     return merged
   }
 
+  function parseInlineConfigContent(): Info | undefined {
+    const content = Flag.OPENCODE_CONFIG_CONTENT
+    if (!content) return undefined
+
+    try {
+      return JSON.parse(content)
+    } catch (cause) {
+      throw new InvalidError(
+        {
+          path: "OPENCODE_CONFIG_CONTENT",
+          message: "Invalid JSON in OPENCODE_CONFIG_CONTENT",
+        },
+        { cause },
+      )
+    }
+  }
+
   export const state = Instance.state(async () => {
     const auth = await Auth.all()
 
@@ -88,12 +105,6 @@ export namespace Config {
           result = mergeConfigConcatArrays(result, await loadFile(resolved))
         }
       }
-    }
-
-    // Inline config content has highest precedence
-    if (Flag.OPENCODE_CONFIG_CONTENT) {
-      result = mergeConfigConcatArrays(result, JSON.parse(Flag.OPENCODE_CONFIG_CONTENT))
-      log.debug("loaded custom config from OPENCODE_CONFIG_CONTENT")
     }
 
     result.agent = result.agent || {}
@@ -166,6 +177,16 @@ export namespace Config {
           mode: "primary" as const,
         },
       })
+    }
+
+    // Inline config content has highest precedence over file-based configs.
+    const inlineConfig = parseInlineConfigContent()
+    if (inlineConfig) {
+      result = mergeConfigConcatArrays(result, inlineConfig)
+      result.agent ??= {}
+      result.mode ??= {}
+      result.plugin ??= []
+      log.debug("loaded custom config from OPENCODE_CONFIG_CONTENT")
     }
 
     if (Flag.OPENCODE_PERMISSION) {
