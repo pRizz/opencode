@@ -1,5 +1,5 @@
-import { test, expect } from "../fixtures"
-import { openSettings } from "../actions"
+import { test, expect } from "../../fixtures"
+import { openSettings } from "../../actions"
 import { mockAuthenticatedAuth } from "../mocks/auth"
 import {
   homeRepoCloneCtaSelector,

@@ -1,5 +1,5 @@
-import { test, expect } from "../fixtures"
-import { closeDialog, openSettings } from "../actions"
+import { test, expect } from "../../fixtures"
+import { closeDialog, openSettings } from "../../actions"
 import {
   mockAuthenticatedAuth,
   mockPasskeys,

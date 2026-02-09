@@ -132,7 +132,9 @@ const result = await (async () => {
     return { error }
   } finally {
     await inst.Instance.disposeAll()
-    await server.stop()
+    if (typeof server.stop === "function") {
+      await server.stop()
+    }
   }
 })()
 
