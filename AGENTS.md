@@ -6,6 +6,12 @@
 - Local `main` ref may not exist; use `dev` or `origin/dev` for diffs.
 - Prefer automation: execute requested actions without confirmation unless blocked by missing info or safety/irreversibility.
 
+## Bun Lockfile Updates
+
+`bun.lock` file updates are expected across all `bun.lock` files in this repository when changing versions of our own packages and can also occur during normal build/check flows.
+
+When these `bun.lock` changes are tied to intended package/version updates, they are valid and should be committed with the related change.
+
 ## Fork Isolation
 
 This is a fork with `fork-*` packages under `packages/`. To minimize upstream merge conflicts:
