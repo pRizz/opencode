@@ -7,12 +7,14 @@
     "test": "bun test",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json"
   },
+  "dependencies": {
+    "hono": "catalog:",
+    "zod": "catalog:"
+  },
   "devDependencies": {
     "@opencode-ai/fork-auth": "workspace:*",
     "@types/bun": "catalog:",
-    "hono": "catalog:",
     "opencode": "workspace:*",
-    "typescript": "catalog:",
-    "zod": "catalog:"
+    "typescript": "catalog:"
   }
 }
