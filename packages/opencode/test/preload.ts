@@ -27,6 +27,11 @@ process.env["XDG_CONFIG_HOME"] = path.join(dir, "config")
 process.env["XDG_STATE_HOME"] = path.join(dir, "state")
 process.env["OPENCODE_MODELS_PATH"] = path.join(import.meta.dir, "tool", "fixtures", "models-api.json")
 
+// Disable auth to prevent PAM service file checks in Config.state().
+// Without this, .opencode/opencode.jsonc enables auth and tests fail on
+// systems that lack /etc/pam.d/opencode.
+process.env["OPENCODE_CONFIG_CONTENT"] = JSON.stringify({ auth: { enabled: false } })
+
 // Write the cache version file to prevent global/index.ts from clearing the cache
 const cacheDir = path.join(dir, "cache", "opencode")
 await fs.mkdir(cacheDir, { recursive: true })
