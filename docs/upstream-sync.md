@@ -65,7 +65,9 @@ wc -l docs/upstream-sync/upstream-first-parent.txt > docs/upstream-sync/upstream
     - allows upstream-ahead stale state and lets sync refresh `parent-dev` via force update
   - Updates `parent-dev` to match `upstream/dev` (force push).
   - Attempts merge (no tests in merge phase — testing is a separate workflow step).
-  - After merge (or conflict resolution), runs SDK generation + typecheck + e2e gate:
+  - After merge (or conflict resolution), runs post-merge dependency/install + test gate:
+    - `bun install` (post-merge, non-frozen)
+    - auto-commits tracked `**/bun.lock` updates produced by that install
     - `bun ./packages/sdk/js/script/build.ts` (regenerates SDK types from OpenAPI spec)
     - `bun turbo typecheck`
     - installs Playwright dependencies

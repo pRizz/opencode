@@ -90,8 +90,12 @@ jobs:
       - name: Verify parent-dev mirror health
         run: ./script/verify-upstream-mirror.sh
 
+      # Sync-upstream defers dependency installation to the post-merge test gate.
+      # This avoids pre-merge frozen-lockfile failures and allows bun.lock refreshes.
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
+        with:
+          install: "false"
 
       - name: Verify git push credentials
         run: |
@@ -167,9 +171,12 @@ jobs:
 
       # After merge/resolution, package.json may require a newer Bun version
       # from upstream. Re-setup to match the merged state.
+      # Keep install disabled here too; runTestGate performs the post-merge bun install.
       - name: Re-setup Bun (post-merge)
         if: steps.sync.outputs.sync_branch != ''
         uses: ./.github/actions/setup-bun
+        with:
+          install: "false"
 
       # ── Phase 3: Run tests ────────────────────────────────
       - name: Run tests after merge/resolution

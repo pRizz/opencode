@@ -164,6 +164,16 @@ async function runTestGate(): Promise<{ passed: boolean; summary: string }> {
   }
   console.log("Dependencies installed.")
 
+  const lockfiles = (await $`git ls-files -m -- ':(glob)**/bun.lock'`.text()).trim()
+  if (lockfiles.length > 0) {
+    console.log(`bun.lock updates detected after bun install:\n${lockfiles}`)
+    await $`git add -- ':(glob)**/bun.lock'`
+    await $`git commit -m "chore(sync): refresh bun lockfiles after upstream sync"`
+    console.log("Committed bun.lock updates.")
+  } else {
+    console.log("No bun.lock updates detected after bun install.")
+  }
+
   console.log("Running SDK generation...")
   const sdkGen = await $`bun ./packages/sdk/js/script/build.ts`.nothrow()
   if (sdkGen.exitCode !== 0) {
