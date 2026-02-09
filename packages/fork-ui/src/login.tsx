@@ -28,6 +28,20 @@ type PasskeyAuthOptionsResult = {
   challengeToken: string
 }
 
+type PasskeyLoginMode = "manual" | "conditional"
+type PasskeyLoginStage = "auth_options_request" | "credential_get" | "auth_verify_request"
+type PasskeyRequestFailure = {
+  ok: false
+  message: string
+}
+type PasskeyOptionsResponse =
+  | {
+      ok: true
+      data: PasskeyAuthOptionsResult
+    }
+  | PasskeyRequestFailure
+type PasskeyVerifyResponse = { ok: true } | PasskeyRequestFailure
+
 declare global {
   interface Window {
     __OPENCODE_LOGIN__?: LoginBootstrap
@@ -157,12 +171,52 @@ function passkeyErrorDetails(error: unknown) {
 
 function isExpectedPasskeyCancelError(error: unknown) {
   if (!(error instanceof Error)) return false
-  return (
-    error.name === "AbortError" ||
-    error.name === "NotAllowedError" ||
-    error.name === "InvalidStateError" ||
-    error.name === "OperationError"
-  )
+  return error.name === "AbortError" || error.name === "NotAllowedError"
+}
+
+function mapPasskeyLoginError(input: {
+  error: unknown
+  stage: PasskeyLoginStage
+  mode: PasskeyLoginMode
+  hasUsername: boolean
+}): string | undefined {
+  if (!(input.error instanceof Error)) {
+    if (input.mode === "conditional") {
+      return 'Automatic passkey sign-in failed. Use "Sign in with passkey" to retry or sign in with username and password.'
+    }
+    return input.hasUsername
+      ? "Passkey authentication failed. Try again or sign in with your password."
+      : "No passkey found. Enter a username and try again."
+  }
+
+  if (isExpectedPasskeyCancelError(input.error)) return undefined
+
+  const errorName = input.error.name
+  const errorMessage = input.error.message.toLowerCase()
+
+  if (errorName === "SecurityError" && errorMessage.includes("invalid domain")) {
+    const localhostOrigin = `${window.location.protocol}//localhost${window.location.port ? `:${window.location.port}` : ""}`
+    return `Passkeys are not supported on ${window.location.hostname}. Open ${localhostOrigin} and try again.`
+  }
+  if (errorName === "NotSupportedError") {
+    return "This browser or authenticator does not support passkey sign-in."
+  }
+  if (errorName === "InvalidStateError") {
+    return "This passkey could not be used for this account. Try another passkey or sign in with your password."
+  }
+  if (input.stage === "auth_options_request") {
+    return 'Could not start passkey sign-in. Use "Sign in with passkey" to retry or sign in with username and password.'
+  }
+  if (input.stage === "auth_verify_request") {
+    return "Passkey sign-in could not be verified. Try again or sign in with your password."
+  }
+  if (input.mode === "conditional") {
+    return 'Automatic passkey sign-in failed. Use "Sign in with passkey" to retry or sign in with username and password.'
+  }
+
+  return input.hasUsername
+    ? "Passkey authentication failed. Try again or sign in with your password."
+    : "No passkey found. Enter a username and try again."
 }
 
 export function LoginApp() {
@@ -180,6 +234,7 @@ export function LoginApp() {
     passkeySubmitting: false,
     passkeyLabel: "Sign in with passkey",
     passkeySupported: false,
+    passkeyBanner: "",
     error: "",
     showPassword: false,
     invalidUsername: false,
@@ -240,72 +295,98 @@ export function LoginApp() {
     setState("warningDismissed", true)
   }
 
-  const fetchPasskeyOptions = async (input: { username?: string; quiet?: boolean }) => {
-    const res = await fetch("/auth/passkey/auth/options", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Requested-With": "XMLHttpRequest",
-        ...getPasskeyClientHeaders(),
-      },
-      body: JSON.stringify(input.username ? { username: input.username } : {}),
-    })
+  const setPasskeyBanner = (message: string) => {
+    setState("passkeyBanner", message)
+  }
 
-    const body = (await res.json().catch(() => ({}))) as Record<string, unknown>
-    if (!res.ok || body.success !== true) {
-      if (!input.quiet) {
+  const clearPasskeyBanner = () => {
+    setState("passkeyBanner", "")
+  }
+
+  const fetchPasskeyOptions = async (input: { username?: string }): Promise<PasskeyOptionsResponse> => {
+    try {
+      const res = await fetch("/auth/passkey/auth/options", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+          ...getPasskeyClientHeaders(),
+        },
+        body: JSON.stringify(input.username ? { username: input.username } : {}),
+      })
+
+      const body = (await res.json().catch(() => ({}))) as Record<string, unknown>
+      if (!res.ok || body.success !== true) {
         const isHttpsMismatch = body.error === "passkey_requires_https"
         const message = isHttpsMismatch
           ? getPasskeyApiMessage(typeof body.message === "string" ? body.message : undefined)
-          : (typeof body.message === "string" && body.message) || "Passkey sign-in is unavailable"
-        setState("error", message)
+          : (typeof body.message === "string" && body.message) ||
+            (input.username
+              ? "Passkey sign-in is unavailable."
+              : "No passkey found. Enter a username and try again.")
+        return { ok: false, message }
       }
-      return null
-    }
 
-    return body as unknown as PasskeyAuthOptionsResult
+      return {
+        ok: true,
+        data: body as unknown as PasskeyAuthOptionsResult,
+      }
+    } catch {
+      return {
+        ok: false,
+        message: "Could not start passkey sign-in. Check your connection and try again.",
+      }
+    }
   }
 
-  const verifyPasskey = async (input: { credential: PublicKeyCredential; challengeToken: string; quiet?: boolean }) => {
+  const verifyPasskey = async (input: {
+    credential: PublicKeyCredential
+    challengeToken: string
+  }): Promise<PasskeyVerifyResponse> => {
     const response = toAuthenticationResponseJSON(input.credential)
     if (!response) {
-      if (!input.quiet) {
-        setState("error", "Unable to read passkey response from this browser")
+      return {
+        ok: false,
+        message: "Unable to read passkey response from this browser.",
       }
-      return false
     }
 
-    const res = await fetch("/auth/passkey/auth/verify", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Requested-With": "XMLHttpRequest",
-        ...getPasskeyClientHeaders(),
-      },
-      body: JSON.stringify({
-        challengeToken: input.challengeToken,
-        response,
-        rememberMe: state.rememberMe,
-      }),
-    })
+    try {
+      const res = await fetch("/auth/passkey/auth/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+          ...getPasskeyClientHeaders(),
+        },
+        body: JSON.stringify({
+          challengeToken: input.challengeToken,
+          response,
+          rememberMe: state.rememberMe,
+        }),
+      })
 
-    const body = (await res.json().catch(() => ({}))) as Record<string, unknown>
-    if (res.ok && body.success === true) {
-      setState("passkeyLabel", "Redirecting...")
-      window.location.href = "/"
-      return true
-    }
+      const body = (await res.json().catch(() => ({}))) as Record<string, unknown>
+      if (res.ok && body.success === true) {
+        setState("passkeyLabel", "Redirecting...")
+        window.location.href = "/"
+        return { ok: true }
+      }
 
-    if (!input.quiet) {
       const isHttpsMismatch = body.error === "passkey_requires_https"
       const message = isHttpsMismatch
         ? getPasskeyApiMessage(typeof body.message === "string" ? body.message : undefined)
         : (typeof body.message === "string" && body.message) ||
-          (state.username.trim() ? "Passkey authentication failed" : "No passkey found. Enter a username and try again.")
-      setState("error", message)
+          (state.username.trim()
+            ? "Passkey authentication failed. Try again or sign in with your password."
+            : "No passkey found. Enter a username and try again.")
+      return { ok: false, message }
+    } catch {
+      return {
+        ok: false,
+        message: "Could not verify passkey sign-in. Check your connection and try again.",
+      }
     }
-
-    return false
   }
 
   const startConditionalPasskey = async () => {
@@ -323,33 +404,49 @@ export function LoginApp() {
     }
     if (!available) return
 
+    let stage: PasskeyLoginStage = "auth_options_request"
     const optionsResult = await fetchPasskeyOptions({
       username: state.username.trim() || undefined,
-      quiet: true,
     })
-    if (!optionsResult) return
+    if (!optionsResult.ok) {
+      setPasskeyBanner(optionsResult.message)
+      return
+    }
 
     abortConditionalPasskeyRequest()
     const controller = new AbortController()
     conditionalController = controller
 
     try {
+      stage = "credential_get"
       const credential = await navigator.credentials.get({
-        publicKey: parseRequestOptions(optionsResult.options),
+        publicKey: parseRequestOptions(optionsResult.data.options),
         mediation: "conditional",
         signal: controller.signal,
       })
 
       if (!(credential instanceof PublicKeyCredential)) return
 
-      await verifyPasskey({
+      stage = "auth_verify_request"
+      const verifyResult = await verifyPasskey({
         credential,
-        challengeToken: optionsResult.challengeToken,
-        quiet: true,
+        challengeToken: optionsResult.data.challengeToken,
       })
+      if (!verifyResult.ok) {
+        setPasskeyBanner(verifyResult.message)
+      }
     } catch (error) {
+      const message = mapPasskeyLoginError({
+        error,
+        stage,
+        mode: "conditional",
+        hasUsername: Boolean(state.username.trim()),
+      })
       if (!isExpectedPasskeyCancelError(error)) {
         console.warn("[login-passkey] conditional mediation failed", passkeyErrorDetails(error))
+      }
+      if (message) {
+        setPasskeyBanner(message)
       }
     } finally {
       if (conditionalController === controller) {
@@ -361,10 +458,11 @@ export function LoginApp() {
   const handlePasskeyLogin = async () => {
     if (shouldBlock || state.submitting || state.passkeySubmitting) return
     if (!state.passkeySupported) {
-      setState("error", "Passkeys are not supported in this browser")
+      setPasskeyBanner("Passkeys are not supported in this browser.")
       return
     }
 
+    clearPasskeyBanner()
     setState({
       error: "",
       passkeySubmitting: true,
@@ -372,12 +470,14 @@ export function LoginApp() {
     })
     abortConditionalPasskeyRequest()
 
+    let stage: PasskeyLoginStage = "auth_options_request"
     try {
       const optionsResult = await fetchPasskeyOptions({
         username: state.username.trim() || undefined,
       })
 
-      if (!optionsResult) {
+      if (!optionsResult.ok) {
+        setPasskeyBanner(optionsResult.message)
         setState({
           passkeySubmitting: false,
           passkeyLabel: "Sign in with passkey",
@@ -385,12 +485,12 @@ export function LoginApp() {
         return
       }
 
+      stage = "credential_get"
       const credential = await navigator.credentials.get({
-        publicKey: parseRequestOptions(optionsResult.options),
+        publicKey: parseRequestOptions(optionsResult.data.options),
       })
 
       if (!(credential instanceof PublicKeyCredential)) {
-        setState("error", "Passkey login was cancelled")
         setState({
           passkeySubmitting: false,
           passkeyLabel: "Sign in with passkey",
@@ -398,11 +498,13 @@ export function LoginApp() {
         return
       }
 
-      const ok = await verifyPasskey({
+      stage = "auth_verify_request"
+      const verifyResult = await verifyPasskey({
         credential,
-        challengeToken: optionsResult.challengeToken,
+        challengeToken: optionsResult.data.challengeToken,
       })
-      if (!ok) {
+      if (!verifyResult.ok) {
+        setPasskeyBanner(verifyResult.message)
         setState({
           passkeySubmitting: false,
           passkeyLabel: "Sign in with passkey",
@@ -412,12 +514,16 @@ export function LoginApp() {
       if (!isExpectedPasskeyCancelError(error)) {
         console.warn("[login-passkey] passkey sign-in failed", passkeyErrorDetails(error))
       }
+      const message = mapPasskeyLoginError({
+        error,
+        stage,
+        mode: "manual",
+        hasUsername: Boolean(state.username.trim()),
+      })
+      if (message) {
+        setPasskeyBanner(message)
+      }
       setState({
-        error: isExpectedPasskeyCancelError(error)
-          ? "Passkey login was cancelled"
-          : state.username.trim()
-            ? "Passkey authentication failed"
-            : "No passkey found. Enter a username and try again.",
         passkeySubmitting: false,
         passkeyLabel: "Sign in with passkey",
       })
@@ -687,6 +793,18 @@ export function LoginApp() {
           word-break: break-word;
         }
         .error.visible { display: block; }
+        .passkey-error-banner {
+          color: #fecaca;
+          font-size: 0.75rem;
+          line-height: 1.45;
+          padding: 0.75rem;
+          margin-bottom: 0.75rem;
+          background: rgba(185, 28, 28, 0.2);
+          border: 1px solid rgba(248, 113, 113, 0.45);
+          border-radius: 8px;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+        }
         button {
           height: 40px;
           border: none;
@@ -951,6 +1069,12 @@ export function LoginApp() {
           <div class="error" classList={{ visible: Boolean(state.error) }}>
             {state.error}
           </div>
+
+          <Show when={Boolean(state.passkeyBanner)}>
+            <div class="passkey-error-banner" role="alert" aria-live="assertive">
+              {state.passkeyBanner}
+            </div>
+          </Show>
 
           <Show when={state.passkeySupported && !shouldBlock}>
             <button
