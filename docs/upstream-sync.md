@@ -56,6 +56,10 @@ wc -l docs/upstream-sync/upstream-first-parent.txt > docs/upstream-sync/upstream
 - Script: `script/sync-upstream.ts` (phase-based: `--phase merge|test|post-resolve|create-issue`)
 - Workflow: `.github/workflows/sync-upstream.yml` (runs every 30 minutes)
 - Mirror verification script: `script/verify-upstream-mirror.sh`
+- Scope boundary:
+  - `sync-upstream` only commits and pushes within this repository (`pRizz/opencode`).
+  - Superproject pointer updates (`packages/opencode` gitlink) and root `bun.lock` updates are handled by
+    `opencode-cloud` automation in `.github/workflows/update-opencode-commit.yml`.
 - Required secrets:
   - `UPSTREAM_SYNC_TOKEN` — GitHub token for repo operations (falls back to `${{ github.token }}`)
   - `ANTHROPIC_API_KEY` — Anthropic API key for Claude Code Action (conflict resolution + test fixes)
