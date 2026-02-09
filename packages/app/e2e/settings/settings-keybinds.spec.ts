@@ -266,12 +266,16 @@ test("changing terminal toggle keybind works", async ({ page, gotoSession }) => 
   expect(stored?.keybinds?.["terminal.toggle"]).toBe("mod+y")
 
   await closeDialog(page, dialog)
+  await page.locator("body").click()
 
   const terminal = page.locator(terminalSelector)
   await expect(terminal).not.toBeVisible()
 
   await page.keyboard.press(`${modKey}+Y`)
   await expect(terminal).toBeVisible()
+
+  // Defocus the terminal so the next keybind is handled by the app, not the terminal input
+  await page.locator("body").click({ position: { x: 0, y: 0 } })
 
   await page.keyboard.press(`${modKey}+Y`)
   await expect(terminal).not.toBeVisible()
