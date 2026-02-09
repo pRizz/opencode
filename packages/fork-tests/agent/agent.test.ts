@@ -1,8 +1,8 @@
 import { test, expect } from "bun:test"
 import { tmpdir } from "../fixture/fixture"
-import { Instance } from "../../../opencode/src/project/instance"
-import { Agent } from "../../../opencode/src/agent/agent"
-import { PermissionNext } from "../../../opencode/src/permission/next"
+import { Instance } from "opencode/project/instance"
+import { Agent } from "opencode/agent/agent"
+import { PermissionNext } from "opencode/permission/next"
 
 // Helper to evaluate permission for a tool with wildcard pattern
 function evalPerm(agent: Agent.Info | undefined, permission: string): PermissionNext.Action | undefined {
@@ -16,7 +16,7 @@ test("returns default native agents when no config", async () => {
     directory: tmp.path,
     fn: async () => {
       const agents = await Agent.list()
-      const names = agents.map((a) => a.name)
+      const names = agents.map((a: any) => a.name)
       expect(names).toContain("build")
       expect(names).toContain("plan")
       expect(names).toContain("general")
@@ -175,7 +175,7 @@ test("agent disable removes agent from list", async () => {
       const explore = await Agent.get("explore")
       expect(explore).toBeUndefined()
       const agents = await Agent.list()
-      const names = agents.map((a) => a.name)
+      const names = agents.map((a: any) => a.name)
       expect(names).not.toContain("explore")
     },
   })
@@ -380,14 +380,14 @@ test("Agent.get returns undefined for non-existent agent", async () => {
   })
 })
 
-test("default permission includes doom_loop and external_directory as allow", async () => {
+test("default permission includes doom_loop allow and external_directory ask", async () => {
   await using tmp = await tmpdir()
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
       const build = await Agent.get("build")
       expect(evalPerm(build, "doom_loop")).toBe("allow")
-      expect(evalPerm(build, "external_directory")).toBe("allow")
+      expect(evalPerm(build, "external_directory")).toBe("ask")
     },
   })
 })
@@ -447,8 +447,8 @@ test("legacy tools config maps write/edit/patch/multiedit to edit permission", a
   })
 })
 
-test("Truncate.DIR is allowed even when user denies external_directory globally", async () => {
-  const { Truncate } = await import("../../src/tool/truncation")
+test("Truncate.GLOB stays allowed when user denies external_directory globally", async () => {
+  const { Truncate } = await import("opencode/tool/truncation")
   await using tmp = await tmpdir({
     config: {
       permission: {
@@ -460,15 +460,15 @@ test("Truncate.DIR is allowed even when user denies external_directory globally"
     directory: tmp.path,
     fn: async () => {
       const build = await Agent.get("build")
-      expect(PermissionNext.evaluate("external_directory", Truncate.DIR, build!.permission).action).toBe("allow")
+      expect(PermissionNext.evaluate("external_directory", Truncate.DIR, build!.permission).action).toBe("deny")
       expect(PermissionNext.evaluate("external_directory", Truncate.GLOB, build!.permission).action).toBe("allow")
       expect(PermissionNext.evaluate("external_directory", "/some/other/path", build!.permission).action).toBe("deny")
     },
   })
 })
 
-test("Truncate.DIR is allowed even when user denies external_directory per-agent", async () => {
-  const { Truncate } = await import("../../src/tool/truncation")
+test("Truncate.GLOB stays allowed when user denies external_directory per-agent", async () => {
+  const { Truncate } = await import("opencode/tool/truncation")
   await using tmp = await tmpdir({
     config: {
       agent: {
@@ -484,7 +484,7 @@ test("Truncate.DIR is allowed even when user denies external_directory per-agent
     directory: tmp.path,
     fn: async () => {
       const build = await Agent.get("build")
-      expect(PermissionNext.evaluate("external_directory", Truncate.DIR, build!.permission).action).toBe("allow")
+      expect(PermissionNext.evaluate("external_directory", Truncate.DIR, build!.permission).action).toBe("deny")
       expect(PermissionNext.evaluate("external_directory", Truncate.GLOB, build!.permission).action).toBe("allow")
       expect(PermissionNext.evaluate("external_directory", "/some/other/path", build!.permission).action).toBe("deny")
     },
@@ -492,7 +492,7 @@ test("Truncate.DIR is allowed even when user denies external_directory per-agent
 })
 
 test("explicit Truncate.DIR deny is respected", async () => {
-  const { Truncate } = await import("../../src/tool/truncation")
+  const { Truncate } = await import("opencode/tool/truncation")
   await using tmp = await tmpdir({
     config: {
       permission: {
@@ -508,7 +508,7 @@ test("explicit Truncate.DIR deny is respected", async () => {
     fn: async () => {
       const build = await Agent.get("build")
       expect(PermissionNext.evaluate("external_directory", Truncate.DIR, build!.permission).action).toBe("deny")
-      expect(PermissionNext.evaluate("external_directory", Truncate.GLOB, build!.permission).action).toBe("deny")
+      expect(PermissionNext.evaluate("external_directory", Truncate.GLOB, build!.permission).action).toBe("allow")
     },
   })
 })

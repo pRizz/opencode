@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test"
-import { generateCSRFToken, validateCSRFToken, getCSRFSecret } from "../../../../opencode/src/server/security/csrf"
+import { generateCSRFToken, validateCSRFToken, getCSRFSecret } from "opencode/server/security/csrf"
 
 describe("CSRF utilities", () => {
   const testSecret = "test-secret-key-for-hmac-signing"

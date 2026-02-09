@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { getClientIP } from "../../opencode/src/server/security/rate-limit"
+import { getClientIP } from "opencode/server/security/rate-limit"
 
 function createContext(env: unknown) {
   return {

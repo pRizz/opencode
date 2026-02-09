@@ -1,8 +1,8 @@
 import { describe, test, expect, beforeEach, mock } from "bun:test"
 import { Hono } from "hono"
 import z from "zod"
-import type { AuthConfig } from "../../../../opencode/src/config/auth"
-import type { AuthContext, AuthEnv } from "../../../../opencode/src/server/middleware/auth"
+import type { AuthConfig } from "opencode/config/auth"
+import type { AuthContext, AuthEnv } from "opencode/server/middleware/auth"
 
 const mockCreate = mock(async () => ({
   id: "pty-test",
@@ -38,7 +38,28 @@ let mockAuthConfig: AuthConfig = {
   twoFactorRequired: false,
 }
 
-mock.module("../../../src/pty", () => ({
+mock.module("opencode/pty", () => ({
+  Pty: {
+    Info: z.object({ id: z.string() }),
+    CreateInput: z.object({ title: z.string().optional() }),
+    UpdateInput: z.object({
+      title: z.string().optional(),
+      size: z
+        .object({
+          rows: z.number(),
+          cols: z.number(),
+        })
+        .optional(),
+    }),
+    list: () => [],
+    get: () => undefined,
+    create: mockCreate,
+    update: mock(async () => ({ id: "pty-test" })),
+    remove: mock(async () => undefined),
+    connect: mock(() => undefined),
+  },
+}))
+mock.module("opencode/pty/index", () => ({
   Pty: {
     Info: z.object({ id: z.string() }),
     CreateInput: z.object({ title: z.string().optional() }),
@@ -60,13 +81,18 @@ mock.module("../../../src/pty", () => ({
   },
 }))
 
-mock.module("../../../src/auth/broker-client", () => ({
+mock.module("opencode/auth/broker-client", () => ({
+  BrokerClient: class {
+    registerSession = mockRegisterSession
+  },
+}))
+mock.module("@opencode-ai/fork-auth/auth/broker-client", () => ({
   BrokerClient: class {
     registerSession = mockRegisterSession
   },
 }))
 
-mock.module("../../../src/config/server-auth", () => ({
+mock.module("opencode/config/server-auth", () => ({
   ServerAuth: {
     get: () => mockAuthConfig,
     _setForTesting: (config: AuthConfig) => {
@@ -75,7 +101,7 @@ mock.module("../../../src/config/server-auth", () => ({
   },
 }))
 
-import { PtyRoutes } from "../../../../opencode/src/server/routes/pty"
+import { PtyRoutes } from "opencode/server/routes/pty"
 
 const createAuthApp = () => {
   const session = {
@@ -129,7 +155,17 @@ describe("PTY broker error handling", () => {
     }
 
     mockCreate.mockClear()
+    mockCreate.mockResolvedValue({
+      id: "pty-test",
+      title: "Terminal 1",
+      command: "bash",
+      args: [],
+      cwd: "/",
+      status: "running",
+      pid: 123,
+    })
     mockRegisterSession.mockClear()
+    mockRegisterSession.mockResolvedValue(true)
   })
 
   test("returns 503 when broker session registration fails", async () => {

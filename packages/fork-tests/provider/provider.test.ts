@@ -2,7 +2,7 @@ import { test, expect, mock } from "bun:test"
 import path from "path"
 
 // Mock BunProc and default plugins to prevent actual installations during tests
-mock.module("../../src/bun/index", () => ({
+mock.module("opencode/bun/index", () => ({
   BunProc: {
     install: async (pkg: string, _version?: string) => {
       // Return package name without version for mocking
@@ -23,9 +23,9 @@ mock.module("opencode-anthropic-auth", () => ({ default: mockPlugin }))
 mock.module("@gitlab/opencode-gitlab-auth", () => ({ default: mockPlugin }))
 
 import { tmpdir } from "../fixture/fixture"
-import { Instance } from "../../../opencode/src/project/instance"
-import { Provider } from "../../../opencode/src/provider/provider"
-import { Env } from "../../../opencode/src/env"
+import { Instance } from "opencode/project/instance"
+import { Provider } from "opencode/provider/provider"
+import { Env } from "opencode/env/index"
 
 test("provider loaded from env variable", async () => {
   await using tmp = await tmpdir({
@@ -46,9 +46,7 @@ test("provider loaded from env variable", async () => {
     fn: async () => {
       const providers = await Provider.list()
       expect(providers["anthropic"]).toBeDefined()
-      // Note: source becomes "custom" because CUSTOM_LOADERS run after env loading
-      // and anthropic has a custom loader that merges additional options
-      expect(providers["anthropic"].source).toBe("custom")
+      expect(providers["anthropic"].source).toBe("env")
     },
   })
 })

@@ -329,8 +329,12 @@
       "name": "@opencode-ai/fork-tests",
       "version": "1.0.0",
       "devDependencies": {
+        "@opencode-ai/fork-auth": "workspace:*",
         "@types/bun": "catalog:",
+        "hono": "catalog:",
+        "opencode": "workspace:*",
         "typescript": "catalog:",
+        "zod": "catalog:",
       },
     },
     "packages/fork-ui": {

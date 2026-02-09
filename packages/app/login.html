@@ -16,6 +16,34 @@
     <meta property="og:image" content="/social-share.png" />
     <meta property="twitter:image" content="/social-share.png" />
     <script id="oc-theme-preload-script" src="/oc-theme-preload.js"></script>
+    <script>
+      ;(() => {
+        try {
+          const currentUrl = new URL(window.location.href)
+          const hostname = currentUrl.hostname.trim().toLowerCase()
+          const normalizedHostname = hostname.replace(/^\[(.*)\]$/, "$1")
+          const skipRedirect = currentUrl.searchParams.get("no_loopback_redirect") === "1"
+          const isLoopbackHost =
+            normalizedHostname === "127.0.0.1" ||
+            normalizedHostname === "::1" ||
+            normalizedHostname === "0:0:0:0:0:0:0:1"
+
+          if (skipRedirect || !isLoopbackHost || normalizedHostname === "localhost") {
+            return
+          }
+
+          const redirectUrl = new URL(currentUrl.toString())
+          redirectUrl.protocol = "http:"
+          redirectUrl.hostname = "localhost"
+          redirectUrl.searchParams.set("oc_loopback_redirected", "1")
+          redirectUrl.searchParams.set("oc_loopback_from", normalizedHostname)
+          // Use replace() so Back does not return to the loopback URL and trigger another redirect.
+          window.location.replace(redirectUrl.toString())
+        } catch {
+          // Ignore parsing failures and continue loading the login app.
+        }
+      })()
+    </script>
   </head>
   <body class="antialiased overscroll-none text-12-regular overflow-hidden">
     <noscript>You need to enable JavaScript to run this app.</noscript>

@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test"
 import path from "path"
-import { ReadTool } from "../../../opencode/src/tool/read"
-import { Instance } from "../../../opencode/src/project/instance"
+import { ReadTool } from "opencode/tool/read"
+import { Instance } from "opencode/project/instance"
 import { tmpdir } from "../fixture/fixture"
-import { PermissionNext } from "../../../opencode/src/permission/next"
-import { Agent } from "../../../opencode/src/agent/agent"
+import { PermissionNext } from "opencode/permission/next"
+import { Agent } from "opencode/agent/agent"
 
 const FIXTURES_DIR = path.join(import.meta.dir, "fixtures")
 
@@ -12,6 +12,7 @@ const ctx = {
   sessionID: "test",
   messageID: "",
   callID: "",
+  messages: [],
   agent: "build",
   abort: AbortSignal.any([]),
   metadata: () => {},
@@ -72,7 +73,7 @@ describe("tool.read external_directory permission", () => {
         await read.execute({ filePath: path.join(outerTmp.path, "secret.txt") }, testCtx)
         const extDirReq = requests.find((r) => r.permission === "external_directory")
         expect(extDirReq).toBeDefined()
-        expect(extDirReq!.patterns.some((p) => p.includes(outerTmp.path))).toBe(true)
+        expect(extDirReq!.patterns.some((p: string) => p.includes(outerTmp.path))).toBe(true)
       },
     })
   })

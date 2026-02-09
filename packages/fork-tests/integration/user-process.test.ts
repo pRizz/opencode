@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "bun:test"
-import { BrokerClient } from "../../../opencode/src/auth/broker-client"
+import { BrokerClient } from "opencode/auth/broker-client"
 import { existsSync } from "fs"
 
 /**

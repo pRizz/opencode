@@ -4,10 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "bun test"
+    "test": "bun test",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json"
   },
   "devDependencies": {
+    "@opencode-ai/fork-auth": "workspace:*",
+    "@types/bun": "catalog:",
+    "hono": "catalog:",
+    "opencode": "workspace:*",
     "typescript": "catalog:",
-    "@types/bun": "catalog:"
+    "zod": "catalog:"
   }
 }

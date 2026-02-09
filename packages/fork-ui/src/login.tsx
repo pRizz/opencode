@@ -35,11 +35,25 @@ declare global {
 }
 
 const HTTP_WARNING_KEY = "http-warning-dismissed"
+const LOOPBACK_REDIRECTED_QUERY_PARAM = "oc_loopback_redirected"
+const LOOPBACK_REDIRECT_FROM_QUERY_PARAM = "oc_loopback_from"
+
+function normalizeHostname(hostname: string): string {
+  return hostname.trim().replace(/^\[(.*)\]$/, "$1").toLowerCase()
+}
+
+function isLocalHostname(hostname: string): boolean {
+  const normalized = normalizeHostname(hostname)
+  return (
+    normalized === "localhost" ||
+    normalized === "127.0.0.1" ||
+    normalized === "::1" ||
+    normalized === "0:0:0:0:0:0:0:1"
+  )
+}
 
 function shouldWarnForHttpConnection(): boolean {
-  const hostname = window.location.hostname
-  const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1"
-  return window.location.protocol === "http:" && !isLocalhost
+  return window.location.protocol === "http:" && !isLocalHostname(window.location.hostname)
 }
 
 function base64urlToArrayBuffer(value: string): ArrayBuffer {
@@ -171,6 +185,8 @@ export function LoginApp() {
     invalidUsername: false,
     invalidPassword: false,
     warningDismissed: false,
+    loopbackRedirected: false,
+    loopbackRedirectFrom: "loopback IP host",
 
     bootstrapOtp: "",
     bootstrapOtpVerifying: false,
@@ -187,6 +203,22 @@ export function LoginApp() {
   }
 
   onMount(() => {
+    const params = new URLSearchParams(window.location.search)
+    const redirectedFromLoopback = params.get(LOOPBACK_REDIRECTED_QUERY_PARAM) === "1"
+    if (redirectedFromLoopback) {
+      const fromParam = params.get(LOOPBACK_REDIRECT_FROM_QUERY_PARAM)
+      setState({
+        loopbackRedirected: true,
+        loopbackRedirectFrom: fromParam ? normalizeHostname(fromParam) : "loopback IP host",
+      })
+
+      params.delete(LOOPBACK_REDIRECTED_QUERY_PARAM)
+      params.delete(LOOPBACK_REDIRECT_FROM_QUERY_PARAM)
+      const cleanedQuery = params.toString()
+      const cleanedUrl = `${window.location.pathname}${cleanedQuery ? `?${cleanedQuery}` : ""}${window.location.hash}`
+      window.history.replaceState(window.history.state, "", cleanedUrl)
+    }
+
     if (shouldWarn && sessionStorage.getItem(HTTP_WARNING_KEY)) {
       setState("warningDismissed", true)
     }
@@ -783,6 +815,24 @@ export function LoginApp() {
         .http-warning-dismiss:hover {
           background: rgba(234, 179, 8, 0.1);
         }
+        .loopback-redirect-banner {
+          background: rgba(14, 165, 233, 0.15);
+          border: 1px solid rgba(14, 165, 233, 0.4);
+          border-radius: 8px;
+          padding: 0.75rem;
+          margin-bottom: 1.25rem;
+        }
+        .loopback-redirect-text {
+          color: #7dd3fc;
+          font-size: 0.75rem;
+          line-height: 1.4;
+        }
+        .loopback-redirect-text code {
+          background: rgba(2, 132, 199, 0.2);
+          color: #bae6fd;
+          border-radius: 4px;
+          padding: 0 0.35rem;
+        }
         .blocked-message {
           color: #fca5a5;
           font-size: 0.875rem;
@@ -815,6 +865,15 @@ export function LoginApp() {
       </svg>
 
       <div class="card">
+        <Show when={state.loopbackRedirected}>
+          <div class="loopback-redirect-banner">
+            <div class="loopback-redirect-text">
+              You were redirected from <code>{state.loopbackRedirectFrom}</code> to <code>localhost</code> because
+              passkeys (WebAuthn) do not work on loopback IP hosts.
+            </div>
+          </div>
+        </Show>
+
         <Show when={shouldBlock}>
           <div class="blocked-message">
             <strong>HTTPS is required to log in.</strong>

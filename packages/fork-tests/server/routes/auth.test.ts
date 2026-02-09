@@ -1,10 +1,10 @@
 import { describe, test, expect, mock, beforeEach } from "bun:test"
 import { Hono } from "hono"
 import path from "path"
-import type { AuthResult } from "../../../src/auth/broker-client"
-import type { UnixUserInfo } from "../../../src/auth/user-info"
-import type { AuthConfig } from "../../../src/config/auth"
-import { UserSession } from "../../../src/session/user-session"
+import type { AuthResult } from "opencode/auth/broker-client"
+import type { UnixUserInfo } from "opencode/auth/user-info"
+import type { AuthConfig } from "opencode/config/auth"
+import { UserSession } from "opencode/session/user-session"
 
 // Mock state with explicit types
 const mockAuthenticate = mock<() => Promise<AuthResult>>(() => Promise.resolve({ success: true }))
@@ -90,7 +90,7 @@ const mockRegisterSession = mock<() => Promise<boolean>>(() => Promise.resolve(t
 const mockUnregisterSession = mock<() => Promise<boolean>>(() => Promise.resolve(true))
 
 // Apply mocks before importing the module under test
-mock.module("../../../src/auth/broker-client", () => ({
+mock.module("opencode/auth/broker-client", () => ({
   BrokerClient: class {
     authenticate = mockAuthenticate
     registerSession = mockRegisterSession
@@ -104,13 +104,13 @@ mock.module("@opencode-ai/fork-auth/auth/broker-client", () => ({
     unregisterSession = mockUnregisterSession
   },
 }))
-mock.module("../../../src/auth/user-info", () => ({
+mock.module("opencode/auth/user-info", () => ({
   getUserInfo: mockGetUserInfo,
 }))
 mock.module("@opencode-ai/fork-auth/auth/user-info", () => ({
   getUserInfo: mockGetUserInfo,
 }))
-mock.module("../../../src/auth/passkey", () => ({
+mock.module("opencode/auth/passkey", () => ({
   createPasskeyAuthenticationOptions: mockCreatePasskeyAuthenticationOptions,
   verifyPasskeyAuthentication: mockVerifyPasskeyAuthentication,
   createPasskeyRegistrationOptions: mockCreatePasskeyRegistrationOptions,
@@ -126,7 +126,7 @@ mock.module("@opencode-ai/fork-auth/auth/passkey", () => ({
   listUserPasskeys: mockListUserPasskeys,
   removeUserPasskey: mockRemoveUserPasskey,
 }))
-mock.module("../../../src/auth/bootstrap", () => ({
+mock.module("opencode/auth/bootstrap", () => ({
   getBootstrapStatus: mockGetBootstrapStatus,
   verifyBootstrapOtp: mockVerifyBootstrapOtp,
   createBootstrapUser: mockCreateBootstrapUser,
@@ -138,7 +138,7 @@ mock.module("@opencode-ai/fork-auth/auth/bootstrap", () => ({
   createBootstrapUser: mockCreateBootstrapUser,
   completeBootstrapOtp: mockCompleteBootstrapOtp,
 }))
-mock.module("../../../src/config/server-auth", () => ({
+mock.module("opencode/config/server-auth", () => ({
   ServerAuth: {
     get: () => mockAuthConfig,
     isEnabled: () => mockAuthConfig.enabled,
@@ -216,10 +216,10 @@ mock.module("@opencode-ai/fork-auth/server-auth", () => ({
 }))
 
 // Import after mocking
-const { AuthRoutes } = await import("../../../src/server/routes/auth")
-const { setUiDir } = await import("../../../src/server/ui-dir")
+const { AuthRoutes } = await import("opencode/server/routes/auth")
+const { setUiDir } = await import("opencode/server/ui-dir")
 
-setUiDir(path.resolve(import.meta.dir, "../../../..", "app"))
+setUiDir(path.resolve(import.meta.dir, "../../..", "app"))
 
 // Helper to set mock auth config
 function setMockAuthConfig(config: Partial<AuthConfig>) {
@@ -986,6 +986,7 @@ describe("Passkey routes", () => {
     const res = await app.request("http://127.0.0.1:3000/auth/passkey/auth/options", {
       method: "POST",
       headers: {
+        Host: "127.0.0.1:3000",
         "Content-Type": "application/json",
         "X-Requested-With": "XMLHttpRequest",
       },
@@ -1002,6 +1003,7 @@ describe("Passkey routes", () => {
     const res = await app.request("http://localhost:3000/auth/passkey/auth/options", {
       method: "POST",
       headers: {
+        Host: "localhost:3000",
         "Content-Type": "application/json",
         "X-Requested-With": "XMLHttpRequest",
       },
@@ -1067,7 +1069,7 @@ describe("Passkey routes", () => {
       trustProxy: "auto",
     })
 
-    const authed = new Hono()
+    const authed = new Hono<any>()
     authed.use("/auth/passkey/*", async (c, next) => {
       c.set("session", {
         id: "session-id",
@@ -1095,7 +1097,7 @@ describe("Passkey routes", () => {
         body: JSON.stringify({}),
       })
       expect(res.status).toBe(200)
-      const call = mockCreatePasskeyRegistrationOptions.mock.calls.at(-1)?.[0] as
+      const call = (mockCreatePasskeyRegistrationOptions as any).mock.calls.at(-1)?.[0] as
         | { origins?: string[] }
         | undefined
       expect(call?.origins).toEqual(["https://example.com"])
@@ -1109,7 +1111,7 @@ describe("Passkey routes", () => {
   })
 
   test("GET /auth/passkey/list returns passkeys for authenticated session", async () => {
-    const authed = new Hono()
+    const authed = new Hono<any>()
     authed.use("/auth/passkey/*", async (c, next) => {
       c.set("session", {
         id: "session-id",
@@ -1144,7 +1146,7 @@ describe("Passkey routes", () => {
   })
 
   test("POST /auth/passkey/remove returns 404 when credential is missing", async () => {
-    const authed = new Hono()
+    const authed = new Hono<any>()
     authed.use("/auth/passkey/*", async (c, next) => {
       c.set("session", {
         id: "session-id",
@@ -1176,7 +1178,7 @@ describe("Passkey routes", () => {
   })
 
   test("POST /auth/passkey/register/options returns 400 for loopback IP hostnames", async () => {
-    const authed = new Hono()
+    const authed = new Hono<any>()
     authed.use("/auth/passkey/*", async (c, next) => {
       c.set("session", {
         id: "session-id",
@@ -1195,6 +1197,7 @@ describe("Passkey routes", () => {
     const res = await authed.request("http://127.0.0.1:3000/auth/passkey/register/options", {
       method: "POST",
       headers: {
+        Host: "127.0.0.1:3000",
         "Content-Type": "application/json",
         "X-Requested-With": "XMLHttpRequest",
       },
@@ -1407,6 +1410,23 @@ describe("HTTPS detection and enforcement", () => {
     expect(html).toContain("window.__OPENCODE_LOGIN__")
     expect(html).toContain('"shouldBlock":false')
     expect(html).not.toContain('"shouldWarn":')
+  })
+
+  test("GET /login HTML includes loopback redirect script markers", async () => {
+    setMockAuthConfig({ requireHttps: "warn" })
+    app = new Hono().route("/auth", AuthRoutes())
+
+    const res = await app.request("http://example.com/auth/login", {
+      method: "GET",
+      headers: { Host: "example.com" },
+    })
+    expect(res.status).toBe(200)
+    const html = await res.text()
+    expect(html).toContain("no_loopback_redirect")
+    expect(html).toContain("oc_loopback_redirected")
+    expect(html).toContain("oc_loopback_from")
+    expect(html).toContain("window.location.replace")
+    expect(html).toContain('redirectUrl.hostname = "localhost"')
   })
 
   test("GET /login returns blocked HTML when requireHttps is block and HTTP", async () => {

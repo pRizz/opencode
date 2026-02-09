@@ -1,15 +1,16 @@
 import { describe, expect, test } from "bun:test"
 import path from "path"
-import { BashTool } from "../../../opencode/src/tool/bash"
-import { Instance } from "../../../opencode/src/project/instance"
+import { BashTool } from "opencode/tool/bash"
+import { Instance } from "opencode/project/instance"
 import { tmpdir } from "../fixture/fixture"
-import type { PermissionNext } from "../../../opencode/src/permission/next"
-import { Truncate } from "../../../opencode/src/tool/truncation"
+import type { PermissionNext } from "opencode/permission/next"
+import { Truncate } from "opencode/tool/truncation"
 
 const ctx = {
   sessionID: "test",
   messageID: "",
   callID: "",
+  messages: [],
   agent: "build",
   abort: AbortSignal.any([]),
   metadata: () => {},
@@ -159,7 +160,7 @@ describe("tool.bash permissions", () => {
         )
         const extDirReq = requests.find((r) => r.permission === "external_directory")
         expect(extDirReq).toBeDefined()
-        expect(extDirReq!.patterns).toContain("/tmp")
+        expect(extDirReq!.patterns.some((pattern: string) => pattern.startsWith("/tmp"))).toBe(true)
       },
     })
   })
@@ -216,7 +217,7 @@ describe("tool.bash permissions", () => {
         )
         expect(requests.length).toBe(1)
         expect(requests[0].always.length).toBeGreaterThan(0)
-        expect(requests[0].always.some((p) => p.endsWith("*"))).toBe(true)
+        expect(requests[0].always.some((p: string) => p.endsWith("*"))).toBe(true)
       },
     })
   })

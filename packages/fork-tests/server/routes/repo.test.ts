@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test"
 
-const { RepoRoutes } = await import("../../../fork-auth/src/routes/repo")
+const { RepoRoutes } = await import("@opencode-ai/fork-auth/routes/repo")
 
 describe("repo clone policy", () => {
   test("POST /repo/clone rejects HTTPS clone URLs", async () => {

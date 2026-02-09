@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach } from "bun:test"
 import { Hono } from "hono"
-import { createLoginRateLimiter, getClientIP } from "../../../../opencode/src/server/security/rate-limit"
+import { createLoginRateLimiter, getClientIP } from "opencode/server/security/rate-limit"
 
 describe("rate-limit", () => {
   describe("getClientIP", () => {
     it("extracts IP from X-Forwarded-For header", async () => {
       const app = new Hono()
       app.get("/test", (c) => {
-        const ip = getClientIP(c)
+        const ip = getClientIP(c, true)
         return c.json({ ip })
       })
 
@@ -25,7 +25,7 @@ describe("rate-limit", () => {
     it("uses first IP when X-Forwarded-For has multiple IPs", async () => {
       const app = new Hono()
       app.get("/test", (c) => {
-        const ip = getClientIP(c)
+        const ip = getClientIP(c, true)
         return c.json({ ip })
       })
 
@@ -43,7 +43,7 @@ describe("rate-limit", () => {
     it("falls back to X-Real-IP when X-Forwarded-For not present", async () => {
       const app = new Hono()
       app.get("/test", (c) => {
-        const ip = getClientIP(c)
+        const ip = getClientIP(c, true)
         return c.json({ ip })
       })
 
@@ -75,7 +75,7 @@ describe("rate-limit", () => {
     it("prefers X-Forwarded-For over X-Real-IP", async () => {
       const app = new Hono()
       app.get("/test", (c) => {
-        const ip = getClientIP(c)
+        const ip = getClientIP(c, true)
         return c.json({ ip })
       })
 
@@ -100,7 +100,7 @@ describe("rate-limit", () => {
 
     it("allows requests under limit", async () => {
       const app = new Hono()
-      const limiter = createLoginRateLimiter({ windowMs: 1000, limit: 3 })
+      const limiter = createLoginRateLimiter({ windowMs: 1000, limit: 3, trustProxy: true })
 
       app.post("/login", limiter, (c) => c.json({ error: "invalid_credentials" }, 401))
 
@@ -119,7 +119,7 @@ describe("rate-limit", () => {
 
     it("blocks requests over limit with 429", async () => {
       const app = new Hono()
-      const limiter = createLoginRateLimiter({ windowMs: 1000, limit: 2 })
+      const limiter = createLoginRateLimiter({ windowMs: 1000, limit: 2, trustProxy: true })
 
       app.post("/login", limiter, (c) => c.json({ error: "invalid_credentials" }, 401))
 
@@ -150,7 +150,7 @@ describe("rate-limit", () => {
 
     it("includes Retry-After header on 429", async () => {
       const app = new Hono()
-      const limiter = createLoginRateLimiter({ windowMs: 1000, limit: 1 })
+      const limiter = createLoginRateLimiter({ windowMs: 1000, limit: 1, trustProxy: true })
 
       app.post("/login", limiter, (c) => c.json({ error: "invalid_credentials" }, 401))
 
@@ -170,7 +170,7 @@ describe("rate-limit", () => {
 
     it("different IPs have independent limits", async () => {
       const app = new Hono()
-      const limiter = createLoginRateLimiter({ windowMs: 1000, limit: 1 })
+      const limiter = createLoginRateLimiter({ windowMs: 1000, limit: 1, trustProxy: true })
 
       app.post("/login", limiter, (c) => c.json({ error: "invalid_credentials" }, 401))
 
@@ -190,7 +190,7 @@ describe("rate-limit", () => {
 
     it("resets after window expires", async () => {
       const app = new Hono()
-      const limiter = createLoginRateLimiter({ windowMs: 100, limit: 1 })
+      const limiter = createLoginRateLimiter({ windowMs: 100, limit: 1, trustProxy: true })
 
       app.post("/login", limiter, (c) => c.json({ error: "invalid_credentials" }, 401))
 
@@ -221,7 +221,7 @@ describe("rate-limit", () => {
 
     it("respects custom config values", async () => {
       const app = new Hono()
-      const limiter = createLoginRateLimiter({ windowMs: 1000, limit: 10 })
+      const limiter = createLoginRateLimiter({ windowMs: 1000, limit: 10, trustProxy: true })
 
       app.post("/login", limiter, (c) => c.json({ error: "invalid_credentials" }, 401))
 
