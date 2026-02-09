@@ -19,7 +19,7 @@ concurrency:
 jobs:
   unit:
     name: unit (linux)
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash
@@ -47,10 +47,8 @@ jobs:
       fail-fast: false
       # Job-level `if` is evaluated before matrix expansion, so we select matrix rows by event here.
       matrix:
-        settings: ${{ fromJSON(github.event_name == 'pull_request' && '[{"name":"linux","host":"blacksmith-4vcpu-ubuntu-2404","playwright":"bunx playwright install --with-deps","workdir":"packages/app","command":"bun test:e2e"}]' || '[{"name":"linux","host":"blacksmith-4vcpu-ubuntu-2404","playwright":"bunx playwright install --with-deps","workdir":"packages/app","command":"bun test:e2e"},{"name":"windows","host":"blacksmith-4vcpu-windows-2025","playwright":"bunx playwright install","workdir":"packages/app","command":"bun test:e2e:local -- --workers=2"}]') }}
+        settings: ${{ fromJSON(github.event_name == 'pull_request' && '[{"name":"linux","host":"ubuntu-latest","playwright":"bunx playwright install --with-deps","workdir":"packages/app","command":"bun test:e2e"}]' || '[{"name":"linux","host":"ubuntu-latest","playwright":"bunx playwright install --with-deps","workdir":"packages/app","command":"bun test:e2e"},{"name":"windows","host":"windows-latest","playwright":"bunx playwright install","workdir":"packages/app","command":"bun test:e2e:local -- --workers=2"}]') }}
     runs-on: ${{ matrix.settings.host }}
-    env:
-      PLAYWRIGHT_BROWSERS_PATH: 0
     defaults:
       run:
         shell: bash
@@ -184,7 +182,7 @@ jobs:
 
   required:
     name: test (linux)
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     needs:
       - unit
       - e2e
