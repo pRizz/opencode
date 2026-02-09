@@ -39,6 +39,8 @@ jobs:
 
       - name: Run unit tests
         run: bun turbo test
+        env:
+          OPENCODE_CONFIG_CONTENT: '{"auth":{"enabled":false}}'
 
   e2e:
     name: e2e (${{ matrix.settings.name }})

@@ -16,6 +16,9 @@ export namespace Global {
     get home() {
       return process.env.OPENCODE_TEST_HOME || os.homedir()
     },
+    get managedConfig() {
+      return process.env.OPENCODE_TEST_MANAGED_CONFIG_DIR || path.join("/etc", app)
+    },
     data,
     bin: path.join(data, "bin"),
     log: path.join(data, "log"),

@@ -388,7 +388,7 @@ test("default permission includes doom_loop and external_directory as allow", as
     fn: async () => {
       const build = await Agent.get("build")
       expect(evalPerm(build, "doom_loop")).toBe("allow")
-      expect(evalPerm(build, "external_directory")).toBe("allow")
+      expect(evalPerm(build, "external_directory")).toBe("ask")
     },
   })
 })

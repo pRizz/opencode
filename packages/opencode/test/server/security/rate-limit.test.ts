@@ -7,7 +7,7 @@ describe("rate-limit", () => {
     it("extracts IP from X-Forwarded-For header", async () => {
       const app = new Hono()
       app.get("/test", (c) => {
-        const ip = getClientIP(c)
+        const ip = getClientIP(c, true)
         return c.json({ ip })
       })
 
@@ -25,7 +25,7 @@ describe("rate-limit", () => {
     it("uses first IP when X-Forwarded-For has multiple IPs", async () => {
       const app = new Hono()
       app.get("/test", (c) => {
-        const ip = getClientIP(c)
+        const ip = getClientIP(c, true)
         return c.json({ ip })
       })
 
@@ -43,7 +43,7 @@ describe("rate-limit", () => {
     it("falls back to X-Real-IP when X-Forwarded-For not present", async () => {
       const app = new Hono()
       app.get("/test", (c) => {
-        const ip = getClientIP(c)
+        const ip = getClientIP(c, true)
         return c.json({ ip })
       })
 
@@ -61,7 +61,7 @@ describe("rate-limit", () => {
     it("returns 'unknown' when no headers present", async () => {
       const app = new Hono()
       app.get("/test", (c) => {
-        const ip = getClientIP(c)
+        const ip = getClientIP(c, true)
         return c.json({ ip })
       })
 
@@ -75,7 +75,7 @@ describe("rate-limit", () => {
     it("prefers X-Forwarded-For over X-Real-IP", async () => {
       const app = new Hono()
       app.get("/test", (c) => {
-        const ip = getClientIP(c)
+        const ip = getClientIP(c, true)
         return c.json({ ip })
       })
 
@@ -170,7 +170,7 @@ describe("rate-limit", () => {
 
     it("different IPs have independent limits", async () => {
       const app = new Hono()
-      const limiter = createLoginRateLimiter({ windowMs: 1000, limit: 1 })
+      const limiter = createLoginRateLimiter({ windowMs: 1000, limit: 1, trustProxy: true })
 
       app.post("/login", limiter, (c) => c.json({ error: "invalid_credentials" }, 401))
 

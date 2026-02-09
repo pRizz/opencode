@@ -189,6 +189,12 @@ export namespace Config {
       log.debug("loaded custom config from OPENCODE_CONFIG_CONTENT")
     }
 
+    // Managed settings have absolute highest precedence (enterprise/MDM overrides)
+    for (const file of ["opencode.jsonc", "opencode.json"]) {
+      const managedPath = path.join(Global.Path.managedConfig, file)
+      result = mergeConfigConcatArrays(result, await loadFile(managedPath))
+    }
+
     if (Flag.OPENCODE_PERMISSION) {
       result.permission = mergeDeep(result.permission ?? {}, JSON.parse(Flag.OPENCODE_PERMISSION))
     }
@@ -725,6 +731,7 @@ export namespace Config {
         "permission",
         "disable",
         "tools",
+        "variant",
       ])
 
       // Extract unknown properties into options

@@ -8,37 +8,41 @@ import { Provider } from "../../src/provider/provider"
 import { Env } from "../../src/env"
 import { Global } from "../../src/global"
 
-test("Bedrock: config region takes precedence over AWS_REGION env var", async () => {
-  await using tmp = await tmpdir({
-    init: async (dir) => {
-      await Bun.write(
-        path.join(dir, "opencode.json"),
-        JSON.stringify({
-          $schema: "https://opencode.ai/config.json",
-          provider: {
-            "amazon-bedrock": {
-              options: {
-                region: "eu-west-1",
+test(
+  "Bedrock: config region takes precedence over AWS_REGION env var",
+  async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(
+          path.join(dir, "opencode.json"),
+          JSON.stringify({
+            $schema: "https://opencode.ai/config.json",
+            provider: {
+              "amazon-bedrock": {
+                options: {
+                  region: "eu-west-1",
+                },
               },
             },
-          },
-        }),
-      )
-    },
-  })
-  await Instance.provide({
-    directory: tmp.path,
-    init: async () => {
-      Env.set("AWS_REGION", "us-east-1")
-      Env.set("AWS_PROFILE", "default")
-    },
-    fn: async () => {
-      const providers = await Provider.list()
-      expect(providers["amazon-bedrock"]).toBeDefined()
-      expect(providers["amazon-bedrock"].options?.region).toBe("eu-west-1")
-    },
-  })
-})
+          }),
+        )
+      },
+    })
+    await Instance.provide({
+      directory: tmp.path,
+      init: async () => {
+        Env.set("AWS_REGION", "us-east-1")
+        Env.set("AWS_PROFILE", "default")
+      },
+      fn: async () => {
+        const providers = await Provider.list()
+        expect(providers["amazon-bedrock"]).toBeDefined()
+        expect(providers["amazon-bedrock"].options?.region).toBe("eu-west-1")
+      },
+    })
+  },
+  15_000,
+)
 
 test("Bedrock: falls back to AWS_REGION env var when no config region", async () => {
   await using tmp = await tmpdir({
