@@ -8,6 +8,7 @@ import {
 } from "../selectors"
 
 test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("opencode.fork.dat:welcome.v1", "seen"))
   await mockAuthenticatedAuth(page)
   await page.route("**/global/health*", async (route) => {
     await route.fulfill({

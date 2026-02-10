@@ -37,3 +37,11 @@ export const newSessionRepoManageCtaSelector = '[data-action="new-session-repo-m
 export const repoSelectorCloneSelector = '[data-action="repo-selector-clone"]'
 export const repoCloneHttpsWarningSelector = '[data-action="repo-clone-https-warning"]'
 export const repoCloneSubmitSelector = '[data-action="repo-clone-submit"]'
+
+// --- Welcome ---
+export const settingsTabWelcomeSelector = '[data-action="settings-tab-welcome"]'
+export const settingsWelcomeTabSelector = '[data-action="settings-welcome-tab"]'
+export const settingsWelcomeShowModalSelector = '[data-action="settings-welcome-show-modal"]'
+export const welcomeModalSelector = '[data-action="welcome-modal"]'
+export const welcomeForkFeaturesSelector = '[data-action="welcome-fork-features"]'
+export const welcomeForkRepoLinkSelector = '[data-action="welcome-link-opencode-fork"]'

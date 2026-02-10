@@ -1,6 +1,12 @@
 import { test, expect } from "../fixtures"
 import { serverName } from "../utils"
 
+const welcomeKey = "opencode.fork.dat:welcome.v1"
+
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript((key) => localStorage.setItem(key, "seen"), welcomeKey)
+})
+
 test("home renders and shows core entrypoints", async ({ page }) => {
   await page.goto("/")
 

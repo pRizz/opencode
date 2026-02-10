@@ -12,6 +12,7 @@ import {
   SettingsAuthSessionTab,
   SettingsAuthTwoFactorTab,
   SettingsRepositoriesTab,
+  SettingsWelcomeTab,
   useSettingsAuth,
 } from "@opencode-ai/fork-ui"
 import type { Repo } from "@opencode-ai/sdk/v2/client"
@@ -29,6 +30,7 @@ import { SettingsModels } from "./settings-models"
 
 type DialogSettingsTab =
   | "general"
+  | "welcome"
   | "shortcuts"
   | "providers"
   | "models"
@@ -110,6 +112,10 @@ export const DialogSettings: Component<DialogSettingsProps> = (props) => {
                         <Icon name="sliders" />
                         {language.t("settings.tab.general")}
                       </Tabs.Trigger>
+                      <Tabs.Trigger value="welcome" data-action="settings-tab-welcome">
+                        <Icon name="help" />
+                        Welcome
+                      </Tabs.Trigger>
                       <Tabs.Trigger value="shortcuts">
                         <Icon name="keyboard" />
                         {language.t("settings.tab.shortcuts")}
@@ -147,6 +153,9 @@ export const DialogSettings: Component<DialogSettingsProps> = (props) => {
           </Tabs.List>
           <Tabs.Content value="general" class="no-scrollbar">
             <SettingsGeneral />
+          </Tabs.Content>
+          <Tabs.Content value="welcome" class="no-scrollbar">
+            <SettingsWelcomeTab />
           </Tabs.Content>
           <Tabs.Content value="shortcuts" class="no-scrollbar">
             <SettingsKeybinds />

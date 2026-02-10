@@ -27,6 +27,7 @@ import { CommandProvider } from "@/context/command"
 import { LanguageProvider, useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { HighlightsProvider } from "@/context/highlights"
+import { WelcomeBootstrap } from "@opencode-ai/fork-ui"
 import Layout from "@/pages/layout"
 import DirectoryLayout from "@/pages/directory-layout"
 import { ErrorPage } from "./pages/error"
@@ -118,6 +119,7 @@ export function AppInterface(props: { defaultUrl?: string; children?: JSX.Elemen
                       <NotificationProvider>
                         <ModelsProvider>
                           <CommandProvider>
+                            <WelcomeBootstrap />
                             <HighlightsProvider>
                               <Layout>
                                 {props.children}

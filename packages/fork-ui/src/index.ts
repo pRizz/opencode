@@ -35,6 +35,9 @@ export { formatRepoError, formatRepoErrorWithContext } from "./repo/repo-errors"
 export { isHttpCloneUrl, isHttpsCloneUnsupported, isSshCloneUrl } from "./repo/clone-url-policy"
 export { SshKeysDialog } from "./ssh-keys-dialog"
 export { SettingsRepositoriesTab } from "./settings-repositories-tab"
+export { WelcomeBootstrap } from "./welcome-bootstrap"
+export { SettingsWelcomeTab } from "./settings-welcome-tab"
+export { ForkPointerLink } from "./fork-pointer-link"
 export {
   useCloneProgress,
   type CloneAuthType,
