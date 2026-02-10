@@ -48,7 +48,6 @@ import { AuthRoutes } from "./routes/auth"
 import { authMiddleware } from "./middleware/auth"
 import { csrfMiddleware } from "./middleware/csrf"
 import { MDNS } from "./mdns"
-import { ServerAuth } from "../config/server-auth"
 import { setUiDir } from "./ui-dir"
 import path from "path"
 import { Installation } from "@/installation"
@@ -676,16 +675,13 @@ export namespace Server {
     return result
   }
 
-  export async function listen(opts: {
+  export function listen(opts: {
     port: number
     hostname: string
     mdns?: boolean
     cors?: string[]
     uiDir?: string
   }) {
-    // Load auth config at server startup (before any requests)
-    await ServerAuth.load()
-
     _corsWhitelist = opts.cors ?? []
     _uiDir = opts.uiDir ? path.resolve(opts.uiDir) : undefined
     setUiDir(_uiDir)

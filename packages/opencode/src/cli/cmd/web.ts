@@ -1,4 +1,5 @@
 import { Server } from "../../server/server"
+import { ServerAuth } from "../../config/server-auth"
 import { UI } from "../ui"
 import { cmd } from "./cmd"
 import { withNetworkOptions, resolveNetworkOptions } from "../network"
@@ -39,6 +40,7 @@ export const WebCommand = cmd({
     }
     const opts = await resolveNetworkOptions(args)
     const uiDir = await resolveForkWebUiDir()
+    await ServerAuth.load()
     const server = await Server.listen({ ...opts, ...(uiDir ? { uiDir } : {}) })
     UI.empty()
     UI.println(UI.logo("  "))

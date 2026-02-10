@@ -1,5 +1,6 @@
 import { Installation } from "@/installation"
 import { Server } from "@/server/server"
+import { ServerAuth } from "@/config/server-auth"
 import { Log } from "@/util/log"
 import { Instance } from "@/project/instance"
 import { InstanceBootstrap } from "@/project/bootstrap"
@@ -118,6 +119,7 @@ export const rpc = {
   },
   async server(input: { port: number; hostname: string; mdns?: boolean; cors?: string[] }) {
     if (server) await server.stop(true)
+    await ServerAuth.load()
     server = await Server.listen(input)
     return { url: server.url.toString() }
   },

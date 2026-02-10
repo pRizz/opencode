@@ -102,7 +102,7 @@ export namespace ServerAuth {
   export function get(): AuthConfigType {
     if (!_config) {
       // Return default if not loaded (shouldn't happen in normal flow)
-      return AuthConfig.parse({})
+      return AuthConfig.parse({ enabled: false })
     }
     return _config
   }
