@@ -147,8 +147,17 @@ jobs:
             2. Upstream-owned files (not in audit): accept upstream version entirely.
             3. Fork-owned files (`packages/fork-*`): preserve fork version, incorporate
                non-contradicting upstream changes.
-            4. Shared surfaces (re-export stubs in `packages/opencode/src/`): accept
-               upstream structural changes, preserve fork hook integration points.
+            4. Shared surfaces (files in `packages/opencode/src/` that import from
+               `packages/fork-*`): These are the hardest conflicts. For each file:
+               a. Read BOTH versions: `git show HEAD:<path>` (fork) and
+                  `git show MERGE_HEAD:<path>` (upstream).
+               b. Start from the UPSTREAM version as the base — accept all upstream
+                  structural changes, new features, new parameters, and refactors.
+               c. Then surgically re-add fork-specific code from the fork version:
+                  fork-* package imports, broker/auth state blocks, and fallback
+                  paths in exported functions that delegate to fork implementations.
+               d. Ensure upstream's new features are preserved in the final result.
+               e. The goal is: upstream's new code + fork's integration hooks on top.
             5. Config/infra files: merge both sides, keep fork additions alongside
                upstream updates.
 
@@ -207,6 +216,11 @@ jobs:
             Read `docs/upstream-sync/fork-feature-audit.md` for context on which
             files are fork-owned vs upstream-owned.
 
+            When fixing shared surface files (files in `packages/opencode/src/` that
+            import from fork-* packages), compare the current file against both
+            `git show origin/dev:<path>` (fork before merge) and the upstream version
+            to ensure all fork hooks are preserved alongside upstream's new features.
+
             Fix the errors. Commit your changes. Do NOT run tests or push.
           claude_args: >-
             --max-turns 200
@@ -242,6 +256,12 @@ jobs:
             ${{ steps.test2.outputs.test_failures }}
 
             Read `docs/upstream-sync/fork-feature-audit.md` for context.
+
+            When fixing shared surface files (files in `packages/opencode/src/` that
+            import from fork-* packages), compare the current file against both
+            `git show origin/dev:<path>` (fork before merge) and the upstream version
+            to ensure all fork hooks are preserved alongside upstream's new features.
+
             Fix the errors. Commit your changes. Do NOT run tests or push.
           claude_args: >-
             --max-turns 200
