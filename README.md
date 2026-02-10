@@ -37,6 +37,23 @@
   <a href="README.tr.md">Türkçe</a>
 </p>
 
+### Fork Divergence
+
+<!-- BEGIN:fork-divergence -->
+| Metric | Value |
+|--------|-------|
+| Merge base | `1e2f664` |
+| Merge base age | 0 days |
+| Upstream commits since base | 8 |
+| Fork commits since base | 527 |
+| Modified upstream files | 105 (+8,683 / -3,939 lines) |
+| Fork-only files | 481 (+120,993 lines) |
+| **Total divergent files** | **586** |
+| **Total lines changed** | **133,615** |
+
+*Last updated: 2026-02-10 — [historical data](data/fork-divergence.csv)*
+<!-- END:fork-divergence -->
+
 [![OpenCode Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://opencode.ai)
 
 ---
