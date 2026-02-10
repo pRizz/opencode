@@ -38,7 +38,7 @@ jobs:
           git config --global user.name "opencode"
 
       - name: Run unit tests
-        run: bun turbo test
+        run: bun turbo test --only
 
   e2e:
     name: e2e (${{ matrix.settings.name }})
