@@ -234,7 +234,19 @@ export const PtyRoutes = lazy(() =>
       upgradeWebSocket((c) => {
         const requestId = getPtyRequestId(c)
         const id = c.req.param("ptyID")
-        return createPtyWebSocketHandlers({ id, requestId, connect: Pty.connect, log })
+        const cursor = (() => {
+          const value = c.req.query("cursor")
+          if (!value) return undefined
+          const parsed = Number(value)
+          if (!Number.isSafeInteger(parsed) || parsed < -1) return undefined
+          return parsed
+        })()
+        return createPtyWebSocketHandlers({
+          id,
+          requestId,
+          connect: (connId, ws, options) => Pty.connect(connId, ws, { ...options, cursor }),
+          log,
+        })
       }),
     ),
 )

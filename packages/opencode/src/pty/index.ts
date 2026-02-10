@@ -12,6 +12,7 @@ import { createBrokerPtyManager } from "@opencode-ai/fork-terminal/broker-pty-ma
 import { createTerminal } from "@opencode-ai/fork-terminal/server"
 import { createPtyViaBroker } from "@opencode-ai/fork-terminal/server-pty"
 import { Shell } from "@/shell/shell"
+import { Plugin } from "@/plugin"
 
 // Re-export broker PTY module for authenticated sessions
 export * as BrokerPty from "./broker-pty"
@@ -22,6 +23,17 @@ export namespace Pty {
   const BUFFER_LIMIT = 1024 * 1024 * 2
   const BUFFER_CHUNK = 64 * 1024
   const TERMINAL_EXIT_MESSAGE = "\r\n[opencode] Terminal session ended.\r\n"
+  const encoder = new TextEncoder()
+
+  // WebSocket control frame: 0x00 + UTF-8 JSON (currently { cursor }).
+  const meta = (cursor: number) => {
+    const json = JSON.stringify({ cursor })
+    const bytes = encoder.encode(json)
+    const out = new Uint8Array(bytes.length + 1)
+    out[0] = 0
+    out.set(bytes, 1)
+    return out
+  }
 
   const pty = lazy(async () => {
     const { spawn } = await import("bun-pty")
@@ -75,6 +87,8 @@ export namespace Pty {
     info: Info
     process: IPty
     buffer: string
+    bufferCursor: number
+    cursor: number
     subscribers: Set<WSContext>
   }
 
@@ -119,9 +133,6 @@ export namespace Pty {
    *
    * When auth is enabled and a session ID is provided, routes creation
    * through the broker for user impersonation. Otherwise uses local bun-pty.
-   *
-   * @param input - PTY configuration options
-   * @param maybeSessionId - Optional session ID for broker-based creation
    */
   export async function create(input: CreateInput, maybeSessionId?: string, requestId?: string): Promise<Info> {
     return createTerminal(
@@ -133,21 +144,15 @@ export namespace Pty {
       {
         isAuthEnabled: () => ServerAuth.get().enabled,
         createLocal,
-        createViaBroker,
+        createViaBroker: createViaBrokerImpl,
       },
     )
   }
 
   /**
    * Create a PTY session via the auth broker.
-   *
-   * The broker spawns the process with the user's UID/GID based on
-   * the session registration.
-   *
-   * Note: Currently throws "not yet implemented" - PTY I/O streaming
-   * will be implemented in Plan 05-08.
    */
-  async function createViaBroker(input: CreateInput, sessionId: string, requestId?: string): Promise<Info> {
+  async function createViaBrokerImpl(input: CreateInput, sessionId: string, requestId?: string): Promise<Info> {
     const info = await createPtyViaBroker(input, sessionId, requestId, {
       brokerManager: brokerState(),
       shellPreferred: Shell.preferred,
@@ -160,8 +165,6 @@ export namespace Pty {
 
   /**
    * Create a PTY session locally using bun-pty.
-   *
-   * Runs as the server user (no user impersonation).
    */
   async function createLocal(input: CreateInput, requestId?: string): Promise<Info> {
     const id = Identifier.create("pty", false)
@@ -172,7 +175,20 @@ export namespace Pty {
     }
 
     const cwd = input.cwd || Instance.directory
-    const env = { ...process.env, ...input.env, TERM: "xterm-256color" } as Record<string, string>
+    const shellEnv = await Plugin.trigger("shell.env", { cwd }, { env: {} })
+    const env = {
+      ...process.env,
+      ...input.env,
+      ...shellEnv.env,
+      TERM: "xterm-256color",
+      OPENCODE_TERMINAL: "1",
+    } as Record<string, string>
+
+    if (process.platform === "win32") {
+      env.LC_ALL = "C.UTF-8"
+      env.LC_CTYPE = "C.UTF-8"
+      env.LANG = "C.UTF-8"
+    }
     log.info("creating session", { id, cmd: command, args, cwd, requestId })
 
     const spawn = await pty()
@@ -195,23 +211,27 @@ export namespace Pty {
       info,
       process: ptyProcess,
       buffer: "",
+      bufferCursor: 0,
+      cursor: 0,
       subscribers: new Set(),
     }
     state().set(id, session)
     ptyProcess.onData((data) => {
-      let open = false
+      session.cursor += data.length
+
       for (const ws of session.subscribers) {
         if (ws.readyState !== 1) {
           session.subscribers.delete(ws)
           continue
         }
-        open = true
         ws.send(data)
       }
-      if (open) return
+
       session.buffer += data
       if (session.buffer.length <= BUFFER_LIMIT) return
-      session.buffer = session.buffer.slice(-BUFFER_LIMIT)
+      const excess = session.buffer.length - BUFFER_LIMIT
+      session.buffer = session.buffer.slice(excess)
+      session.bufferCursor += excess
     })
     ptyProcess.onExit(({ exitCode }) => {
       log.info("session exited", { id, exitCode })
@@ -302,31 +322,51 @@ export namespace Pty {
     }
   }
 
-  export function connect(id: string, ws: WSContext, options: { requestId?: string } = {}) {
+  export function connect(id: string, ws: WSContext, options: { requestId?: string; cursor?: number } = {}) {
     const session = state().get(id)
     if (!session) {
       if (brokerState().has(id)) {
-        return brokerState().connect(id, ws, options)
+        return brokerState().connect(id, ws, { requestId: options.requestId })
       }
       ws.close()
       return
     }
     log.info("client connected to session", { id, requestId: options.requestId })
-    session.subscribers.add(ws)
-    if (session.buffer) {
-      const buffer = session.buffer.length <= BUFFER_LIMIT ? session.buffer : session.buffer.slice(-BUFFER_LIMIT)
-      session.buffer = ""
+
+    const start = session.bufferCursor
+    const end = session.cursor
+    const cursor = options.cursor
+
+    const from =
+      cursor === -1 ? end : typeof cursor === "number" && Number.isSafeInteger(cursor) ? Math.max(0, cursor) : 0
+
+    const data = (() => {
+      if (!session.buffer) return ""
+      if (from >= end) return ""
+      const offset = Math.max(0, from - start)
+      if (offset >= session.buffer.length) return ""
+      return session.buffer.slice(offset)
+    })()
+
+    if (data) {
       try {
-        for (let i = 0; i < buffer.length; i += BUFFER_CHUNK) {
-          ws.send(buffer.slice(i, i + BUFFER_CHUNK))
+        for (let i = 0; i < data.length; i += BUFFER_CHUNK) {
+          ws.send(data.slice(i, i + BUFFER_CHUNK))
         }
       } catch {
-        session.subscribers.delete(ws)
-        session.buffer = buffer
         ws.close()
         return
       }
     }
+
+    try {
+      ws.send(meta(end))
+    } catch {
+      ws.close()
+      return
+    }
+
+    session.subscribers.add(ws)
     return {
       onMessage: (message: string | ArrayBuffer) => {
         session.process.write(String(message))

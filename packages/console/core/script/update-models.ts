@@ -58,7 +58,7 @@ function applyOpenRouterPatch(input: any) {
 
 const root = path.resolve(process.cwd(), "..", "..", "..")
 const models = await $`bun sst secret list`.cwd(root).text()
-const PARTS = 10
+const PARTS = 20
 
 // read the line starting with "ZEN_MODELS"
 const lines = models.split("\n")
