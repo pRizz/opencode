@@ -2,13 +2,33 @@ import { Dialog } from "@opencode-ai/ui/dialog"
 import { Button } from "@opencode-ai/ui/button"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { ForkPointerLink } from "./fork-pointer-link"
+import { getWelcomeBadgeSections } from "./readme-badge-catalog"
 
 export function WelcomeDialog() {
   const dialog = useDialog()
+  const badgeSections = getWelcomeBadgeSections("core")
 
   return (
     <Dialog title="Welcome to OpenCode Cloud" size="large" fit class="max-w-[760px]">
       <div class="flex flex-col gap-5 px-2 pb-3" data-action="welcome-modal">
+        <div class="rounded-md border border-border-weak-base p-4 flex flex-col gap-3" data-action="welcome-badges-root">
+          {badgeSections.map((section) => (
+            <div
+              class="flex flex-col gap-2"
+              data-action={section.source === "opencode-cloud" ? "welcome-badges-section-cloud" : "welcome-badges-section-opencode"}
+            >
+              <div class="text-12-medium text-text-weak">{section.title}</div>
+              <div class="flex flex-wrap gap-2">
+                {section.badges.map((badge) => (
+                  <ForkPointerLink href={badge.linkUrl} class="inline-flex leading-none" data-action="welcome-badge-item" data-badge-id={badge.id}>
+                    <img src={badge.imageUrl} alt={badge.label} class="h-5 w-auto" />
+                  </ForkPointerLink>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
         <p class="text-14-regular text-text-base">
           OpenCode Cloud is ready. Start by opening or cloning a repository, then launch a session and prompt the
           assistant from your project context.

@@ -4,6 +4,10 @@ import {
   settingsTabWelcomeSelector,
   settingsWelcomeShowModalSelector,
   settingsWelcomeTabSelector,
+  welcomeBadgeItemSelector,
+  welcomeBadgesCloudSectionSelector,
+  welcomeBadgesOpencodeSectionSelector,
+  welcomeBadgesRootSelector,
   welcomeForkFeaturesSelector,
   welcomeForkRepoLinkSelector,
   welcomeModalSelector,
@@ -29,6 +33,65 @@ test("auto-shows welcome modal on first home visit", async ({ page }) => {
 
   const modal = page.locator(welcomeModalSelector)
   await expect(modal).toBeVisible()
+
+  const badgeRoot = modal.locator(welcomeBadgesRootSelector)
+  await expect(badgeRoot).toBeVisible()
+
+  const cloudSection = badgeRoot.locator(welcomeBadgesCloudSectionSelector)
+  const opencodeSection = badgeRoot.locator(welcomeBadgesOpencodeSectionSelector)
+
+  await expect(cloudSection).toContainText("OpenCode Cloud (superproject README badges)")
+  await expect(opencodeSection).toContainText("OpenCode base/fork (packages/opencode README badges)")
+  await expect(cloudSection.locator(welcomeBadgeItemSelector)).toHaveCount(5)
+  await expect(opencodeSection.locator(welcomeBadgeItemSelector)).toHaveCount(3)
+  await expect(badgeRoot.locator(welcomeBadgeItemSelector)).toHaveCount(8)
+
+  const cloudBadgeData = await cloudSection.locator(welcomeBadgeItemSelector).evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const image = node.querySelector("img")
+      return {
+        id: node.getAttribute("data-badge-id"),
+        href: node.getAttribute("href"),
+        cursor: getComputedStyle(node).cursor,
+        imageSrc: image?.getAttribute("src") ?? null,
+      }
+    }),
+  )
+
+  const opencodeBadgeData = await opencodeSection.locator(welcomeBadgeItemSelector).evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const image = node.querySelector("img")
+      return {
+        id: node.getAttribute("data-badge-id"),
+        href: node.getAttribute("href"),
+        cursor: getComputedStyle(node).cursor,
+        imageSrc: image?.getAttribute("src") ?? null,
+      }
+    }),
+  )
+
+  expect(cloudBadgeData).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        id: "cloud-github-stars",
+        href: "https://github.com/pRizz/opencode-cloud",
+        cursor: "pointer",
+        imageSrc: "https://img.shields.io/github/stars/pRizz/opencode-cloud",
+      }),
+    ]),
+  )
+
+  expect(opencodeBadgeData).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        id: "opencode-discord",
+        href: "https://opencode.ai/discord",
+        cursor: "pointer",
+        imageSrc: "https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord",
+      }),
+    ]),
+  )
+
   const features = modal.locator(welcomeForkFeaturesSelector)
   await expect(features).toBeVisible()
   await expect(features).toContainText("Passkey-first authentication")

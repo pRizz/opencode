@@ -45,3 +45,7 @@ export const settingsWelcomeShowModalSelector = '[data-action="settings-welcome-
 export const welcomeModalSelector = '[data-action="welcome-modal"]'
 export const welcomeForkFeaturesSelector = '[data-action="welcome-fork-features"]'
 export const welcomeForkRepoLinkSelector = '[data-action="welcome-link-opencode-fork"]'
+export const welcomeBadgesRootSelector = '[data-action="welcome-badges-root"]'
+export const welcomeBadgesCloudSectionSelector = '[data-action="welcome-badges-section-cloud"]'
+export const welcomeBadgesOpencodeSectionSelector = '[data-action="welcome-badges-section-opencode"]'
+export const welcomeBadgeItemSelector = '[data-action="welcome-badge-item"]'
