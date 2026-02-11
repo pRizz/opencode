@@ -134,7 +134,7 @@ export const FileRoutes = lazy(() =>
       validator(
         "query",
         z.object({
-          path: z.string().min(1),
+          path: z.string(),
         }),
       ),
       async (c) => {
@@ -163,7 +163,7 @@ export const FileRoutes = lazy(() =>
       validator(
         "query",
         z.object({
-          path: z.string().min(1),
+          path: z.string(),
         }),
       ),
       async (c) => {
