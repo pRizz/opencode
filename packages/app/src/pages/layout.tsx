@@ -1178,15 +1178,18 @@ export default function Layout(props: ParentProps) {
           multiple={true}
           onSelect={resolve}
           searchAction={
-            <Button
-              variant="ghost"
-              size="normal"
-              onClick={() => dialog.show(() => <CloneDialog onCloneSuccess={(repo) => openProject(repo.path)} />)}
-              data-action="project-open-clone-action"
-            >
-              <Icon name="download" size="small" />
-              {language.t("dialog.directory.clone")}
-            </Button>
+            <div class="shrink-0 flex items-center gap-2">
+              <span class="text-12-regular text-text-weak select-none mx-2">Or</span>
+              <Button
+                variant="ghost"
+                size="normal"
+                onClick={() => dialog.show(() => <CloneDialog onCloneSuccess={(repo) => openProject(repo.path)} />)}
+                data-action="project-open-clone-action"
+              >
+                <Icon name="download" size="small" />
+                {language.t("dialog.directory.clone")}
+              </Button>
+            </div>
           }
         />
       ),

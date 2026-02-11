@@ -1,6 +1,7 @@
 import { test, expect } from "../../fixtures"
 import { openSettings } from "../../actions"
 import { mockAuthenticatedAuth } from "../mocks/auth"
+import { createMockSshKey, mockSshKeys } from "../mocks/ssh-keys"
 import {
   homeRepoCloneCtaSelector,
   homeRepoManageCtaSelector,
@@ -8,6 +9,9 @@ import {
   newSessionRepoManageCtaSelector,
   newSessionRepoSelector,
   repoCloneHttpsWarningSelector,
+  repoCloneNoSshKeysSelector,
+  repoCloneSecurityContentSelector,
+  repoCloneSecurityToggleSelector,
   repoCloneSubmitSelector,
   repoSelectorCloneSelector,
   settingsRepositoriesOpenCloneSelector,
@@ -21,7 +25,15 @@ test.beforeEach(async ({ page }) => {
   await mockAuthenticatedAuth(page)
 })
 
-async function openCloneDialogFromSettings(page: Parameters<typeof openSettings>[0], gotoSession: () => Promise<void>) {
+async function openCloneDialogFromSettings(
+  page: Parameters<typeof openSettings>[0],
+  gotoSession: () => Promise<void>,
+  options?: { hasKey?: boolean },
+) {
+  await mockSshKeys(page, {
+    initialKeys: options?.hasKey === false ? [] : [createMockSshKey({ hosts: ["github.com"] })],
+  })
+
   await gotoSession()
   const settings = await openSettings(page)
   await settings.locator(settingsRepositoriesTabSelector).click()
@@ -71,11 +83,26 @@ test("HTTPS clone URL shows warning and disables clone submit", async ({ page, g
   await expect(cloneDialog.locator(repoCloneSubmitSelector)).toBeDisabled()
 })
 
-test("SSH clone URL does not show unsupported warning", async ({ page, gotoSession }) => {
+test("SSH clone URL does not show unsupported warning when keys exist", async ({ page, gotoSession }) => {
   const cloneDialog = await openCloneDialogFromSettings(page, gotoSession)
 
   await cloneDialog.getByLabel("Repository URL").fill("git@github.com:example/project.git")
 
   await expect(cloneDialog.locator(repoCloneHttpsWarningSelector)).toHaveCount(0)
   await expect(cloneDialog.locator(repoCloneSubmitSelector)).toBeEnabled()
+})
+
+test("clone dialog blocks clone and shows key-required state when no keys exist", async ({ page, gotoSession }) => {
+  const cloneDialog = await openCloneDialogFromSettings(page, gotoSession, { hasKey: false })
+
+  await expect(cloneDialog.locator(repoCloneNoSshKeysSelector)).toBeVisible()
+  await expect(cloneDialog.locator(repoCloneSubmitSelector)).toBeDisabled()
+})
+
+test("security guidance can be expanded in key generation flow", async ({ page, gotoSession }) => {
+  const cloneDialog = await openCloneDialogFromSettings(page, gotoSession, { hasKey: false })
+
+  await cloneDialog.locator(repoCloneSecurityToggleSelector).click()
+  await expect(cloneDialog.locator(repoCloneSecurityContentSelector)).toContainText("machine hosting your opencode")
+  await expect(cloneDialog.locator(repoCloneSecurityContentSelector)).toContainText("Ed25519")
 })

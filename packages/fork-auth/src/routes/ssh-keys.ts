@@ -2,6 +2,7 @@ import { Hono } from "hono"
 import { describeRoute, resolver, validator } from "hono-openapi"
 import z from "zod"
 import { SshKey } from "../../../opencode/src/ssh/keys"
+import { SshKeyGenerate } from "../security/ssh-key-generate"
 import { getAuthContext } from "../middleware/auth"
 import { Storage } from "../../../opencode/src/storage/storage"
 import { lazy } from "../../../opencode/src/util/lazy"
@@ -111,6 +112,56 @@ export const SshKeyRoutes = lazy(() =>
             username: auth.username,
           })
           return c.json(created)
+        } catch (error) {
+          return c.json({ error: errorInfo(error) }, 400)
+        }
+      },
+    )
+    .post(
+      "/generate",
+      describeRoute({
+        summary: "Generate SSH key",
+        description: "Generate and install an SSH key for the authenticated user.",
+        operationId: "sshKeys.generate",
+        responses: {
+          200: {
+            description: "SSH key generated",
+            content: {
+              "application/json": {
+                schema: resolver(SshKey.Info),
+              },
+            },
+          },
+          400: {
+            description: "Failed to generate SSH key",
+            content: {
+              "application/json": {
+                schema: resolver(SshKeyErrorResponse),
+              },
+            },
+          },
+          401: {
+            description: "Authentication required",
+            content: {
+              "application/json": {
+                schema: resolver(SshKeyErrorResponse),
+              },
+            },
+          },
+        },
+      }),
+      validator("json", SshKeyGenerate.Input),
+      async (c) => {
+        const auth = getAuthContext(c)
+        if (!auth) {
+          return c.json({ error: { message: "Authentication required" } }, 401)
+        }
+
+        try {
+          const generated = await SshKeyGenerate.generate(c.req.valid("json"), {
+            username: auth.username,
+          })
+          return c.json(generated)
         } catch (error) {
           return c.json({ error: errorInfo(error) }, 400)
         }

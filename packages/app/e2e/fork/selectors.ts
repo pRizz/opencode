@@ -19,7 +19,8 @@ export const settingsAuthenticationMenu2faSelector = '[data-action="settings-aut
 export const settingsAuthenticationMenuPasskeysSelector = '[data-action="settings-authentication-menu-passkeys"]'
 export const settingsAuthenticationMenuLogoutSelector = '[data-action="settings-authentication-menu-logout"]'
 export const settingsAuthenticationMenuLogoutAllSelector = '[data-action="settings-authentication-menu-logout-all"]'
-export const settingsAuthenticationMenuForgetDeviceSelector = '[data-action="settings-authentication-menu-forget-device"]'
+export const settingsAuthenticationMenuForgetDeviceSelector =
+  '[data-action="settings-authentication-menu-forget-device"]'
 
 // --- Repositories ---
 export const settingsRepositoriesTabSelector = '[data-action="settings-tab-repositories"]'
@@ -38,6 +39,13 @@ export const newSessionRepoManageCtaSelector = '[data-action="new-session-repo-m
 export const repoSelectorCloneSelector = '[data-action="repo-selector-clone"]'
 export const repoCloneHttpsWarningSelector = '[data-action="repo-clone-https-warning"]'
 export const repoCloneSubmitSelector = '[data-action="repo-clone-submit"]'
+export const repoCloneNoSshKeysSelector = '[data-action="repo-clone-no-ssh-keys"]'
+export const repoCloneGenerateKeySelector = '[data-action="repo-clone-generate-key"]'
+export const repoCloneSecurityToggleSelector = '[data-action="repo-clone-security-toggle"]'
+export const repoCloneSecurityContentSelector = '[data-action="repo-clone-security-content"]'
+export const repoCloneGeneratedPublicKeySelector = '[data-action="repo-clone-generated-public-key"]'
+export const repoCloneCopyPublicKeySelector = '[data-action="repo-clone-copy-public-key"]'
+export const repoCloneSecurityHygieneSelector = '[data-action="repo-clone-security-hygiene"]'
 
 // --- Welcome ---
 export const settingsTabWelcomeSelector = '[data-action="settings-tab-welcome"]'

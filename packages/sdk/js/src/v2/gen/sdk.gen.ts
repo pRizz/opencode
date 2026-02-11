@@ -172,11 +172,14 @@ import type {
   SessionUnshareResponses,
   SessionUpdateErrors,
   SessionUpdateResponses,
+  SshKeyGenerateInput,
   SshKeyInput,
   SshKeysCreateErrors,
   SshKeysCreateResponses,
   SshKeysDeleteErrors,
   SshKeysDeleteResponses,
+  SshKeysGenerateErrors,
+  SshKeysGenerateResponses,
   SshKeysListErrors,
   SshKeysListResponses,
   SubtaskPartInput,
@@ -2669,6 +2672,41 @@ export class SshKeys extends HeyApiClient {
     )
     return (options?.client ?? this.client).post<SshKeysCreateResponses, SshKeysCreateErrors, ThrowOnError>({
       url: "/ssh-keys",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Generate SSH key
+   *
+   * Generate and install an SSH key for the authenticated user.
+   */
+  public generate<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      sshKeyGenerateInput?: SshKeyGenerateInput
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { key: "sshKeyGenerateInput", map: "body" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<SshKeysGenerateResponses, SshKeysGenerateErrors, ThrowOnError>({
+      url: "/ssh-keys/generate",
       ...options,
       ...params,
       headers: {

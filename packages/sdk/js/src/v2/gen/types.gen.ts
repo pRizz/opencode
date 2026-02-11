@@ -2320,6 +2320,12 @@ export type SshKeyInput = {
   hosts: Array<string>
 }
 
+export type SshKeyGenerateInput = {
+  hosts: Array<string>
+  name?: string
+  passphrase?: string
+}
+
 export type Symbol = {
   name: string
   kind: number
@@ -5008,6 +5014,37 @@ export type SshKeysCreateResponses = {
 }
 
 export type SshKeysCreateResponse = SshKeysCreateResponses[keyof SshKeysCreateResponses]
+
+export type SshKeysGenerateData = {
+  body?: SshKeyGenerateInput
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/ssh-keys/generate"
+}
+
+export type SshKeysGenerateErrors = {
+  /**
+   * Failed to generate SSH key
+   */
+  400: SshKeyErrorResponse
+  /**
+   * Authentication required
+   */
+  401: SshKeyErrorResponse
+}
+
+export type SshKeysGenerateError = SshKeysGenerateErrors[keyof SshKeysGenerateErrors]
+
+export type SshKeysGenerateResponses = {
+  /**
+   * SSH key generated
+   */
+  200: SshKey
+}
+
+export type SshKeysGenerateResponse = SshKeysGenerateResponses[keyof SshKeysGenerateResponses]
 
 export type SshKeysDeleteData = {
   body?: never
