@@ -52,7 +52,8 @@ export function createMockSshKey(input: Partial<MockSshKey> = {}): MockSshKey {
 export async function mockSshKeys(page: Page, options: MockSshKeysOptions = {}) {
   const keys = [...(options.initialKeys ?? [])]
 
-  await page.route("**/ssh-keys*", async (route) => {
+  // Match both `/ssh-keys` and nested endpoints like `/ssh-keys/generate`.
+  await page.route(/\/ssh-keys(?:\/[^/?#]+)?(?:\?.*)?$/, async (route) => {
     const request = route.request()
     const url = new URL(request.url())
     const pathname = url.pathname
