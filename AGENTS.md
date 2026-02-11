@@ -12,6 +12,13 @@
 
 When these `bun.lock` changes are tied to intended package/version updates, they are valid and should be committed with the related change.
 
+## Git Hooks
+
+This repo uses [Husky 9](https://typicode.github.io/husky/) for git hooks (wired automatically by `bun install` via the `"prepare"` script):
+
+- **pre-push** — Validates Bun version matches `package.json`, then runs `bun typecheck`.
+- **post-merge** — After every `git pull`, automatically runs `bun install` to pick up dependency changes. No manual action needed.
+
 ## Fork Isolation
 
 This is a fork with `fork-*` packages under `packages/`. To minimize upstream merge conflicts:
