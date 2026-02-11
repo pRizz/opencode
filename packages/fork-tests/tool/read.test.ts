@@ -239,10 +239,10 @@ describe("tool.read truncation", () => {
       fn: async () => {
         const read = await ReadTool.init()
         const result = await read.execute({ filePath: path.join(tmp.path, "offset.txt"), offset: 10, limit: 5 }, ctx)
-        expect(result.output).toContain("line10")
-        expect(result.output).toContain("line14")
+        expect(result.output).toContain("10: line9")
+        expect(result.output).toContain("14: line13")
         expect(result.output).not.toContain("line0")
-        expect(result.output).not.toContain("line15")
+        expect(result.output).not.toContain("15: line")
       },
     })
   })
