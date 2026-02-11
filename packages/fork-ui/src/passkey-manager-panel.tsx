@@ -167,11 +167,7 @@ function hostnameFromServerUrl(serverUrl: string | undefined): string | undefine
   }
 }
 
-function mapPasskeySetupError(
-  error: unknown,
-  stage: PasskeyRegistrationStage,
-  serverUrl: string | undefined,
-): string {
+function mapPasskeySetupError(error: unknown, stage: PasskeyRegistrationStage, serverUrl: string | undefined): string {
   const fallback = "Passkey setup failed"
   if (!(error instanceof Error)) return fallback
 

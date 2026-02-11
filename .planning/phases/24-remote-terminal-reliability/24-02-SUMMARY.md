@@ -59,6 +59,7 @@ completed: 2026-02-01
 - **Files modified:** 9
 
 ## Accomplishments
+
 - Wired broker-backed PTY creation/connect paths with session registration alignment
 - Updated terminal UI to reconcile PTY ids on reconnect/clone without stale ids
 - Added broker PTY error-mapping tests and documented a UAT checklist for terminal flows
@@ -74,6 +75,7 @@ Each task was committed atomically:
 **Plan metadata:** (this commit)
 
 ## Files Created/Modified
+
 - `packages/opencode/src/pty/index.ts` - broker-backed PTY creation/connection plumbing
 - `packages/opencode/src/pty/broker-pty.ts` - broker PTY lifecycle tracking and guardrails
 - `packages/opencode/src/server/routes/pty.ts` - broker PTY route wiring and error mapping
@@ -85,6 +87,7 @@ Each task was committed atomically:
 - `packages/opencode/test/server/routes/pty-broker.test.ts` - broker session error mapping tests
 
 ## UAT Checklist
+
 1. Open the app at http://localhost:3000 and log in.
 2. Open the terminal panel and create a new terminal tab.
 3. Verify the terminal renders and browser console shows no CSP violations or 404s for `ghostty-vt.wasm`.
@@ -93,6 +96,7 @@ Each task was committed atomically:
 6. Close the terminal tab and confirm server logs show PTY cleanup.
 
 ## Decisions Made
+
 - Loaded Ghostty WASM from a Vite asset URL to keep fetches on stable absolute paths.
 - Allowed data: in connect-src to support base64 WASM fetches if bundlers inline the asset.
 
@@ -101,6 +105,7 @@ Each task was committed atomically:
 ### Auto-fixed Issues
 
 **1. [Rule 1 - Bug] Ghostty WASM load failed due to CSP + relative path 404s**
+
 - **Found during:** Checkpoint UAT (terminal render verification)
 - **Issue:** CSP blocked `data:` wasm fetches and relative path lookups returned 404s.
 - **Fix:** Load Ghostty WASM from the Vite-resolved asset URL and allow data: in connect-src.
@@ -114,14 +119,18 @@ Each task was committed atomically:
 **Impact on plan:** Fix required for terminal rendering; no scope creep.
 
 ## Issues Encountered
+
 - UAT reported terminal render failure from CSP blocking wasm fetches and 404s for `ghostty-vt.wasm` (resolved by explicit asset URL + CSP adjustment).
 
 ## User Setup Required
+
 None - no external service configuration required.
 
 ## Next Phase Readiness
+
 - Terminal UAT can be re-run to confirm wasm load and reconnect behavior post-fix.
 
 ---
-*Phase: 24-remote-terminal-reliability*
-*Completed: 2026-02-01*
+
+_Phase: 24-remote-terminal-reliability_
+_Completed: 2026-02-01_

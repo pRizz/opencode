@@ -135,7 +135,8 @@ const README_BADGES: ReadonlyArray<ReadmeBadge> = [
     source: "opencode-submodule",
     tier: "core",
     label: "Build status",
-    imageUrl: "https://img.shields.io/github/actions/workflow/status/anomalyco/opencode/publish.yml?style=flat-square&branch=dev",
+    imageUrl:
+      "https://img.shields.io/github/actions/workflow/status/anomalyco/opencode/publish.yml?style=flat-square&branch=dev",
     linkUrl: "https://github.com/anomalyco/opencode/actions/workflows/publish.yml",
   },
 ]

@@ -156,7 +156,10 @@ export function SshKeysDialog(props: SshKeysDialogProps) {
   }
 
   return (
-    <div class="flex flex-col gap-4 rounded-md border border-border-weak-base p-4" data-action="settings-repositories-ssh-keys">
+    <div
+      class="flex flex-col gap-4 rounded-md border border-border-weak-base p-4"
+      data-action="settings-repositories-ssh-keys"
+    >
       <div class="flex flex-col gap-1">
         <div class="text-14-medium text-text-strong">SSH keys</div>
         <div class="text-12-regular text-text-weak">
@@ -215,7 +218,7 @@ export function SshKeysDialog(props: SshKeysDialogProps) {
         <div class="flex flex-col gap-1">
           <div class="flex items-center gap-2">
             <span class="text-12-medium text-text-strong">Host key verification</span>
-            <Tooltip value="Only &quot;Accept new&quot; is currently supported. More options will be available in a future update.">
+            <Tooltip value='Only "Accept new" is currently supported. More options will be available in a future update.'>
               <span class="text-12-regular text-text-weak cursor-help">ⓘ</span>
             </Tooltip>
           </div>

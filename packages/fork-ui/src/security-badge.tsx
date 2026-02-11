@@ -89,7 +89,12 @@ export function SecurityBadge() {
     <Popover
       trigger={
         <Tooltip value={state().tooltip}>
-          <IconButton icon={state().icon} variant="ghost" size="normal" class={`security-badge-icon ${state().color}`} />
+          <IconButton
+            icon={state().icon}
+            variant="ghost"
+            size="normal"
+            class={`security-badge-icon ${state().color}`}
+          />
         </Tooltip>
       }
       title="Connection Security"

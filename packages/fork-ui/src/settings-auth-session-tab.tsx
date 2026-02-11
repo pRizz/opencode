@@ -41,7 +41,10 @@ export function SettingsAuthSessionTab() {
   }
 
   return (
-    <div class="flex h-full flex-col overflow-y-auto no-scrollbar px-4 pb-10 sm:px-10 sm:pb-10" data-action="settings-auth-session-content">
+    <div
+      class="flex h-full flex-col overflow-y-auto no-scrollbar px-4 pb-10 sm:px-10 sm:pb-10"
+      data-action="settings-auth-session-content"
+    >
       <div class="sticky top-0 z-10 bg-[linear-gradient(to_bottom,var(--surface-raised-stronger-non-alpha)_calc(100%_-_24px),transparent)]">
         <div class="flex flex-col gap-1 pt-6 pb-8">
           <h2 class="text-16-medium text-text-strong">Session</h2>
@@ -62,11 +65,7 @@ export function SettingsAuthSessionTab() {
         <div class="rounded-lg bg-surface-raised-base p-4">
           <div class="text-14-medium text-text-strong">Session actions</div>
           <div class="mt-3 flex flex-wrap gap-2">
-            <Tooltip
-              placement="top"
-              value="This device is not currently trusted."
-              inactive={auth.state.deviceTrusted}
-            >
+            <Tooltip placement="top" value="This device is not currently trusted." inactive={auth.state.deviceTrusted}>
               <Button
                 size="small"
                 variant="ghost"

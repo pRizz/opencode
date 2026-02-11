@@ -142,7 +142,10 @@ export function SessionIndicator(props: SessionIndicatorProps) {
             <Show when={showDeviceTrustOptions()}>
               <DropdownMenu.Separator />
               <Show when={isDeviceTrusted()}>
-                <DropdownMenu.Item onSelect={handleForgetDevice} data-action="settings-authentication-menu-forget-device">
+                <DropdownMenu.Item
+                  onSelect={handleForgetDevice}
+                  data-action="settings-authentication-menu-forget-device"
+                >
                   <DropdownMenu.ItemLabel>Forget this device (require 2FA)</DropdownMenu.ItemLabel>
                 </DropdownMenu.Item>
               </Show>

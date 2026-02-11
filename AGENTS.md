@@ -24,8 +24,8 @@ This repo uses [Husky 9](https://typicode.github.io/husky/) for git hooks (wired
 This is a fork with `fork-*` packages under `packages/`. To minimize upstream merge conflicts:
 
 - **Prefer putting new code in `fork-*` packages** (e.g., `fork-auth`, `fork-config`, `fork-ui`, `fork-security`, `fork-terminal`, `fork-cli`, `fork-provider`, `fork-tests`).
-- **Minimize modifications to non-fork packages** (e.g., `app`, `opencode`, `sdk`, `ui`, `util`). When upstream changes are needed, keep the diff as small as possible — typically just an import and a single function call that delegates to a fork-* package.
-- Use thin re-export shims in upstream packages that delegate to fork-* implementations (see `packages/opencode/src/server/routes/auth.ts` for the pattern).
+- **Minimize modifications to non-fork packages** (e.g., `app`, `opencode`, `sdk`, `ui`, `util`). When upstream changes are needed, keep the diff as small as possible — typically just an import and a single function call that delegates to a fork-\* package.
+- Use thin re-export shims in upstream packages that delegate to fork-\* implementations (see `packages/opencode/src/server/routes/auth.ts` for the pattern).
 
 ## Style Guide
 

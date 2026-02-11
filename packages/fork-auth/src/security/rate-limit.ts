@@ -58,14 +58,17 @@ export function createManualRateLimiter(config?: RateLimitConfig): ManualRateLim
   const failureStore = new Map<string, RateLimitEntry>()
 
   // Keep counters scoped to this limiter instance to avoid cross-route interference.
-  const cleanupTimer = setInterval(() => {
-    const now = Date.now()
-    for (const [key, entry] of failureStore) {
-      if (now >= entry.resetAt) {
-        failureStore.delete(key)
+  const cleanupTimer = setInterval(
+    () => {
+      const now = Date.now()
+      for (const [key, entry] of failureStore) {
+        if (now >= entry.resetAt) {
+          failureStore.delete(key)
+        }
       }
-    }
-  }, 5 * 60 * 1000)
+    },
+    5 * 60 * 1000,
+  )
 
   if (
     typeof cleanupTimer === "object" &&

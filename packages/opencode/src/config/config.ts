@@ -677,7 +677,6 @@ export namespace Config {
   })
   export type Skills = z.infer<typeof Skills>
 
-
   export const Agent = z
     .object({
       model: ModelId.optional(),

@@ -17,4 +17,3 @@ export function WelcomeBootstrap() {
 
   return null
 }
-

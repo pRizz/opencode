@@ -13,10 +13,6 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "jsxImportSource": "solid-js",
-    "lib": [
-      "es2023",
-      "dom",
-      "dom.iterable"
-    ]
+    "lib": ["es2023", "dom", "dom.iterable"]
   }
 }

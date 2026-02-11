@@ -64,7 +64,12 @@ export function SettingsRepositoriesTab(props: SettingsRepositoriesTabProps) {
           <div class="text-12-regular text-text-weak">Clone with SSH or manage the repository list.</div>
         </div>
         <div class="flex items-center gap-2">
-          <Button size="normal" variant="ghost" onClick={openCloneDialog} data-action="settings-repositories-open-clone">
+          <Button
+            size="normal"
+            variant="ghost"
+            onClick={openCloneDialog}
+            data-action="settings-repositories-open-clone"
+          >
             <Icon name="download" size="small" />
             Clone from URL
           </Button>

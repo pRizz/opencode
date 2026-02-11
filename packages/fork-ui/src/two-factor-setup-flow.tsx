@@ -388,7 +388,11 @@ export function TwoFactorSetupFlow(props: TwoFactorSetupFlowProps) {
                   </label>
                   <input
                     id="two-factor-setup-code"
-                    class={embedded() ? "h-10 rounded-md border border-border-weak-base bg-background-base px-3 text-14-medium" : "two-factor-input"}
+                    class={
+                      embedded()
+                        ? "h-10 rounded-md border border-border-weak-base bg-background-base px-3 text-14-medium"
+                        : "two-factor-input"
+                    }
                     type="text"
                     inputmode="numeric"
                     pattern="[0-9]*"
@@ -422,7 +426,12 @@ export function TwoFactorSetupFlow(props: TwoFactorSetupFlowProps) {
                     <Button size="small" variant="ghost" onClick={() => void handleSkip()} disabled={skipSubmitting()}>
                       {skipSubmitting() ? "Skipping..." : "Skip for now"}
                     </Button>
-                    <Button size="small" variant="ghost" onClick={() => void handleDisable()} disabled={disableSubmitting()}>
+                    <Button
+                      size="small"
+                      variant="ghost"
+                      onClick={() => void handleDisable()}
+                      disabled={disableSubmitting()}
+                    >
                       {disableSubmitting() ? "Disabling..." : "Never ask me"}
                     </Button>
                   </div>

@@ -24,7 +24,9 @@ export function SettingsWelcomeTab() {
       <div class="rounded-md border border-border-weak-base p-3 flex items-center justify-between gap-3">
         <div class="flex flex-col gap-1">
           <div class="text-13-medium text-text-strong">Replay welcome modal</div>
-          <div class="text-12-regular text-text-weak">Show the same modal displayed on first visit to the home page.</div>
+          <div class="text-12-regular text-text-weak">
+            Show the same modal displayed on first visit to the home page.
+          </div>
         </div>
         <Button size="normal" onClick={show} data-action="settings-welcome-show-modal">
           Show welcome modal

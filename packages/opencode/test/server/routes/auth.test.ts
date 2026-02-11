@@ -1184,9 +1184,7 @@ describe("Passkey routes", () => {
         body: JSON.stringify({}),
       })
       expect(res.status).toBe(200)
-      const call = mockCreatePasskeyRegistrationOptions.mock.calls.at(-1)?.[0] as
-        | { origins?: string[] }
-        | undefined
+      const call = mockCreatePasskeyRegistrationOptions.mock.calls.at(-1)?.[0] as { origins?: string[] } | undefined
       expect(call?.origins).toEqual(["https://example.com"])
     })
   })

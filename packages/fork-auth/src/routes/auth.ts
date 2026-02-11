@@ -253,7 +253,10 @@ function passkeyRpID(
 }
 
 function normalizeHostname(hostname: string): string {
-  return hostname.trim().replace(/^\[(.*)\]$/, "$1").toLowerCase()
+  return hostname
+    .trim()
+    .replace(/^\[(.*)\]$/, "$1")
+    .toLowerCase()
 }
 
 function isLoopbackIp(hostname: string): boolean {
@@ -309,7 +312,10 @@ function isUserAllowed(authConfig: ReturnType<typeof ServerAuth.get>, username: 
   return allowedUsers.includes(username)
 }
 
-async function shouldPromptPasskeySetup(authConfig: ReturnType<typeof ServerAuth.get>, username: string): Promise<boolean> {
+async function shouldPromptPasskeySetup(
+  authConfig: ReturnType<typeof ServerAuth.get>,
+  username: string,
+): Promise<boolean> {
   if (!authConfig.passkeysEnabled) return false
   const credentials = await listUserPasskeys(username)
   return credentials.length === 0
@@ -441,10 +447,7 @@ async function loadTwoFactorSetupTemplate(uiDir: string): Promise<string> {
   return cachedTwoFactorSetupTemplate
 }
 
-function injectTwoFactorSetupBootstrap(
-  template: string,
-  bootstrap: TwoFactorSetupBootstrap,
-): string {
+function injectTwoFactorSetupBootstrap(template: string, bootstrap: TwoFactorSetupBootstrap): string {
   const script = `<script>window.__OPENCODE_2FA_SETUP__ = ${JSON.stringify(bootstrap)};</script>`
   if (template.includes("</head>")) {
     return template.replace("</head>", `${script}\n</head>`)
@@ -903,8 +906,7 @@ export const AuthRoutes = lazy(() =>
           {
             error: "bootstrap_user_missing",
             message:
-              "User was created, but account details could not be loaded. " +
-              "Sign in manually from the login page.",
+              "User was created, but account details could not be loaded. " + "Sign in manually from the login page.",
           },
           500,
         )

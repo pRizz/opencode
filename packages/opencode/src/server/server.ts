@@ -683,13 +683,7 @@ export namespace Server {
     return result
   }
 
-  export function listen(opts: {
-    port: number
-    hostname: string
-    mdns?: boolean
-    cors?: string[]
-    uiDir?: string
-  }) {
+  export function listen(opts: { port: number; hostname: string; mdns?: boolean; cors?: string[]; uiDir?: string }) {
     _corsWhitelist = opts.cors ?? []
     _uiDir = opts.uiDir ? path.resolve(opts.uiDir) : undefined
     setUiDir(_uiDir)

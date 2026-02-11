@@ -128,9 +128,7 @@ function OpenRouterFreeSettings() {
           </div>
         </Show>
         <Show when={canUpdate() && !hasOpenRouterKey()}>
-          <div class="text-12-regular text-text-weak">
-            Connect OpenRouter to reveal free model settings.
-          </div>
+          <div class="text-12-regular text-text-weak">Connect OpenRouter to reveal free model settings.</div>
         </Show>
         <div class="flex items-center justify-between gap-3">
           <div class="text-12-regular text-text-weak">Need an API key to use OpenRouter?</div>
@@ -138,7 +136,9 @@ function OpenRouterFreeSettings() {
             size="normal"
             variant="ghost"
             onClick={() =>
-              dialog.show(() => <DialogConnectProvider provider="openrouter" onBack={() => dialog.show(() => <SettingsDialog />)} />)
+              dialog.show(() => (
+                <DialogConnectProvider provider="openrouter" onBack={() => dialog.show(() => <SettingsDialog />)} />
+              ))
             }
           >
             Connect OpenRouter
@@ -163,11 +163,7 @@ function ConnectProviderSettings() {
       </div>
       <div class="flex items-center justify-between gap-3">
         <div class="text-12-regular text-text-weak">Manage your provider connections.</div>
-        <Button
-          size="normal"
-          variant="ghost"
-          onClick={() => dialog.show(() => <DialogSelectProvider />)}
-        >
+        <Button size="normal" variant="ghost" onClick={() => dialog.show(() => <DialogSelectProvider />)}>
           Connect provider
         </Button>
       </div>

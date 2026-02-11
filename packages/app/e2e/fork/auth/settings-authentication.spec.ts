@@ -1,11 +1,6 @@
 import { test, expect } from "../../fixtures"
 import { closeDialog, openSettings } from "../../actions"
-import {
-  mockAuthenticatedAuth,
-  mockPasskeys,
-  mockTwoFactorSetupStart,
-  mockUnauthenticatedAuth,
-} from "../mocks/auth"
+import { mockAuthenticatedAuth, mockPasskeys, mockTwoFactorSetupStart, mockUnauthenticatedAuth } from "../mocks/auth"
 import {
   settingsAuth2faManageCardSelector,
   settingsAuth2faManageDisabledReasonSelector,

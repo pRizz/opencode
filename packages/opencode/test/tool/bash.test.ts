@@ -22,12 +22,7 @@ const projectRoot = path.join(__dirname, "../..")
 const stripShellInit = (output: string): string => {
   const result = output
     .split("\n")
-    .filter(
-      (line) =>
-        line !== "Loading ~/.zshenv" &&
-        line !== "Loading ~/.zprofile" &&
-        !line.startsWith("Agent pid "),
-    )
+    .filter((line) => line !== "Loading ~/.zshenv" && line !== "Loading ~/.zprofile" && !line.startsWith("Agent pid "))
     .join("\n")
   if (output.endsWith("\n") && !result.endsWith("\n")) {
     return result + "\n"

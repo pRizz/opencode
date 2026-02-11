@@ -75,7 +75,11 @@ type HandlePtyGetParams<TInfo> = {
   onNotFound: (message: string) => never
 }
 
-export function ensurePtyExists<T>(params: { info: T | undefined; onNotFound: (message: string) => never; message?: string }): T {
+export function ensurePtyExists<T>(params: {
+  info: T | undefined
+  onNotFound: (message: string) => never
+  message?: string
+}): T {
   if (!params.info) {
     return params.onNotFound(params.message ?? "Session not found")
   }

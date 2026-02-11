@@ -57,11 +57,7 @@ async function run() {
   }
 
   const failureMessage = (message: string): string => {
-    const tail = output
-      .trim()
-      .split("\n")
-      .slice(-40)
-      .join("\n")
+    const tail = output.trim().split("\n").slice(-40).join("\n")
     return `${message}\n\nRecent output:\n${tail || "(no output)"}`
   }
 

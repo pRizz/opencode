@@ -230,7 +230,12 @@ export function RepoSelector(props: RepoSelectorProps) {
           class="text-12-medium"
         />
         <Show when={props.onSelectDirectory}>
-          <Button size="normal" variant="ghost" onClick={() => void handleAddLocal()} data-action="repo-selector-add-local">
+          <Button
+            size="normal"
+            variant="ghost"
+            onClick={() => void handleAddLocal()}
+            data-action="repo-selector-add-local"
+          >
             <Icon name="plus-small" size="small" />
             Add local
           </Button>

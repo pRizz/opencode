@@ -98,7 +98,10 @@ function inferOpenRouterFreeModel(provider: ProviderInfo): ProviderModel | undef
   const minContext = Math.min(...baseModels.map((model) => model.limit.context))
   const minOutput = Math.min(...baseModels.map((model) => model.limit.output))
   const minInput = minLimitValue(baseModels.map((model) => model.limit.input))
-  const releaseDates = baseModels.map((model) => model.release_date).filter(Boolean).sort()
+  const releaseDates = baseModels
+    .map((model) => model.release_date)
+    .filter(Boolean)
+    .sort()
   const releaseDate = releaseDates[0] ?? "1970-01-01"
 
   return {

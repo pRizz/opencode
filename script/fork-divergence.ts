@@ -127,8 +127,9 @@ async function backfill() {
   console.log("Backfilling historical data...")
 
   // Find the fork start date from the earliest fork-only commit
-  const earliest = await git("log", "--format=%aI", "--left-only", "dev...upstream/dev")
-    .then((r) => r.trim().split("\n").pop()?.split("T")[0])
+  const earliest = await git("log", "--format=%aI", "--left-only", "dev...upstream/dev").then(
+    (r) => r.trim().split("\n").pop()?.split("T")[0],
+  )
   if (!earliest) {
     console.log("No fork-only commits found, skipping backfill")
     return []
@@ -200,7 +201,9 @@ if (!known.has(today)) {
   console.log("Computing today's metrics...")
   const todayRow = await computeMetrics("HEAD", today)
   rows.push(todayRow)
-  console.log(`  Modified: ${todayRow.modified_files} files (+${todayRow.modified_lines_added}/-${todayRow.modified_lines_removed})`)
+  console.log(
+    `  Modified: ${todayRow.modified_files} files (+${todayRow.modified_lines_added}/-${todayRow.modified_lines_removed})`,
+  )
   console.log(`  Added: ${todayRow.added_files} files (+${todayRow.added_lines})`)
   console.log(`  Total: ${todayRow.total_divergent_files} files, ${todayRow.total_lines_changed} lines changed`)
 } else {

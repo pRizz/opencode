@@ -231,11 +231,8 @@ function parseRetryAfterSeconds(message: string): number | undefined {
 }
 
 function classifyBrokerError(error: unknown): { reason: BrokerUnavailableReason; message: string } {
-  const message =
-    error instanceof Error ? error.message : typeof error === "string" ? error : "unknown broker error"
-  const code = typeof error === "object" && error
-    ? (error as { code?: string }).code
-    : undefined
+  const message = error instanceof Error ? error.message : typeof error === "string" ? error : "unknown broker error"
+  const code = typeof error === "object" && error ? (error as { code?: string }).code : undefined
   const normalized = message.toLowerCase()
 
   if (code === "ENOENT" || normalized.includes("socket not found")) {
@@ -860,7 +857,14 @@ export class BrokerClient {
     try {
       const response = await this.sendRequest(request)
       if (response.id !== id || !response.success) {
-        this.log.warn("broker resizepty failed", { method: "resizepty", ptyId, cols, rows, requestId, error: response.error })
+        this.log.warn("broker resizepty failed", {
+          method: "resizepty",
+          ptyId,
+          cols,
+          rows,
+          requestId,
+          error: response.error,
+        })
       }
       return response.id === id && response.success
     } catch {

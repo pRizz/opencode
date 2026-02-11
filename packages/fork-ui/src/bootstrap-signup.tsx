@@ -272,7 +272,12 @@ export function BootstrapSignupApp() {
           </div>
 
           <div class="actions">
-            <button class="secondary" type="button" disabled={submitting()} onClick={() => (window.location.href = passkeySetupUrl)}>
+            <button
+              class="secondary"
+              type="button"
+              disabled={submitting()}
+              onClick={() => (window.location.href = passkeySetupUrl)}
+            >
               Back to passkey setup
             </button>
             <button type="submit" disabled={submitting()}>

@@ -18,11 +18,7 @@ export type ForkFilesystem = {
 
 export function extendForkServerConfig<T extends z.ZodRawShape>(server: z.ZodObject<T>) {
   return server.extend({
-    uiUrl: z
-      .string()
-      .url()
-      .optional()
-      .describe("Base URL for the web UI proxy (defaults to https://app.opencode.ai)"),
+    uiUrl: z.string().url().optional().describe("Base URL for the web UI proxy (defaults to https://app.opencode.ai)"),
   })
 }
 

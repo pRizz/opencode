@@ -53,16 +53,16 @@ const LOOPBACK_REDIRECTED_QUERY_PARAM = "oc_loopback_redirected"
 const LOOPBACK_REDIRECT_FROM_QUERY_PARAM = "oc_loopback_from"
 
 function normalizeHostname(hostname: string): string {
-  return hostname.trim().replace(/^\[(.*)\]$/, "$1").toLowerCase()
+  return hostname
+    .trim()
+    .replace(/^\[(.*)\]$/, "$1")
+    .toLowerCase()
 }
 
 function isLocalHostname(hostname: string): boolean {
   const normalized = normalizeHostname(hostname)
   return (
-    normalized === "localhost" ||
-    normalized === "127.0.0.1" ||
-    normalized === "::1" ||
-    normalized === "0:0:0:0:0:0:0:1"
+    normalized === "localhost" || normalized === "127.0.0.1" || normalized === "::1" || normalized === "0:0:0:0:0:0:0:1"
   )
 }
 
@@ -321,9 +321,7 @@ export function LoginApp() {
         const message = isHttpsMismatch
           ? getPasskeyApiMessage(typeof body.message === "string" ? body.message : undefined)
           : (typeof body.message === "string" && body.message) ||
-            (input.username
-              ? "Passkey sign-in is unavailable."
-              : "No passkey found. Enter a username and try again.")
+            (input.username ? "Passkey sign-in is unavailable." : "No passkey found. Enter a username and try again.")
         return { ok: false, message }
       }
 
@@ -1045,9 +1043,9 @@ export function LoginApp() {
                   />
                 </div>
                 <div class="bootstrap-hint">
-                  Run <code>docker logs &lt;container&gt;</code> and copy the <code>IOTP value</code> shown at
-                  startup, or run <code>occ status</code> (or <code>opencode-cloud status</code>) on the host and
-                  copy <code>IOTP value</code>.
+                  Run <code>docker logs &lt;container&gt;</code> and copy the <code>IOTP value</code> shown at startup,
+                  or run <code>occ status</code> (or <code>opencode-cloud status</code>) on the host and copy{" "}
+                  <code>IOTP value</code>.
                 </div>
               </div>
               <Show when={!state.bootstrapOtpVerified && !shouldBlock}>

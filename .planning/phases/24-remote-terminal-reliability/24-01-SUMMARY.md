@@ -57,6 +57,7 @@ completed: 2026-02-01
 - **Files modified:** 8
 
 ## Accomplishments
+
 - Added requestId-bearing PTY create/connect error responses and server logs for correlation
 - Propagated requestId/sessionId/ptyId into PTY and broker lifecycle logging
 - Surfaced PTY failure request ids in UI with retry-marked tabs
@@ -71,6 +72,7 @@ Each task was committed atomically:
 **Plan metadata:** (this commit)
 
 ## Files Created/Modified
+
 - `packages/opencode/src/server/routes/pty.ts` - requestId error shaping and PTY route logging
 - `packages/opencode/src/pty/index.ts` - request-scoped PTY create/connect logging
 - `packages/opencode/src/pty/broker-pty.ts` - broker PTY lifecycle logs with sessionId/ptyId
@@ -81,6 +83,7 @@ Each task was committed atomically:
 - `packages/app/src/components/session/session-sortable-terminal-tab.tsx` - retry indicator in tab labels
 
 ## Decisions Made
+
 - Included requestId and code in PTY error payloads while keeping success responses unchanged.
 - Marked failed terminals for retry visibility instead of automatic recreation.
 
@@ -89,14 +92,18 @@ Each task was committed atomically:
 None - plan executed exactly as written.
 
 ## Issues Encountered
+
 None.
 
 ## User Setup Required
+
 None - no external service configuration required.
 
 ## Next Phase Readiness
+
 - Diagnostics in place for PTY failure triage; ready to align broker PTY lifecycle in 24-02.
 
 ---
-*Phase: 24-remote-terminal-reliability*
-*Completed: 2026-02-01*
+
+_Phase: 24-remote-terminal-reliability_
+_Completed: 2026-02-01_

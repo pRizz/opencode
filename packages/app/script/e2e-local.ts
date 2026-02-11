@@ -77,7 +77,8 @@ const serverEnv = {
   OPENCODE_CLIENT: "app",
 } satisfies Record<string, string>
 
-const playwrightBrowsersPath = process.env.PLAYWRIGHT_BROWSERS_PATH ?? path.join(process.env.HOME ?? os.homedir(), ".cache", "ms-playwright")
+const playwrightBrowsersPath =
+  process.env.PLAYWRIGHT_BROWSERS_PATH ?? path.join(process.env.HOME ?? os.homedir(), ".cache", "ms-playwright")
 
 const runnerEnv = {
   ...serverEnv,

@@ -4,12 +4,7 @@ import { csrfMiddleware, setCSRFCookie, clearCSRFCookie } from "opencode/server/
 import { getCookie } from "hono/cookie"
 import { ServerAuth } from "opencode/config/server-auth"
 import type { AuthConfig } from "opencode/config/auth"
-import {
-  CSRF_COOKIE_NAME,
-  CSRF_HEADER_NAME,
-  generateCSRFToken,
-  getCSRFSecret,
-} from "opencode/server/security/csrf"
+import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME, generateCSRFToken, getCSRFSecret } from "opencode/server/security/csrf"
 
 // Type for test context with sessionId variable
 type TestEnv = { Variables: { sessionId: string } }

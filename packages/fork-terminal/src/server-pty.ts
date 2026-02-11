@@ -53,7 +53,13 @@ export async function createPtyViaBroker(
   }
 
   deps.brokerManager.set(info)
-  deps.log.info("broker PTY spawned", { sessionId, requestId, method: "spawnpty", ptyId: brokerInfo.ptyId, pid: brokerInfo.pid })
+  deps.log.info("broker PTY spawned", {
+    sessionId,
+    requestId,
+    method: "spawnpty",
+    ptyId: brokerInfo.ptyId,
+    pid: brokerInfo.pid,
+  })
 
   return info
 }

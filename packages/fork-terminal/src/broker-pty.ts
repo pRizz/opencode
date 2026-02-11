@@ -291,7 +291,11 @@ export function connect(
   }
 
   session.subscribers.add(ws)
-  log.info("Broker PTY client connected", { ptyId: id, sessionId: session.info.sessionId, requestId: options.requestId })
+  log.info("Broker PTY client connected", {
+    ptyId: id,
+    sessionId: session.info.sessionId,
+    requestId: options.requestId,
+  })
   startPolling(session)
 
   // Send buffered output
@@ -327,7 +331,11 @@ export function connect(
     },
     onClose: () => {
       session.subscribers.delete(ws)
-      log.info("Broker PTY client disconnected", { ptyId: id, sessionId: session.info.sessionId, requestId: options.requestId })
+      log.info("Broker PTY client disconnected", {
+        ptyId: id,
+        sessionId: session.info.sessionId,
+        requestId: options.requestId,
+      })
     },
   }
 }

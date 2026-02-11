@@ -11,16 +11,26 @@ export function WelcomeDialog() {
   return (
     <Dialog title="Welcome to OpenCode Cloud" size="large" fit class="max-w-[760px]">
       <div class="flex flex-col gap-5 px-2 pb-3" data-action="welcome-modal">
-        <div class="rounded-md border border-border-weak-base p-4 flex flex-col gap-3" data-action="welcome-badges-root">
+        <div
+          class="rounded-md border border-border-weak-base p-4 flex flex-col gap-3"
+          data-action="welcome-badges-root"
+        >
           {badgeSections.map((section) => (
             <div
               class="flex flex-col gap-2"
-              data-action={section.source === "opencode-cloud" ? "welcome-badges-section-cloud" : "welcome-badges-section-opencode"}
+              data-action={
+                section.source === "opencode-cloud" ? "welcome-badges-section-cloud" : "welcome-badges-section-opencode"
+              }
             >
               <div class="text-12-medium text-text-weak">{section.title}</div>
               <div class="flex flex-wrap gap-2">
                 {section.badges.map((badge) => (
-                  <ForkPointerLink href={badge.linkUrl} class="inline-flex leading-none" data-action="welcome-badge-item" data-badge-id={badge.id}>
+                  <ForkPointerLink
+                    href={badge.linkUrl}
+                    class="inline-flex leading-none"
+                    data-action="welcome-badge-item"
+                    data-badge-id={badge.id}
+                  >
                     <img src={badge.imageUrl} alt={badge.label} class="h-5 w-auto" />
                   </ForkPointerLink>
                 ))}

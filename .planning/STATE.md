@@ -169,8 +169,8 @@ Recent decisions affecting current work:
 | 21-02 | Fetch SSH key inventory only for SSH clone URLs                | Avoids extra API calls for HTTPS clone flows                                                  |
 | 24-01 | Include requestId in PTY errors without changing success body  | Preserves API compatibility while enabling log correlation                                    |
 | 24-01 | Mark failed terminals for retry visibility                     | Keeps failure context visible instead of silent retries                                       |
-| 24-02 | Load Ghostty WASM via Vite asset URL                            | Avoids relative-path 404s when UI runs from nested routes                                     |
-| 24-02 | Allow data: in connect-src                                     | Prevents CSP from blocking base64 wasm fetches in some builds                                |
+| 24-02 | Load Ghostty WASM via Vite asset URL                           | Avoids relative-path 404s when UI runs from nested routes                                     |
+| 24-02 | Allow data: in connect-src                                     | Prevents CSP from blocking base64 wasm fetches in some builds                                 |
 
 ### Roadmap Evolution
 
