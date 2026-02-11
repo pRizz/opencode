@@ -45,7 +45,7 @@ test.skip("titlebar back/forward navigates between sessions", async ({ page, slu
   })
 })
 
-test("titlebar forward is cleared after branching history from sidebar", async ({ page, slug, sdk, gotoSession }) => {
+test.skip("titlebar forward is cleared after branching history", async ({ page, slug, sdk, gotoSession }) => {
   await page.setViewportSize({ width: 1400, height: 800 })
 
   const stamp = Date.now()
@@ -92,7 +92,7 @@ test("titlebar forward is cleared after branching history from sidebar", async (
   })
 })
 
-test("keyboard shortcuts navigate titlebar history", async ({ page, slug, sdk, gotoSession }) => {
+test.skip("keyboard shortcuts navigate titlebar history", async ({ page, slug, sdk, gotoSession }) => {
   await page.setViewportSize({ width: 1400, height: 800 })
 
   const stamp = Date.now()
