@@ -52,6 +52,7 @@ import { useCommand, type CommandOption } from "@/context/command"
 import { ConstrainDragXAxis } from "@/utils/solid-dnd"
 import { navStart } from "@/utils/perf"
 import { DialogSelectDirectory } from "@/components/dialog-select-directory"
+import { CloneDialog } from "@/components/repo/clone-dialog"
 import { DialogEditProject } from "@/components/dialog-edit-project"
 import { Titlebar } from "@/components/titlebar"
 import { useServer } from "@/context/server"
@@ -899,7 +900,7 @@ export default function Layout(props: ParentProps) {
       },
       {
         id: "project.open",
-        title: language.t("command.project.open"),
+        title: language.t("command.project.openOrClone"),
         category: language.t("command.category.project"),
         keybind: "mod+o",
         onSelect: () => chooseProject(),
@@ -1157,7 +1158,7 @@ export default function Layout(props: ParentProps) {
 
   const showEditProjectDialog = (project: LocalProject) => dialog.show(() => <DialogEditProject project={project} />)
 
-  async function chooseProject() {
+  function chooseProject() {
     function resolve(result: string | string[] | null) {
       if (Array.isArray(result)) {
         for (const directory of result) {
@@ -1169,18 +1170,28 @@ export default function Layout(props: ParentProps) {
       }
     }
 
-    if (platform.openDirectoryPickerDialog && server.isLocal()) {
-      const result = await platform.openDirectoryPickerDialog?.({
-        title: language.t("command.project.open"),
-        multiple: true,
-      })
-      resolve(result)
-    } else {
-      dialog.show(
-        () => <DialogSelectDirectory multiple={true} onSelect={resolve} />,
-        () => resolve(null),
-      )
-    }
+    dialog.show(
+      () => (
+        <DialogSelectDirectory
+          title={language.t("command.project.openOrClone")}
+          description={language.t("dialog.directory.openOrClone.description")}
+          multiple={true}
+          onSelect={resolve}
+          searchAction={
+            <Button
+              variant="ghost"
+              size="normal"
+              onClick={() => dialog.show(() => <CloneDialog onCloneSuccess={(repo) => openProject(repo.path)} />)}
+              data-action="project-open-clone-action"
+            >
+              <Icon name="download" size="small" />
+              {language.t("dialog.directory.clone")}
+            </Button>
+          }
+        />
+      ),
+      () => resolve(null),
+    )
   }
 
   const deleteWorkspace = async (root: string, directory: string) => {
@@ -1919,7 +1930,7 @@ export default function Layout(props: ParentProps) {
               handleDragStart={handleDragStart}
               handleDragEnd={handleDragEnd}
               handleDragOver={handleDragOver}
-              openProjectLabel={language.t("command.project.open")}
+              openProjectLabel={language.t("command.project.openOrClone")}
               openProjectKeybind={() => command.keybind("project.open")}
               onOpenProject={chooseProject}
               renderProjectOverlay={() => (
@@ -1982,7 +1993,7 @@ export default function Layout(props: ParentProps) {
               handleDragStart={handleDragStart}
               handleDragEnd={handleDragEnd}
               handleDragOver={handleDragOver}
-              openProjectLabel={language.t("command.project.open")}
+              openProjectLabel={language.t("command.project.openOrClone")}
               openProjectKeybind={() => command.keybind("project.open")}
               onOpenProject={chooseProject}
               renderProjectOverlay={() => (

@@ -29,6 +29,7 @@ export const settingsRepositoriesSshKeysSelector = '[data-action="settings-repos
 
 export const homeRepoCloneCtaSelector = '[data-action="home-repo-clone-cta"]'
 export const homeRepoManageCtaSelector = '[data-action="home-repo-manage-cta"]'
+export const projectOpenCloneActionSelector = '[data-action="project-open-clone-action"]'
 
 export const newSessionRepoSelector = '[data-action="new-session-repo-selector"]'
 export const newSessionRepoCloneCtaSelector = '[data-action="new-session-repo-clone-cta"]'

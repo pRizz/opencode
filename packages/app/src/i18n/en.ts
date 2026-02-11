@@ -23,6 +23,7 @@ export const dict = {
 
   "command.sidebar.toggle": "Toggle sidebar",
   "command.project.open": "Open project",
+  "command.project.openOrClone": "Open or clone project",
   "command.provider.connect": "Connect provider",
   "command.server.switch": "Switch server",
   "command.settings.open": "Open settings",
@@ -295,6 +296,8 @@ export const dict = {
 
   "dialog.fork.empty": "No messages to fork from",
 
+  "dialog.directory.openOrClone.description": "Open a local folder or clone a repository via SSH.",
+  "dialog.directory.clone": "Clone repo",
   "dialog.directory.search.placeholder": "Search folders",
   "dialog.directory.empty": "No folders found",
 

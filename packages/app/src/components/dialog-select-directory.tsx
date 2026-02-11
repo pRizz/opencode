@@ -4,7 +4,7 @@ import { FileIcon } from "@opencode-ai/ui/file-icon"
 import { List } from "@opencode-ai/ui/list"
 import { getDirectory, getFilename } from "@opencode-ai/util/path"
 import fuzzysort from "fuzzysort"
-import { createMemo, createResource, createSignal } from "solid-js"
+import { createMemo, createResource, createSignal, type JSX } from "solid-js"
 import { useGlobalSDK } from "@/context/global-sdk"
 import { useGlobalSync } from "@/context/global-sync"
 import { useLanguage } from "@/context/language"
@@ -12,6 +12,8 @@ import type { ListRef } from "@opencode-ai/ui/list"
 
 interface DialogSelectDirectoryProps {
   title?: string
+  description?: JSX.Element
+  searchAction?: JSX.Element
   multiple?: boolean
   onSelect: (result: string | string[] | null) => void
 }
@@ -264,9 +266,13 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
   }
 
   return (
-    <Dialog title={props.title ?? language.t("command.project.open")}>
+    <Dialog title={props.title ?? language.t("command.project.open")} description={props.description}>
       <List
-        search={{ placeholder: language.t("dialog.directory.search.placeholder"), autofocus: true }}
+        search={{
+          placeholder: language.t("dialog.directory.search.placeholder"),
+          autofocus: true,
+          action: props.searchAction,
+        }}
         emptyMessage={language.t("dialog.directory.empty")}
         loadingMessage={language.t("common.loading")}
         items={items}
