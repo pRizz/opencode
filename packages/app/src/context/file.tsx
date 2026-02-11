@@ -154,7 +154,7 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
         })
         .catch((e) => {
           if (scope() !== directory) return
-          const message = e?.data?.message ?? e?.message ?? String(e)
+          const message = e?.data?.message ?? e?.message ?? (e instanceof Error ? e.message : "Unknown error")
           setStore(
             "file",
             file,

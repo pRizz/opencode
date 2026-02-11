@@ -109,7 +109,7 @@ export function createFileTreeStore(options: TreeStoreOptions) {
       })
       .catch((e) => {
         if (options.scope() !== directory) return
-        const message = e?.data?.message ?? e?.message ?? String(e)
+        const message = e?.data?.message ?? e?.message ?? (e instanceof Error ? e.message : "Unknown error")
         setTree(
           "dir",
           dir,
