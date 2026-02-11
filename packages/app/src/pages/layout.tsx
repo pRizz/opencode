@@ -1227,11 +1227,16 @@ export default function Layout(props: ParentProps) {
       .then((x) => x.data ?? [])
       .catch(() => [])
 
-    clearWorkspaceTerminals(
-      directory,
-      sessions.map((s) => s.id),
-    )
-    await globalSDK.client.instance.dispose({ directory }).catch(() => undefined)
+    try {
+      clearWorkspaceTerminals(
+        directory,
+        sessions.map((s) => s.id),
+      )
+    } catch {}
+    await Promise.race([
+      globalSDK.client.instance.dispose({ directory }).catch(() => undefined),
+      new Promise((r) => setTimeout(r, 10_000)),
+    ])
 
     const result = await globalSDK.client.worktree
       .reset({ directory: root, worktreeResetInput: { directory } })
