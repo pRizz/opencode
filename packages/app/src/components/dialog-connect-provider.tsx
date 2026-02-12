@@ -103,6 +103,24 @@ export function DialogConnectProvider(props: { provider: string; onBack?: () => 
     return value.label ?? ""
   }
 
+  function formatError(value: unknown, fallback: string): string {
+    if (value && typeof value === "object" && "data" in value) {
+      const data = (value as { data?: { message?: unknown } }).data
+      if (typeof data?.message === "string" && data.message) return data.message
+    }
+    if (value && typeof value === "object" && "error" in value) {
+      const nested = formatError((value as { error?: unknown }).error, "")
+      if (nested) return nested
+    }
+    if (value && typeof value === "object" && "message" in value) {
+      const message = (value as { message?: unknown }).message
+      if (typeof message === "string" && message) return message
+    }
+    if (value instanceof Error && value.message) return value.message
+    if (typeof value === "string" && value) return value
+    return fallback
+  }
+
   async function selectMethod(index: number) {
     if (timer.current !== undefined) {
       clearTimeout(timer.current)
@@ -141,7 +159,7 @@ export function DialogConnectProvider(props: { provider: string; onBack?: () => 
         })
         .catch((e) => {
           if (!alive.value) return
-          dispatch({ type: "auth.error", error: String(e) })
+          dispatch({ type: "auth.error", error: formatError(e, language.t("common.requestFailed")) })
         })
     }
   }
@@ -336,8 +354,7 @@ export function DialogConnectProvider(props: { provider: string; onBack?: () => 
         await complete()
         return
       }
-      const message = result.error instanceof Error ? result.error.message : String(result.error)
-      setFormStore("error", message || language.t("provider.connect.oauth.code.invalid"))
+      setFormStore("error", formatError(result.error, language.t("provider.connect.oauth.code.invalid")))
     }
 
     return (
@@ -393,7 +410,7 @@ export function DialogConnectProvider(props: { provider: string; onBack?: () => 
         if (!alive.value) return
 
         if (!result.ok) {
-          const message = result.error instanceof Error ? result.error.message : String(result.error)
+          const message = formatError(result.error, language.t("common.requestFailed"))
           dispatch({ type: "auth.error", error: message })
           return
         }
