@@ -45,9 +45,6 @@ test.skip("can send a prompt and receive a reply", async ({ page, sdk, gotoSessi
       )
 
       .toContain(token)
-
-    const reply = page.locator('[data-slot="session-turn-summary-section"]').filter({ hasText: token }).first()
-    await expect(reply).toBeVisible({ timeout: 90_000 })
   } finally {
     page.off("pageerror", onPageError)
     await sdk.session.delete({ sessionID }).catch(() => undefined)

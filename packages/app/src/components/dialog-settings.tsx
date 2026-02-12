@@ -185,15 +185,6 @@ export const DialogSettings: Component<DialogSettingsProps> = (props) => {
           <Tabs.Content value="auth-2fa" class="no-scrollbar">
             <SettingsAuthTwoFactorTab />
           </Tabs.Content>
-          {/* <Tabs.Content value="agents" class="no-scrollbar"> */}
-          {/*   <SettingsAgents /> */}
-          {/* </Tabs.Content> */}
-          {/* <Tabs.Content value="commands" class="no-scrollbar"> */}
-          {/*   <SettingsCommands /> */}
-          {/* </Tabs.Content> */}
-          {/* <Tabs.Content value="mcp" class="no-scrollbar"> */}
-          {/*   <SettingsMcp /> */}
-          {/* </Tabs.Content> */}
         </Tabs>
       </Dialog>
     </SettingsAuthProvider>
