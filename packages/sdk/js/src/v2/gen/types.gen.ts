@@ -1524,6 +1524,7 @@ export type ProviderConfig = {
       }
       provider?: {
         npm: string
+        api: string
       }
       /**
        * Variant-specific configuration
@@ -4644,6 +4645,7 @@ export type ProviderListResponses = {
           }
           provider?: {
             npm: string
+            api: string
           }
           variants?: {
             [key: string]: {
