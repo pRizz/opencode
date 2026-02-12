@@ -10,7 +10,10 @@ export function WelcomeDialog() {
 
   return (
     <Dialog title="Welcome to OpenCode Cloud" size="large" fit class="max-w-[760px]">
-      <div class="flex flex-col gap-5 px-2 pb-3" data-action="welcome-modal">
+      <div
+        class="flex max-h-[70vh] flex-col gap-5 overflow-y-auto px-2 pb-3 sm:max-h-none sm:overflow-visible"
+        data-action="welcome-modal"
+      >
         <div
           class="rounded-md border border-border-weak-base p-4 flex flex-col gap-3"
           data-action="welcome-badges-root"

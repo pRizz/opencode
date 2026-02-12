@@ -105,6 +105,28 @@ test("auto-shows welcome modal on first home visit", async ({ page }) => {
   expect(value).toBe("seen")
 })
 
+test("welcome modal scrolls vertically on small screens", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 640 })
+  await page.goto("/")
+
+  const modal = page.locator(welcomeModalSelector)
+  await expect(modal).toBeVisible()
+
+  const before = await modal.evaluate((node) => ({
+    scrollTop: node.scrollTop,
+    scrollHeight: node.scrollHeight,
+    clientHeight: node.clientHeight,
+  }))
+  expect(before.scrollHeight).toBeGreaterThan(before.clientHeight)
+
+  await modal.hover()
+  await page.mouse.wheel(0, 600)
+  await page.waitForTimeout(150)
+
+  const afterScrollTop = await modal.evaluate((node) => node.scrollTop)
+  expect(afterScrollTop).toBeGreaterThan(before.scrollTop)
+})
+
 test("does not auto-show welcome modal after dismiss + reload", async ({ page }) => {
   await page.goto("/")
 
