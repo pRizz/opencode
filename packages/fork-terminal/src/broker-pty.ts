@@ -7,7 +7,12 @@
  */
 
 import { BrokerClient } from "@opencode-ai/fork-auth/auth/broker-client"
-import type { WSContext } from "hono/ws"
+
+type Socket = {
+  readyState: number
+  send: (data: string | Uint8Array<ArrayBuffer> | ArrayBuffer) => void
+  close: (code?: number, reason?: string) => void
+}
 
 export type BrokerPtyLogger = {
   info(message?: any, extra?: Record<string, any>): void
@@ -89,7 +94,7 @@ export interface BrokerPtyInfo {
 interface BrokerPtySession {
   info: BrokerPtyInfo
   /** WebSocket subscribers for PTY output */
-  subscribers: Set<WSContext>
+  subscribers: Set<Socket>
   /** Buffered output when no subscribers connected */
   buffer: string
   /** Polling timer for broker output */
@@ -281,7 +286,7 @@ export async function write(id: string, data: string, requestId?: string): Promi
  */
 export function connect(
   id: string,
-  ws: WSContext,
+  ws: Socket,
   options: { requestId?: string } = {},
 ): { onMessage: (msg: string | ArrayBuffer) => void; onClose: () => void } | undefined {
   const session = sessions.get(id)

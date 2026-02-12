@@ -1,5 +1,10 @@
-import type { WSContext } from "hono/ws"
 import * as BrokerPty from "./broker-pty"
+
+type Socket = {
+  readyState: number
+  send: (data: string | Uint8Array<ArrayBuffer> | ArrayBuffer) => void
+  close: (code?: number, reason?: string) => void
+}
 
 export type BrokerPtyManager<Info extends { id: string }> = {
   list(): Info[]
@@ -17,7 +22,7 @@ export type BrokerPtyManager<Info extends { id: string }> = {
   write(id: string, data: string, requestId?: string): Promise<void>
   connect(
     id: string,
-    ws: WSContext,
+    ws: Socket,
     options?: { requestId?: string },
   ): { onMessage: (msg: string | ArrayBuffer) => void; onClose: () => void } | undefined
   cleanup(): Promise<void>
