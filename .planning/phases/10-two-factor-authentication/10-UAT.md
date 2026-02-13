@@ -34,7 +34,7 @@ result: pass
 
 ### 2. TOTP Setup Wizard Access
 
-expected: When logged in, navigate to /auth/totp/setup (legacy /auth/2fa/setup alias supported). Page shows QR code, manual secret for backup, server command to run (google-authenticator), and a verification form.
+expected: When logged in, navigate to /auth/totp/setup (legacy /auth/2fa/setup alias supported). Page shows QR code, manual secret for backup, and a verification form; manual setup command appears when fallback/manual setup is required.
 result: pass
 
 ### 3. QR Code in Setup Wizard
@@ -44,7 +44,7 @@ result: pass
 
 ### 4. Setup Verification Form
 
-expected: After scanning QR and running server command, entering a valid 6-digit OTP code in the verification form confirms setup works. Shows success or error message.
+expected: After scanning QR (or completing manual fallback setup if prompted), entering a valid 6-digit OTP code in the verification form confirms setup works. Shows success or error message.
 result: pass
 
 ### 5. Login with TOTP - Password Step

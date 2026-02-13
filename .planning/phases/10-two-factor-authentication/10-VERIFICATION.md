@@ -118,7 +118,7 @@ Phase 10 implements a complete TOTP authentication system:
 
 4. **TOTP UI (Plan 10-06):** Server-rendered TOTP page with countdown timer, auto-submit on 6 digits, remember device checkbox, consistent styling
 
-5. **Setup Wizard (Plan 10-07):** QR code generation using qrcode library, displays secret for manual entry, shows server command to enable TOTP
+5. **Setup Wizard (Plan 10-07):** QR code generation using qrcode library, displays secret for manual entry, and supports manual setup command fallback when auto-setup is unavailable
 
 6. **Device Trust Management (Plan 10-08):** SessionIndicator dropdown with "Forget this device" and "Set up TOTP" options, device trust status endpoint
 
