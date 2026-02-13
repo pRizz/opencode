@@ -623,7 +623,15 @@ function injectPasskeySetupBootstrap(
 async function completeTotpLogin(c: Context<AuthEnv>) {
   const authConfig = ServerAuth.get()
   if (!authConfig.enabled || !authConfig.twoFactorEnabled) {
-    return c.json({ error: "2fa_disabled", message: "TOTP authentication is not enabled" }, 403)
+    return c.json(
+      {
+        /** @deprecated Prefer `code` (`totp_disabled`). */
+        error: "2fa_disabled",
+        code: "totp_disabled",
+        message: "TOTP authentication is not enabled",
+      },
+      403,
+    )
   }
 
   // Check X-Requested-With for CSRF
@@ -1026,7 +1034,15 @@ async function skipTotpSetup(c: Context<AuthEnv>) {
   // Check if TOTP is required - if so, cannot skip
   const authConfig = ServerAuth.get()
   if (authConfig.twoFactorRequired) {
-    return c.json({ error: "2fa_required", message: "TOTP authentication is required and cannot be skipped" }, 403)
+    return c.json(
+      {
+        /** @deprecated Prefer `code` (`totp_required`). */
+        error: "2fa_required",
+        code: "totp_required",
+        message: "TOTP authentication is required and cannot be skipped",
+      },
+      403,
+    )
   }
 
   // Clear setup state so user can access the app
@@ -1102,7 +1118,15 @@ async function disableTotp(c: Context<AuthEnv>) {
 
   const authConfig = ServerAuth.get()
   if (authConfig.twoFactorRequired) {
-    return c.json({ error: "2fa_required", message: "TOTP authentication is required and cannot be disabled" }, 403)
+    return c.json(
+      {
+        /** @deprecated Prefer `code` (`totp_required`). */
+        error: "2fa_required",
+        code: "totp_required",
+        message: "TOTP authentication is required and cannot be disabled",
+      },
+      403,
+    )
   }
 
   const broker = new BrokerClient()

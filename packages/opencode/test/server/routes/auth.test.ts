@@ -1041,6 +1041,59 @@ describe("POST /auth/totp/setup/start", () => {
   })
 })
 
+describe("TOTP compatibility error codes", () => {
+  let app: Hono
+
+  beforeEach(() => {
+    setMockAuthConfig({ enabled: true, method: "pam", twoFactorEnabled: true, twoFactorRequired: true })
+    mockCheckTotp.mockClear()
+    mockBrokerPing.mockClear()
+    mockCheckTotp.mockResolvedValue(false)
+    mockBrokerPing.mockResolvedValue(true)
+    app = new Hono().route("/auth", AuthRoutes())
+  })
+
+  test("POST /auth/totp/skip includes canonical code with legacy error key", async () => {
+    const session = UserSession.create("testuser", "test-agent", {
+      uid: 1000,
+      gid: 1000,
+      home: "/home/testuser",
+      shell: "/bin/bash",
+    })
+    const csrfToken = generateCSRFToken(session.id, getCSRFSecret())
+
+    const res = await app.request("/auth/totp/skip", {
+      method: "POST",
+      headers: {
+        Cookie: `opencode_session=${session.id}`,
+        "X-Requested-With": "XMLHttpRequest",
+        "X-CSRF-Token": csrfToken,
+      },
+    })
+
+    expect(res.status).toBe(403)
+    const body = await res.json()
+    expect(body.error).toBe("2fa_required")
+    expect(body.code).toBe("totp_required")
+    expect(body.message).toBe("TOTP authentication is required and cannot be skipped")
+    UserSession.remove(session.id)
+  })
+
+  test("POST /auth/login/totp includes canonical disabled code with legacy error key", async () => {
+    setMockAuthConfig({ enabled: true, method: "pam", twoFactorEnabled: false })
+
+    const res = await app.request("/auth/login/totp", {
+      method: "POST",
+    })
+
+    expect(res.status).toBe(403)
+    const body = await res.json()
+    expect(body.error).toBe("2fa_disabled")
+    expect(body.code).toBe("totp_disabled")
+    expect(body.message).toBe("TOTP authentication is not enabled")
+  })
+})
+
 describe("Passkey routes", () => {
   let app: Hono
 
