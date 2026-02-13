@@ -7,7 +7,7 @@ import { TotpSetupFlow } from "./two-factor-setup-flow"
 export function SettingsAuthTotpTab() {
   const auth = useSettingsAuth()
 
-  const manageDisabled = () => !auth.state.twoFactorConfigured
+  const manageDisabled = () => !auth.state.totpConfigured
   const manageDisabledReason = () => "Set up TOTP first to unlock manage actions."
 
   return (
@@ -24,7 +24,7 @@ export function SettingsAuthTotpTab() {
       <div class="flex flex-col gap-4">
         <div class="rounded-lg bg-surface-raised-base p-4" data-action="settings-auth-totp-setup-card">
           <Show
-            when={auth.state.twoFactorEnabled}
+            when={auth.state.totpEnabled}
             fallback={<div class="text-13-regular text-text-weak">TOTP is disabled on this server.</div>}
           >
             <TotpSetupFlow

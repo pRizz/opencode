@@ -9,7 +9,7 @@ interface AuthStatus {
   passkeysEnabled?: boolean
 }
 
-interface DeviceTrustStatus {
+interface DeviceTrustResponse {
   twoFactorEnabled: boolean
   twoFactorConfigured: boolean
   twoFactorOptedOut: boolean
@@ -28,8 +28,14 @@ interface SettingsAuthValue {
     authenticated: boolean
     username: string | undefined
     passkeysEnabled: boolean
+    totpEnabled: boolean
+    totpConfigured: boolean
+    totpOptedOut: boolean
+    /** @deprecated Prefer `totpEnabled`. */
     twoFactorEnabled: boolean
+    /** @deprecated Prefer `totpConfigured`. */
     twoFactorConfigured: boolean
+    /** @deprecated Prefer `totpOptedOut`. */
     twoFactorOptedOut: boolean
     deviceTrusted: boolean
     error: string | undefined
@@ -48,6 +54,9 @@ function createSettingsAuthValue(getServerUrl: () => string | undefined): Settin
     authenticated: false,
     username: undefined as string | undefined,
     passkeysEnabled: false,
+    totpEnabled: false,
+    totpConfigured: false,
+    totpOptedOut: false,
     twoFactorEnabled: false,
     twoFactorConfigured: false,
     twoFactorOptedOut: false,
@@ -59,6 +68,9 @@ function createSettingsAuthValue(getServerUrl: () => string | undefined): Settin
     setState({
       authenticated: false,
       username: undefined,
+      totpEnabled: false,
+      totpConfigured: false,
+      totpOptedOut: false,
       twoFactorEnabled: false,
       twoFactorConfigured: false,
       twoFactorOptedOut: false,
@@ -96,6 +108,9 @@ function createSettingsAuthValue(getServerUrl: () => string | undefined): Settin
   const refreshDeviceTrust = async () => {
     if (!state.authenticated) {
       setState({
+        totpEnabled: false,
+        totpConfigured: false,
+        totpOptedOut: false,
         twoFactorEnabled: false,
         twoFactorConfigured: false,
         twoFactorOptedOut: false,
@@ -120,6 +135,9 @@ function createSettingsAuthValue(getServerUrl: () => string | undefined): Settin
 
     if (!trustRes?.ok) {
       setState({
+        totpEnabled: false,
+        totpConfigured: false,
+        totpOptedOut: false,
         twoFactorEnabled: false,
         twoFactorConfigured: false,
         twoFactorOptedOut: false,
@@ -128,11 +146,17 @@ function createSettingsAuthValue(getServerUrl: () => string | undefined): Settin
       return
     }
 
-    const trustBody = (await trustRes.json().catch(() => ({}))) as Partial<DeviceTrustStatus>
+    const trustBody = (await trustRes.json().catch(() => ({}))) as Partial<DeviceTrustResponse>
+    const totpEnabled = Boolean(trustBody.twoFactorEnabled)
+    const totpConfigured = Boolean(trustBody.twoFactorConfigured)
+    const totpOptedOut = Boolean(trustBody.twoFactorOptedOut)
     setState({
-      twoFactorEnabled: Boolean(trustBody.twoFactorEnabled),
-      twoFactorConfigured: Boolean(trustBody.twoFactorConfigured),
-      twoFactorOptedOut: Boolean(trustBody.twoFactorOptedOut),
+      totpEnabled,
+      totpConfigured,
+      totpOptedOut,
+      twoFactorEnabled: totpEnabled,
+      twoFactorConfigured: totpConfigured,
+      twoFactorOptedOut: totpOptedOut,
       deviceTrusted: Boolean(trustBody.deviceTrusted),
     })
   }

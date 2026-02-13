@@ -17,13 +17,17 @@ interface SessionIndicatorProps {
   getServerUrl: () => string | undefined
 }
 
-/**
- * Device trust status from the server.
- */
-interface DeviceTrustStatus {
+interface DeviceTrustResponse {
   twoFactorEnabled: boolean
   twoFactorConfigured: boolean
   twoFactorOptedOut: boolean
+  deviceTrusted: boolean
+}
+
+interface TotpDeviceTrustStatus {
+  totpEnabled: boolean
+  totpConfigured: boolean
+  totpOptedOut: boolean
   deviceTrusted: boolean
 }
 
@@ -36,7 +40,7 @@ interface DeviceTrustStatus {
 export function SessionIndicator(props: SessionIndicatorProps) {
   const session = props.session
   const dialog = useDialog()
-  const [deviceTrustStatus, setDeviceTrustStatus] = createSignal<DeviceTrustStatus | null>(null)
+  const [deviceTrustStatus, setDeviceTrustStatus] = createSignal<TotpDeviceTrustStatus | null>(null)
   const displayUsername = () => session.username() ?? ""
 
   // Fetch device trust status on mount
@@ -50,8 +54,13 @@ export function SessionIndicator(props: SessionIndicatorProps) {
       const res = await fetch(`${url}/auth/device-trust/status`, {
         credentials: "include",
       })
-      const data = (await res.json()) as DeviceTrustStatus
-      setDeviceTrustStatus(data)
+      const data = (await res.json()) as DeviceTrustResponse
+      setDeviceTrustStatus({
+        totpEnabled: Boolean(data.twoFactorEnabled),
+        totpConfigured: Boolean(data.twoFactorConfigured),
+        totpOptedOut: Boolean(data.twoFactorOptedOut),
+        deviceTrusted: Boolean(data.deviceTrusted),
+      })
     } catch {
       // Silently fail - device trust features will just not show
       setDeviceTrustStatus(null)
@@ -108,11 +117,11 @@ export function SessionIndicator(props: SessionIndicatorProps) {
 
   const showDeviceTrustOptions = () => {
     const status = deviceTrustStatus()
-    return status && status.twoFactorEnabled
+    return status && status.totpEnabled
   }
 
-  const isTwoFactorConfigured = () => deviceTrustStatus()?.twoFactorConfigured ?? false
-  const isTwoFactorOptedOut = () => deviceTrustStatus()?.twoFactorOptedOut ?? false
+  const isTotpConfigured = () => deviceTrustStatus()?.totpConfigured ?? false
+  const isTotpOptedOut = () => deviceTrustStatus()?.totpOptedOut ?? false
 
   const isDeviceTrusted = () => {
     const status = deviceTrustStatus()
@@ -150,11 +159,11 @@ export function SessionIndicator(props: SessionIndicatorProps) {
                 </DropdownMenu.Item>
               </Show>
               <DropdownMenu.Item
-                onSelect={isTwoFactorConfigured() ? handleManageTotp : handleSetupTotp}
+                onSelect={isTotpConfigured() ? handleManageTotp : handleSetupTotp}
                 data-action="settings-authentication-menu-totp"
               >
                 <DropdownMenu.ItemLabel>
-                  {isTwoFactorConfigured() ? "Manage TOTP" : isTwoFactorOptedOut() ? "Enable TOTP" : "Set up TOTP"}
+                  {isTotpConfigured() ? "Manage TOTP" : isTotpOptedOut() ? "Enable TOTP" : "Set up TOTP"}
                 </DropdownMenu.ItemLabel>
               </DropdownMenu.Item>
             </Show>
