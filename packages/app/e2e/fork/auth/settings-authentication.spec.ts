@@ -5,7 +5,7 @@ import {
   mockPasskeys,
   mockTotpSetupStart,
   mockUnauthenticatedAuth,
-  toDeviceTrustResponse,
+  toTotpDeviceTrustResponse,
 } from "../mocks/auth"
 import {
   settingsAuthTotpManageCardSelector,
@@ -163,7 +163,7 @@ test("TOTP inline setup enables manage panel without opening new tab", async ({ 
       status: 200,
       contentType: "application/json",
       body: JSON.stringify(
-        toDeviceTrustResponse({
+        toTotpDeviceTrustResponse({
           totpEnabled: true,
           totpConfigured: deviceTrustCalls > 1,
           totpOptedOut: false,

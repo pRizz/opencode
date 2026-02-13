@@ -7,15 +7,7 @@ export type TotpDeviceTrustStatus = {
   deviceTrusted: boolean
 }
 
-interface DeviceTrustResponse {
-  twoFactorEnabled: boolean
-  twoFactorConfigured: boolean
-  twoFactorOptedOut: boolean
-  deviceTrusted: boolean
-}
-
-/** @deprecated Prefer TotpDeviceTrustStatus. */
-export type DeviceTrustStatus = {
+interface TotpDeviceTrustResponse {
   twoFactorEnabled: boolean
   twoFactorConfigured: boolean
   twoFactorOptedOut: boolean
@@ -24,11 +16,11 @@ export type DeviceTrustStatus = {
 
 type DeviceTrustStatusInput = Partial<
   TotpDeviceTrustStatus & {
-    /** @deprecated Prefer `totpEnabled`. */
+    /** @deprecated Prefer `totpEnabled` in test inputs. */
     twoFactorEnabled: boolean
-    /** @deprecated Prefer `totpConfigured`. */
+    /** @deprecated Prefer `totpConfigured` in test inputs. */
     twoFactorConfigured: boolean
-    /** @deprecated Prefer `totpOptedOut`. */
+    /** @deprecated Prefer `totpOptedOut` in test inputs. */
     twoFactorOptedOut: boolean
   }
 >
@@ -56,9 +48,6 @@ export interface TotpSetupStartMockOptions {
   setupStatus?: string
   setupMessage?: string
 }
-
-/** @deprecated Prefer TotpSetupStartMockOptions. */
-export type TwoFactorSetupStartMockOptions = TotpSetupStartMockOptions
 
 export interface AuthenticatedAuthMockOptions {
   session?: string | AuthSessionMockOptions
@@ -92,7 +81,7 @@ function normalizeDeviceTrustStatus(input: DeviceTrustStatusInput): TotpDeviceTr
   }
 }
 
-export function toDeviceTrustResponse(input: DeviceTrustStatusInput = {}): DeviceTrustResponse {
+export function toTotpDeviceTrustResponse(input: DeviceTrustStatusInput = {}): TotpDeviceTrustResponse {
   const status = normalizeDeviceTrustStatus(input)
   return {
     twoFactorEnabled: status.totpEnabled,
@@ -154,7 +143,7 @@ export async function mockTotpDeviceTrust(page: Page, status: DeviceTrustStatusI
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify(toDeviceTrustResponse(status)),
+      body: JSON.stringify(toTotpDeviceTrustResponse(status)),
     })
   })
 }
@@ -192,9 +181,6 @@ export async function mockTotpSetupStart(page: Page, input: TotpSetupStartMockOp
     })
   })
 }
-
-/** @deprecated Prefer mockTotpSetupStart. */
-export const mockTwoFactorSetupStart = mockTotpSetupStart
 
 export async function mockAuthenticatedAuth(page: Page, options: AuthenticatedAuthMockOptions = {}) {
   await mockSession(page, options.session)
