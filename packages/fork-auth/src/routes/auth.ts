@@ -487,7 +487,7 @@ async function buildTwoFactorSetupBootstrap(
   required: boolean,
 ): Promise<TwoFactorSetupBootstrap> {
   const broker = new BrokerClient()
-  const has2fa = await broker.check2fa(session.username, session.home ?? "")
+  const hasTotp = await broker.checkTotp(session.username, session.home ?? "")
 
   const setupData = await generateTotpSetup(session.username)
   UserSession.setTwoFactorSetupSecret(sessionId, setupData.secret)
@@ -496,7 +496,7 @@ async function buildTwoFactorSetupBootstrap(
   let setupMessage: string | undefined = "We'll create your TOTP configuration after you verify your code."
   let setupCommand: string | undefined
 
-  if (has2fa) {
+  if (hasTotp) {
     setupStatus = "already_configured"
     setupMessage = "We detected an existing TOTP configuration for this account."
   } else {
@@ -2135,7 +2135,7 @@ export const AuthRoutes = lazy(() =>
           twoFactorOptedOut = preference.skipSetup ?? false
           if (session.home) {
             const broker = new BrokerClient()
-            twoFactorConfigured = await broker.check2fa(session.username, session.home)
+            twoFactorConfigured = await broker.checkTotp(session.username, session.home)
           }
         }
 

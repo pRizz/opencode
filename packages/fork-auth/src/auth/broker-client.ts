@@ -545,7 +545,7 @@ export class BrokerClient {
    * @param home - User's home directory (for .google_authenticator check)
    * @returns true if user has TOTP configured, false otherwise
    */
-  async check2fa(username: string, home: string): Promise<boolean> {
+  async checkTotp(username: string, home: string): Promise<boolean> {
     const id = crypto.randomUUID()
 
     const request: BrokerRequest = {
@@ -563,6 +563,13 @@ export class BrokerClient {
       // On error, assume no TOTP (fail open for detection)
       return false
     }
+  }
+
+  /**
+   * @deprecated Use checkTotp.
+   */
+  async check2fa(username: string, home: string): Promise<boolean> {
+    return this.checkTotp(username, home)
   }
 
   /**

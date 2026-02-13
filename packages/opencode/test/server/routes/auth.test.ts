@@ -45,6 +45,7 @@ const mockVerifyPasskeyRegistration = mock<
 const mockListUserPasskeys = mock<() => Promise<Array<Record<string, unknown>>>>(() => Promise.resolve([]))
 const mockRemoveUserPasskey = mock<() => Promise<boolean>>(() => Promise.resolve(false))
 const mockCheck2fa = mock<() => Promise<boolean>>(() => Promise.resolve(false))
+const mockCheckTotp = mockCheck2fa
 const mockBrokerPing = mock<() => Promise<boolean>>(() => Promise.resolve(true))
 const mockGetBootstrapStatus = mock<
   () => Promise<{ active: boolean; available: boolean; createdAt?: string; completedAt?: string; reason?: string }>
@@ -98,6 +99,7 @@ mock.module("../../../src/auth/broker-client", () => ({
     authenticate = mockAuthenticate
     registerSession = mockRegisterSession
     unregisterSession = mockUnregisterSession
+    checkTotp = mockCheckTotp
     check2fa = mockCheck2fa
     ping = mockBrokerPing
   },
@@ -107,6 +109,7 @@ mock.module("@opencode-ai/fork-auth/auth/broker-client", () => ({
     authenticate = mockAuthenticate
     registerSession = mockRegisterSession
     unregisterSession = mockUnregisterSession
+    checkTotp = mockCheckTotp
     check2fa = mockCheck2fa
     ping = mockBrokerPing
   },
