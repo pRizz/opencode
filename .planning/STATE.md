@@ -39,7 +39,7 @@ Progress: [██████████] 97% (63/65 plans complete)
 | 7. Security Hardening         | 3     | 20 min   | 6.7 min  |
 | 8. Session Enhancements       | 4     | 11.5 min | 2.9 min  |
 | 9. Connection Security UI     | 2     | 4.6 min  | 2.3 min  |
-| 10. Two-Factor Authentication | 8     | 19.6 min | 2.5 min  |
+| 10. TOTP Authentication       | 8     | 19.6 min | 2.5 min  |
 | 11. Documentation             | 3     | 9.9 min  | 3.3 min  |
 
 **Recent Trend:**
@@ -139,17 +139,17 @@ Recent decisions affecting current work:
 | 09-02 | Banner below titlebar                                          | High visibility for security warnings without blocking critical UI                            |
 | 10-01 | AuthError reuse from pam module                                | Consistent error handling across auth operations                                              |
 | 10-01 | Separate PAM service for OTP validation                        | Isolate OTP-only auth from password+OTP combined auth                                         |
-| 10-01 | nullok option in PAM config                                    | Graceful fallback for users without 2FA configured                                            |
+| 10-01 | nullok option in PAM config                                    | Graceful fallback for users without TOTP configured                                           |
 | 10-02 | AuthenticateOtp uses same rate limiter as password auth        | Prevents brute force attacks on OTP codes                                                     |
-| 10-02 | Check2fa returns failure response for no 2FA                   | Client checks success field to determine 2FA status                                           |
+| 10-02 | Check2fa returns failure response for no TOTP                  | Client checks success field to determine TOTP status                                          |
 | 10-02 | OTP code redacted in Debug output                              | Follows password redaction pattern for security                                               |
 | 10-03 | Added jose library to opencode package                         | Required for JWT signing/verification - already used in function package                      |
-| 10-04 | check2fa fails open on error                                   | For detection-only use case, assumes no 2FA when broker unavailable                           |
+| 10-04 | check2fa fails open on error                                   | For detection-only use case, assumes no TOTP when broker unavailable                          |
 | 10-04 | authenticateOtp follows authenticate() pattern                 | Consistent error handling and response structure                                              |
 | 10-05 | Token secret generated once at startup via lazy initialization | Acceptable that tokens invalidate on restart, matching session design                         |
-| 10-05 | 2FA token bound to requesting IP                               | Security measure to prevent token theft                                                       |
+| 10-05 | TOTP token bound to requesting IP                              | Security measure to prevent token theft                                                       |
 | 10-05 | Device trust cookie uses httpOnly, Strict SameSite             | Security best practices for sensitive cookies                                                 |
-| 10-05 | 2FA login does not use rememberMe for session                  | Device trust is separate concept from session persistence                                     |
+| 10-05 | TOTP login does not use rememberMe for session                 | Device trust is separate concept from session persistence                                     |
 | 10-06 | escapeHtml helper for username                                 | XSS prevention when displaying user-provided data                                             |
 | 10-06 | Auto-submit only for 6-digit codes                             | Backup codes may be longer, user should manually submit those                                 |
 | 10-07 | QR code as inline SVG                                          | No external image hosting needed, renders directly in HTML                                    |
@@ -157,7 +157,7 @@ Recent decisions affecting current work:
 | 10-07 | Show google-authenticator CLI command                          | User must run server command to enable PAM OTP validation                                     |
 | 10-08 | Device trust cookie cleared on all logout paths                | Consistency - both /logout and /logout/all clear trust                                        |
 | 10-08 | Status endpoint verifies cookie validity                       | Prevents false positives for device trust status                                              |
-| 10-08 | 2FA setup opens in new tab                                     | Placeholder URL for future setup page                                                         |
+| 10-08 | TOTP setup opens in new tab                                    | Placeholder URL for future setup page                                                         |
 | 11-01 | Document both nginx and Caddy as primary reverse proxy options | nginx is widely used and enterprise-proven, Caddy has automatic HTTPS                         |
 | 11-01 | 24-hour WebSocket timeout for proxy configurations             | Prevents long-running terminal sessions from being disconnected                               |
 | 11-01 | Placeholder pattern for user-supplied values                   | Clear indication of values users must replace, prevents copy-paste errors                     |
@@ -182,10 +182,10 @@ Recent decisions affecting current work:
 - Phase 17 added: Make the client boundary the only place where "unknown" exists, then validate and normalize into strict types so the rest of the UI can't represent invalid shapes. Concrete pattern: Typed API layer: Expose functions like findFiles(): Promise<string[]> (no { data }, no unknown), and only allow those in UI code. Don't export the raw SDK client outside this layer. Runtime validation: Parse server responses with a schema (zod, valibot, io-ts). If validation fails, throw or return a typed error. This makes "wrong shape" impossible to flow into components. Normalization at the boundary: If the SDK can return { data } or raw arrays, normalize there and return the canonical type. No any/unknown past boundary: The rest of the app should only see string[] or a typed error union. This fully applies "illegal states unrepresentable": UI code can't accidentally access .map on a non-array because it never sees non-array values.
 - Phase 18 added: Audit all server routes for if they need authentication checks
 - Phase 19 added: Refactor auth login page (replace string-based login HTML with a SolidJS-based page)
-- Phase 20 added: Refactor 2FA verification page (move generate2FAPageHtml content into packages/app)
+- Phase 20 added: Refactor TOTP verification page (move generate2FAPageHtml content into packages/app)
 - Phase 21 added: Allow the user to add and manage SSH keys in the opencode webapp; prompt for SSH key on clone; add settings CRUD; install keys in ~/.ssh; update ssh config; add server routes as needed
 - Phase 22 added: Refactor the /auth/2fa/setup page from auth.ts into the SolidJS app at packages/app
-- Phase 23 added: During 2FA setup, make the server automatically set the .google_authenticator file in the appropriate user's home folder, instead of asking the user to run the command on their machine
+- Phase 23 added: During TOTP setup, make the server automatically set the .google_authenticator file in the appropriate user's home folder, instead of asking the user to run the command on their machine
 - Phase 25 added: Allow ssh keys to be generated in the webapp and allow the user to freely see the public key; this functionality should be integrated with the existing ssh key manager
 
 ### Pending Todos
@@ -246,15 +246,15 @@ Next: None
 
 ## Phase 10 Progress
 
-**Two-Factor Authentication - Complete:**
+**TOTP Authentication - Complete:**
 
-- [x] Plan 01: 2FA config and OTP module (4.7 min)
-- [x] Plan 02: Broker protocol 2FA extension (2.3 min)
+- [x] Plan 01: TOTP config and OTP module (4.7 min)
+- [x] Plan 02: Broker protocol TOTP extension (2.3 min)
 - [x] Plan 03: Token utilities (2.7 min)
-- [x] Plan 04: BrokerClient 2FA methods (2 min)
-- [x] Plan 05: Auth Routes 2FA Flow (3 min)
-- [x] Plan 06: 2FA Verification Page UI (2.4 min)
-- [x] Plan 07: 2FA Setup Wizard (3.3 min)
+- [x] Plan 04: BrokerClient TOTP methods (2 min)
+- [x] Plan 05: Auth Routes TOTP Flow (3 min)
+- [x] Plan 06: TOTP Verification Page UI (2.4 min)
+- [x] Plan 07: TOTP Setup Wizard (3.3 min)
 - [x] Plan 08: Device Trust Management (2.5 min)
 
 Verification: Passed (4/4 must-haves verified)

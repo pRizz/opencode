@@ -2,7 +2,7 @@
 
 ## Overview
 
-This roadmap delivers PAM-based system authentication for opencode's web interface, following the Cockpit model. Starting with configuration and session infrastructure, we build toward a privileged auth broker that enables multi-user access where commands execute under the authenticated user's identity. The journey proceeds from foundation (config, sessions) through core authentication (broker, PAM, process spawning), then UI and security hardening, and concludes with polish features (2FA, documentation).
+This roadmap delivers PAM-based system authentication for opencode's web interface, following the Cockpit model. Starting with configuration and session infrastructure, we build toward a privileged auth broker that enables multi-user access where commands execute under the authenticated user's identity. The journey proceeds from foundation (config, sessions) through core authentication (broker, PAM, process spawning), then UI and security hardening, and concludes with polish features (TOTP authentication, documentation).
 
 ## Phases
 
@@ -22,7 +22,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 7: Security Hardening** - CSRF, rate limiting, HTTPS detection
 - [x] **Phase 8: Session Enhancements** - Remember me and session activity indicator
 - [x] **Phase 9: Connection Security UI** - HTTPS/HTTP security badge in UI
-- [x] **Phase 10: Two-Factor Authentication** - TOTP support via PAM integration
+- [x] **Phase 10: TOTP Authentication** - TOTP support via PAM integration
 - [x] **Phase 11: Documentation** - Reverse proxy and PAM configuration guides
 - [ ] **Phase 12: Server-Side TOTP Registration** - Offload .google_authenticator file generation to server
 - [ ] **Phase 13: Passkeys Investigation** - Investigate adding passkeys and passkey management to opencode auth
@@ -32,10 +32,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 17: Make the client boundary the only place where "unknown" exists, then validate and normalize into strict types so the rest of the UI can't represent invalid shapes. Concrete pattern: Typed API layer: Expose functions like findFiles(): Promise<string[]> (no { data }, no unknown), and only allow those in UI code. Don't export the raw SDK client outside this layer. Runtime validation: Parse server responses with a schema (zod, valibot, io-ts). If validation fails, throw or return a typed error. This makes "wrong shape" impossible to flow into components. Normalization at the boundary: If the SDK can return { data } or raw arrays, normalize there and return the canonical type. No any/unknown past boundary: The rest of the app should only see string[] or a typed error union. This fully applies "illegal states unrepresentable": UI code can't accidentally access .map on a non-array because it never sees non-array values.** - Client boundary validation and normalization to prevent type mismatches
 - [ ] **Phase 18: Audit all server routes for if they need authentication checks** - Audit all server routes for if they need authentication checks
 - [ ] **Phase 19: Refactor auth login page** - Replace string-based login HTML with a proper SolidJS-based login page in `packages/opencode/src/server/routes/auth.ts`
-- [ ] **Phase 20: Refactor 2FA verification page** - Refactor generate2FAPageHtml so the content is moved and integrated with the project at `packages/app` instead of the large string in code
+- [ ] **Phase 20: Refactor TOTP verification page** - Refactor generate2FAPageHtml so the content is moved and integrated with the project at `packages/app` instead of the large string in code
 - [ ] **Phase 21: Allow the user to add and manage SSH keys in the opencode webapp** - Allow the user to add and manage SSH keys in the opencode webapp; when attempting to clone via git SSH, prompt for a key if none are registered; add CRUD in settings; install keys in ~/.ssh; update ssh config; add server routes as needed
 - [ ] **Phase 22: Refactor the /auth/2fa/setup page from auth.ts into the SolidJS app at packages/app** - Refactor the /auth/2fa/setup page from auth.ts into the SolidJS app at packages/app
-- [ ] **Phase 23: During 2FA setup, make the server automatically set the .google_authenticator file in the appropriate user's home folder, instead of asking the user to run the command on their machine** - During 2FA setup, make the server automatically set the .google_authenticator file in the appropriate user's home folder, instead of asking the user to run the command on their machine
+- [ ] **Phase 23: During TOTP setup, make the server automatically set the .google_authenticator file in the appropriate user's home folder, instead of asking the user to run the command on their machine** - During TOTP setup, make the server automatically set the .google_authenticator file in the appropriate user's home folder, instead of asking the user to run the command on their machine
 - [ ] **Phase 24: Remote Terminal Reliability** - Investigate and fix remote terminal failures in the web app (PTY session creation, broker/session lifecycle, and /pty 500s)
 - [ ] **Phase 25: Allow ssh keys to be generated in the webapp and allow the user to freely see the public key; this functionality should be integrated with the existing ssh key manager** - Allow ssh keys to be generated in the webapp and allow the user to freely see the public key; this functionality should be integrated with the existing ssh key manager
 
@@ -217,27 +217,27 @@ Plans:
 - [x] 09-01-PLAN.md — SecurityBadge component with icons, detection, tooltip, and popover details
 - [x] 09-02-PLAN.md — HTTP warning banner and layout integration
 
-### Phase 10: Two-Factor Authentication
+### Phase 10: TOTP Authentication
 
-**Goal**: Users can optionally enable TOTP-based 2FA for login
+**Goal**: Users can optionally enable TOTP-based authentication for login
 **Depends on**: Phase 4
 **Requirements**: AUTH-05
 **Success Criteria** (what must be TRUE):
 
-1. 2FA prompt appears after password validation when enabled
+1. TOTP prompt appears after password validation when enabled
 2. TOTP codes validated via PAM (pam_google_authenticator or similar)
-3. 2FA is optional per-user (configured via PAM, not opencode)
-4. Login fails with clear message if 2FA required but not provided
+3. TOTP authentication is optional per-user (configured via PAM, not opencode)
+4. Login fails with clear message if TOTP is required but not provided
    **Plans**: 8 plans
 
 Plans:
 
-- [x] 10-01-PLAN.md — 2FA config and broker OTP module (config schema, has_2fa_configured, validate_otp)
+- [x] 10-01-PLAN.md — TOTP config and broker OTP module (config schema, has_2fa_configured, validate_otp)
 - [x] 10-02-PLAN.md — Broker protocol extension (Check2fa, AuthenticateOtp methods)
-- [x] 10-03-PLAN.md — Token utilities (device trust JWT, 2FA token JWT)
-- [x] 10-04-PLAN.md — BrokerClient 2FA methods (check2fa, authenticateOtp)
-- [x] 10-05-PLAN.md — Auth routes 2FA flow (2fa_required response, /login/2fa endpoint)
-- [x] 10-06-PLAN.md — 2FA verification page (countdown timer, auto-submit, remember device)
+- [x] 10-03-PLAN.md — Token utilities (device trust JWT, TOTP token JWT)
+- [x] 10-04-PLAN.md — BrokerClient TOTP methods (check2fa, authenticateOtp)
+- [x] 10-05-PLAN.md — Auth routes TOTP flow (2fa_required response, /login/2fa endpoint)
+- [x] 10-06-PLAN.md — TOTP verification page (countdown timer, auto-submit, remember device)
 - [x] 10-07-PLAN.md — Setup wizard (QR code generation, verification)
 - [x] 10-08-PLAN.md — Device trust UI (revoke device, setup link in dropdown)
 
@@ -257,7 +257,7 @@ Plans:
 Plans:
 
 - [x] 11-01-PLAN.md — Docs structure and reverse proxy guide (nginx, Caddy, TLS, WebSocket)
-- [x] 11-02-PLAN.md — PAM configuration guide (setup, LDAP, 2FA, broker)
+- [x] 11-02-PLAN.md — PAM configuration guide (setup, LDAP, TOTP, broker)
 - [x] 11-03-PLAN.md — Troubleshooting guide (flowcharts, debugging, common errors)
 - [x] 11-04-PLAN.md — Index finalization and README integration
 
@@ -388,16 +388,16 @@ Plans:
 **Details:**
 [To be added during planning]
 
-### Phase 20: Refactor 2FA verification page
+### Phase 20: Refactor TOTP verification page
 
-**Goal:** The 2FA verification page is delivered as a SolidJS entry with visual and behavioral parity to the current inline 2FA UI.
+**Goal:** The TOTP verification page is delivered as a SolidJS entry with visual and behavioral parity to the current inline TOTP UI.
 **Depends on:** Phase 19
 **Plans:** 2 plans
 
 Plans:
 
-- [ ] 20-01-PLAN.md — SolidJS 2FA entry and Vite multi-page build
-- [ ] 20-02-PLAN.md — Auth route serves Solid 2FA HTML with bootstrap data
+- [ ] 20-01-PLAN.md — SolidJS TOTP entry and Vite multi-page build
+- [ ] 20-02-PLAN.md — Auth route serves Solid TOTP HTML with bootstrap data
 
 **Details:**
 Move `generate2FAPageHtml` into `packages/app` and serve `2fa.html` from the UI build, following the login page refactor pattern.
@@ -429,9 +429,9 @@ Plans:
 **Details:**
 [To be added during planning]
 
-### Phase 23: During 2FA setup, make the server automatically set the .google_authenticator file in the appropriate user's home folder, instead of asking the user to run the command on their machine
+### Phase 23: During TOTP setup, make the server automatically set the .google_authenticator file in the appropriate user's home folder, instead of asking the user to run the command on their machine
 
-**Goal:** 2FA setup auto-provisions `~/.google_authenticator` via the broker with a manual fallback when the broker is unavailable
+**Goal:** TOTP setup auto-provisions `~/.google_authenticator` via the broker with a manual fallback when the broker is unavailable
 **Depends on:** Phase 22
 **Plans:** 2 plans
 
@@ -441,7 +441,7 @@ Plans:
 - [ ] 23-02-PLAN.md — Setup UI status messaging and fallback rendering
 
 **Details:**
-The 2FA setup flow should have the broker write the `.google_authenticator` file for the authenticated user with correct ownership and permissions. The setup page should show status (created / already configured / manual required) and only display the manual command when the broker cannot complete the write.
+The TOTP setup flow should have the broker write the `.google_authenticator` file for the authenticated user with correct ownership and permissions. The setup page should show status (created / already configured / manual required) and only display the manual command when the broker cannot complete the write.
 
 ### Phase 24: Remote Terminal Reliability
 
@@ -486,7 +486,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 7. Security Hardening                        | 3/3            | Complete    | 2026-01-22 |
 | 8. Session Enhancements                      | 4/4            | Complete    | 2026-01-23 |
 | 9. Connection Security UI                    | 2/2            | Complete    | 2026-01-24 |
-| 10. Two-Factor Authentication                | 8/8            | Complete    | 2026-01-24 |
+| 10. TOTP Authentication                      | 8/8            | Complete    | 2026-01-24 |
 | 11. Documentation                            | 4/4            | Complete    | 2026-01-25 |
 | 12. Server-Side TOTP Registration            | 0/TBD          | Not started | -          |
 | 13. Passkeys Investigation                   | 0/TBD          | Not started | -          |

@@ -13,7 +13,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **AUTH-02**: Credentials validated against system PAM (supports LDAP/Kerberos transparently)
 - [x] **AUTH-03**: Authenticated session maps to real UNIX user (UID/GID)
 - [x] **AUTH-04**: Commands and file operations execute under authenticated user's identity
-- [x] **AUTH-05**: User can optionally enable 2FA via TOTP (PAM module integration)
+- [x] **AUTH-05**: User can optionally enable TOTP authentication (PAM module integration)
 
 ### Sessions
 

@@ -21,7 +21,7 @@ Milestone 1 delivered complete PAM-based system authentication for opencode's we
 | 7     | Security Hardening        | 3     | 20 min   | ✅ Complete |
 | 8     | Session Enhancements      | 4     | 11.5 min | ✅ Complete |
 | 9     | Connection Security UI    | 2     | 4.6 min  | ✅ Complete |
-| 10    | Two-Factor Authentication | 8     | 19.6 min | ✅ Complete |
+| 10    | TOTP Authentication       | 8     | 19.6 min | ✅ Complete |
 | 11    | Documentation             | 4     | 9.9 min  | ✅ Complete |
 
 **Total:** 43 plans, 224.5 minutes (3.7 hours)
@@ -42,7 +42,7 @@ Milestone 1 delivered complete PAM-based system authentication for opencode's we
 - ✅ Rate limiting (5 attempts per 15 minutes)
 - ✅ HTTPS detection and enforcement
 - ✅ Two-factor authentication (TOTP via PAM)
-- ✅ Device trust for 2FA
+- ✅ Device trust for TOTP authentication
 - ✅ Secure session cookies (httpOnly, SameSite)
 
 ### User Interface
@@ -50,14 +50,14 @@ Milestone 1 delivered complete PAM-based system authentication for opencode's we
 - ✅ Login page with password toggle
 - ✅ Session indicator with username display
 - ✅ Connection security badge (HTTPS/HTTP/local)
-- ✅ 2FA verification page with countdown timer
-- ✅ 2FA setup wizard with QR code generation
+- ✅ TOTP verification page with countdown timer
+- ✅ TOTP setup wizard with QR code generation
 - ✅ Session expiration warnings
 
 ### Documentation
 
 - ✅ Reverse proxy setup guide (nginx, Caddy)
-- ✅ PAM configuration guide (Linux, macOS, 2FA, LDAP)
+- ✅ PAM configuration guide (Linux, macOS, TOTP, LDAP)
 - ✅ Troubleshooting guide with diagnostic flowcharts
 - ✅ Documentation index with quick start guide
 - ✅ Production-ready configuration examples
@@ -83,7 +83,7 @@ Milestone 1 delivered complete PAM-based system authentication for opencode's we
 
 ### Security Model
 
-- **PAM integration:** Supports local users, LDAP/AD, 2FA via pam_google_authenticator
+- **PAM integration:** Supports local users, LDAP/AD, TOTP via pam_google_authenticator
 - **Session security:** HMAC binding, CSRF tokens, secure cookies
 - **Rate limiting:** IP-based protection before PAM validation
 - **HTTPS enforcement:** Configurable (off/warn/block) with localhost exemption
@@ -108,7 +108,7 @@ Milestone 1 delivered complete PAM-based system authentication for opencode's we
 
 - Rust broker: ~2,000 lines (PAM integration, IPC server)
 - TypeScript server: ~3,000 lines (auth routes, session management)
-- TypeScript UI: ~2,500 lines (login, 2FA, session components)
+- TypeScript UI: ~2,500 lines (login, TOTP, session components)
 - Documentation: ~3,500 lines (guides, configs, troubleshooting)
 
 ## Decisions Made
@@ -128,7 +128,7 @@ Key architectural decisions documented in STATE.md:
 
 - Sessions lost on server restart (in-memory storage)
 - Single-instance only (no session sharing across instances)
-- Manual 2FA setup (users run CLI commands)
+- Manual TOTP setup (users run CLI commands)
 
 **Future Enhancements (Phases 12-15):**
 

@@ -6,7 +6,7 @@
 <domain>
 ## Phase Boundary
 
-Protect login and state-changing operations against common web attacks. Implement CSRF protection, rate limiting on login attempts, HTTP/HTTPS detection with warnings, and configurable security behaviors. Does not include 2FA (Phase 10), session enhancements (Phase 8), or UI security indicators beyond login page (Phase 9).
+Protect login and state-changing operations against common web attacks. Implement CSRF protection, rate limiting on login attempts, HTTP/HTTPS detection with warnings, and configurable security behaviors. Does not include TOTP authentication (Phase 10), session enhancements (Phase 8), or UI security indicators beyond login page (Phase 9).
 
 </domain>
 
