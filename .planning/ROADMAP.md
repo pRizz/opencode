@@ -236,7 +236,7 @@ Plans:
 - [x] 10-02-PLAN.md — Broker protocol extension (CheckTotp, AuthenticateOtp methods)
 - [x] 10-03-PLAN.md — Token utilities (device trust JWT, TOTP token JWT)
 - [x] 10-04-PLAN.md — BrokerClient TOTP methods (checkTotp, authenticateOtp)
-- [x] 10-05-PLAN.md — Auth routes TOTP flow (2fa_required response, /login/totp endpoint with legacy /login/2fa alias)
+- [x] 10-05-PLAN.md — Auth routes TOTP flow (`totp_required` canonical code with legacy `2fa_required` alias, /login/totp endpoint with legacy /login/2fa alias)
 - [x] 10-06-PLAN.md — TOTP verification page (countdown timer, auto-submit, remember device)
 - [x] 10-07-PLAN.md — Setup wizard (QR code generation, verification)
 - [x] 10-08-PLAN.md — Device trust UI (revoke device, setup link in dropdown)
