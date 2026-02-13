@@ -15,11 +15,11 @@ import { createManualRateLimiter, getClientIP, type ManualRateLimiter } from "..
 import { parseDuration } from "../../../opencode/src/util/duration"
 import { shouldBlockInsecureLogin } from "../security/https-detection"
 import { getEffectiveRequestUrl, isEffectiveHttps } from "../security/request-context"
-import { verifyTotpToken } from "../auth/two-factor-token"
+import { verifyTotpToken } from "../auth/totp-token"
 import { verifyDeviceTrustToken, createDeviceTrustToken, createDeviceFingerprint } from "../auth/device-trust"
 import { getTokenSecret } from "../security/token-secret"
 import { generateTotpSetup, getGoogleAuthenticatorSetupCommand, verifyTotpCode } from "../auth/totp-setup"
-import { getTwoFactorPreference, setTwoFactorPreference } from "../auth/two-factor-preference"
+import { getTotpPreference, setTotpPreference } from "../auth/totp-preference"
 import { completeBootstrapOtp, createBootstrapUser, getBootstrapStatus, verifyBootstrapOtp } from "../auth/bootstrap"
 import { getUiDir } from "../../../opencode/src/server/ui-dir"
 import {
@@ -2131,7 +2131,7 @@ export const AuthRoutes = lazy(() =>
         let twoFactorOptedOut = false
 
         if (twoFactorEnabled && session?.username) {
-          const preference = await getTwoFactorPreference(session.username)
+          const preference = await getTotpPreference(session.username)
           twoFactorOptedOut = preference.skipSetup ?? false
           if (session.home) {
             const broker = new BrokerClient()
@@ -2366,7 +2366,7 @@ export const AuthRoutes = lazy(() =>
       // Clear twoFactorPending flag now that TOTP is configured
       UserSession.clearTwoFactorPending(sessionId)
       UserSession.clearTwoFactorSetupSecret(sessionId)
-      await setTwoFactorPreference(session.username, { skipSetup: false })
+      await setTotpPreference(session.username, { skipSetup: false })
 
       return c.json({ success: true })
     })
@@ -2436,7 +2436,7 @@ export const AuthRoutes = lazy(() =>
         return c.json({ error: "reset_failed", message: "Failed to reset TOTP", details: result }, 500)
       }
 
-      await setTwoFactorPreference(session.username, { skipSetup: false })
+      await setTotpPreference(session.username, { skipSetup: false })
 
       return c.json({
         success: true as const,
@@ -2488,7 +2488,7 @@ export const AuthRoutes = lazy(() =>
 
       UserSession.clearTwoFactorPending(sessionId)
       UserSession.clearTwoFactorSetupSecret(sessionId)
-      await setTwoFactorPreference(session.username, { skipSetup: true })
+      await setTotpPreference(session.username, { skipSetup: true })
 
       return c.json({
         success: true as const,

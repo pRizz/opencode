@@ -1,1 +1,1 @@
-export * from "@opencode-ai/fork-auth/auth/two-factor-preference"
+export * from "./totp-preference"
