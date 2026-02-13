@@ -893,9 +893,9 @@ All authentication options from `packages/opencode/src/config/auth.ts`:
 | `csrfVerboseErrors`     | boolean                    | `false`      | Enable verbose CSRF error messages for debugging                                 |
 | `csrfAllowlist`         | string[]                   | `[]`         | Additional routes to exclude from CSRF validation                                |
 | `twoFactorEnabled`      | boolean                    | `false`      | Enable TOTP authentication support                                               |
-| `twoFactorRequired`     | boolean                    | `false`      | Require users to set up TOTP before accessing the app                           |
-| `twoFactorTokenTimeout` | duration                   | `"5m"`       | How long the TOTP token is valid after password success                         |
-| `deviceTrustDuration`   | duration                   | `"30d"`      | How long "remember this device" lasts for TOTP                                  |
+| `twoFactorRequired`     | boolean                    | `false`      | Require users to set up TOTP before accessing the app                            |
+| `twoFactorTokenTimeout` | duration                   | `"5m"`       | How long the TOTP token is valid after password success                          |
+| `deviceTrustDuration`   | duration                   | `"30d"`      | How long "remember this device" lasts for TOTP                                   |
 | `otpRateLimitMax`       | number                     | `5`          | Maximum OTP attempts per rate limit window                                       |
 | `otpRateLimitWindow`    | duration                   | `"15m"`      | OTP rate limit window duration                                                   |
 
