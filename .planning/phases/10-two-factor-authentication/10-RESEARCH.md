@@ -11,7 +11,7 @@ Phase 10 adds optional TOTP-based authentication to the login flow. The implemen
 Research validates that:
 
 1. **Detection of TOTP configuration:** Check for existence of `~/.google_authenticator` file for the user (or the path specified in PAM config)
-2. **Two-step authentication flow:** After password success, return `2fa_required` status; second request validates OTP via pam_google_authenticator
+2. **Two-step authentication flow:** After password success, return a TOTP-required status (canonical code, legacy alias compatible); second request validates OTP via pam_google_authenticator
 3. **Device trust cookies:** Use signed JWT tokens with device fingerprint stored in secure cookie
 4. **TOTP validation:** Can use pam_google_authenticator PAM module or direct TOTP validation via totp-rs crate in Rust
 5. **QR code setup:** Generate QR code with otpauth:// URL format using standard TOTP parameters
@@ -108,7 +108,7 @@ packages/opencode/src/
 // Step 1: Password authentication
 POST /auth/login
 Body: { username, password }
-Response: { success: false, error: "2fa_required", twoFactorToken: "<short-lived-jwt>" }
+Response: { success: false, code: "totp_required", error: "2fa_required", twoFactorToken: "<short-lived-jwt>" }
 
 // Step 2: OTP validation
 POST /auth/login/totp (legacy alias: /auth/login/2fa)
@@ -212,7 +212,7 @@ interface TwoFactorToken {
 }
 
 // Create token after password validation succeeds
-function create2FAToken(username: string, userInfo: UserInfo): string {
+function createTotpToken(username: string, userInfo: UserInfo): string {
   // JWT with 5-minute expiration
   // Signed with server secret
 }
@@ -360,7 +360,7 @@ Problems that look simple but have existing solutions:
 
 **What goes wrong:** Attacker learns which users have TOTP enabled
 **Why it happens:** Different responses for TOTP vs non-TOTP users
-**How to avoid:** Always return `2fa_required` even for users without TOTP (prompt but accept any code)
+**How to avoid:** Always return a consistent TOTP-required response (canonical `totp_required` code, with optional legacy `2fa_required` alias) even for users without TOTP (prompt but accept any code)
 **Alternative:** Accept this as low risk since attacker already has valid password
 **Warning signs:** Can distinguish TOTP users without password
 
@@ -504,7 +504,7 @@ auth required pam_google_authenticator.so nullok
 
 ```typescript
 // Source: Extending existing auth.ts generateLoginPageHtml pattern
-function generate2FAPageHtml(username: string, countdown: number): string {
+function renderTotpPageHtml(username: string, countdown: number): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>

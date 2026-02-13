@@ -50,7 +50,7 @@ TOTP setup wizard with QR code generation for authenticator app enrollment.
 - `generateTotpSetup()` generates 160-bit secret, builds otpauth:// URL, creates SVG QR code
 - `getGoogleAuthenticatorSetupCommand()` returns CLI command for server-side setup
 
-### 2. Setup Wizard UI (generate2FASetupPageHtml)
+### 2. Setup Wizard UI (TOTP setup page HTML renderer)
 
 - Step 1: QR code display with manual secret fallback
 - Step 2: Server command to run (google-authenticator CLI)

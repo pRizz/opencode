@@ -34,16 +34,16 @@ TOTP page UI with countdown timer, auto-submit on 6 digits, and remember device 
 
 ### Login Page Integration
 
-- JavaScript updated to check for `error: "2fa_required"` response
+- JavaScript updated to check for TOTP-required responses (`code: "totp_required"` with legacy `error: "2fa_required"` compatibility)
 - Redirects to /auth/totp with token, username, and timeout params (legacy /auth/2fa alias retained)
 - Normal success/error handling continues for other responses
 
 ## Verification Results
 
 1. TypeScript compiles: PASS
-2. generate2FAPageHtml exists: PASS
+2. TOTP page renderer exists: PASS
 3. GET /auth/totp route exists (legacy /auth/2fa alias retained): PASS
-4. 2fa_required redirect: PASS
+4. TOTP-required redirect handling: PASS
 
 ## Deviations from Plan
 

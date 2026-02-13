@@ -46,8 +46,8 @@ JWT-based token modules for device trust and TOTP intermediate tokens using jose
 ### TOTP Token Module
 
 - `TwoFactorUserInfo` interface: Carries UNIX user info through TOTP flow
-- `create2FAToken()`: Creates short-lived JWT after password validation
-- `verify2FAToken()`: Validates token with optional IP binding
+- `createTotpToken()`: Creates short-lived JWT after password validation (legacy `create2FAToken` alias retained)
+- `verifyTotpToken()`: Validates token with optional IP binding (legacy `verify2FAToken` alias retained)
 - `getTokenRemainingSeconds()`: Decodes token exp for UI countdown
 
 ## Key Design Points

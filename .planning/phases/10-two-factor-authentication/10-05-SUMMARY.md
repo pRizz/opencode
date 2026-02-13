@@ -7,7 +7,7 @@ tags: [jwt, totp, device-trust, hono]
 # Dependency graph
 requires:
   - phase: 10-03
-    provides: JWT token utilities (two-factor-token.ts, device-trust.ts)
+    provides: JWT token utilities (totp-token.ts with legacy two-factor-token compatibility, and device-trust.ts)
   - phase: 10-04
     provides: BrokerClient TOTP methods (checkTotp, authenticateOtp)
 provides:
@@ -39,7 +39,7 @@ key-decisions:
 
 patterns-established:
   - "Token secret via lazy initialization: getTokenSecret() for all JWT operations"
-  - "Two-step auth: password success returns 2fa_required with JWT, then OTP validates"
+  - "Two-step auth: password success returns TOTP-required response with JWT, then OTP validates"
   - "Device trust bypass: verify cookie before requiring TOTP"
 
 # Metrics
@@ -49,7 +49,7 @@ completed: 2026-01-24
 
 # Phase 10 Plan 05: Auth Routes TOTP Flow Summary
 
-**TOTP-aware login endpoint with device trust bypass and /login/2fa OTP validation endpoint using JWT tokens**
+**TOTP-aware login endpoint with device trust bypass and canonical /login/totp OTP validation endpoint (legacy /login/2fa alias retained)**
 
 ## Performance
 
@@ -62,7 +62,7 @@ completed: 2026-01-24
 ## Accomplishments
 
 - Server token secret module for JWT signing across all TOTP operations
-- Login endpoint extended to check TOTP and return 2fa_required response
+- Login endpoint extended to check TOTP and return TOTP-required response
 - Device trust cookie verification to bypass TOTP on trusted devices
 - POST /auth/login/totp endpoint for OTP validation with device trust setting (legacy /auth/login/2fa alias retained)
 
@@ -77,7 +77,7 @@ Each task was committed atomically:
 ## Files Created/Modified
 
 - `packages/opencode/src/server/security/token-secret.ts` - Server-wide JWT signing secret
-- `packages/opencode/src/server/routes/auth.ts` - TOTP-aware login flow and /login/2fa endpoint
+- `packages/opencode/src/server/routes/auth.ts` - TOTP-aware login flow and canonical /login/totp endpoint (legacy /login/2fa alias retained)
 
 ## Decisions Made
 

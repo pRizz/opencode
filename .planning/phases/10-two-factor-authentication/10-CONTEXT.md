@@ -27,7 +27,7 @@ Users can optionally enable TOTP-based authentication for login. TOTP authentica
 
 - Target pam_google_authenticator module (standard TOTP)
 - Two-step process: password validation first, OTP validation second
-- Broker returns `2fa_required` status after password success
+- Broker returns a TOTP-required status after password success (canonical code with legacy alias compatibility)
 - Broker returns short-lived TOTP token after password success
 - Client sends TOTP token + OTP for step 2 (not password again)
 - Configurable OTP window timeout, default 5 minutes
