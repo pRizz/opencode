@@ -21,6 +21,7 @@ interface BrokerRequest {
     | "resizepty"
     | "ptywrite"
     | "ptyread"
+    | "checktotp"
     | "check2fa"
     | "authenticateotp"
     | "checkotpconfig"
@@ -253,6 +254,9 @@ function classifyBrokerError(error: unknown): { reason: BrokerUnavailableReason;
 
   return { reason: "unknown", message }
 }
+
+const CHECK_TOTP_METHOD = "checktotp"
+const LEGACY_CHECK_TOTP_METHOD = "check2fa"
 
 /**
  * Result of OTP server configuration check.
@@ -546,23 +550,41 @@ export class BrokerClient {
    * @returns true if user has TOTP configured, false otherwise
    */
   async checkTotp(username: string, home: string): Promise<boolean> {
-    const id = crypto.randomUUID()
+    const sendCheckRequest = async (method: typeof CHECK_TOTP_METHOD | typeof LEGACY_CHECK_TOTP_METHOD) => {
+      const id = crypto.randomUUID()
+      const request: BrokerRequest = {
+        id,
+        version: 1,
+        method,
+        username,
+        home,
+      }
 
-    const request: BrokerRequest = {
-      id,
-      version: 1,
-      method: "check2fa",
-      username,
-      home,
+      try {
+        const response = await this.sendRequest(request)
+        const matchedResponse = response.id === id
+        return {
+          matchedResponse,
+          success: matchedResponse && response.success,
+          error: response.error,
+        }
+      } catch {
+        // On error, assume no TOTP (fail open for detection)
+        return null
+      }
     }
 
-    try {
-      const response = await this.sendRequest(request)
-      return response.id === id && response.success
-    } catch {
-      // On error, assume no TOTP (fail open for detection)
-      return false
-    }
+    const primaryResult = await sendCheckRequest(CHECK_TOTP_METHOD)
+    if (primaryResult?.success) return true
+
+    const maybePrimaryUnsupported =
+      primaryResult?.matchedResponse &&
+      !primaryResult.success &&
+      (primaryResult.error ?? "").toLowerCase().includes("unknown method")
+    if (!maybePrimaryUnsupported) return false
+
+    const legacyResult = await sendCheckRequest(LEGACY_CHECK_TOTP_METHOD)
+    return Boolean(legacyResult?.success)
   }
 
   /**

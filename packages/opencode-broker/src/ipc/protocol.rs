@@ -58,7 +58,7 @@ pub enum Method {
     /// Remove ~/.google_authenticator for the session user.
     RemoveOtp,
     /// Check if user has TOTP configured.
-    #[serde(rename = "check2fa")]
+    #[serde(rename = "checktotp", alias = "check2fa")]
     CheckTotp,
     /// Check OTP/TOTP server configuration (PAM module, service file).
     CheckOtpConfig,
@@ -840,7 +840,7 @@ mod tests {
     fn test_totp_method_serialization() {
         assert_eq!(
             serde_json::to_string(&Method::CheckTotp).expect("serialize"),
-            "\"check2fa\""
+            "\"checktotp\""
         );
         assert_eq!(
             serde_json::to_string(&Method::AuthenticateOtp).expect("serialize"),
@@ -858,8 +858,11 @@ mod tests {
 
     #[test]
     fn test_totp_method_deserialization() {
-        let check: Method = serde_json::from_str("\"check2fa\"").expect("deserialize");
+        let check: Method = serde_json::from_str("\"checktotp\"").expect("deserialize");
         assert_eq!(check, Method::CheckTotp);
+
+        let legacy_check: Method = serde_json::from_str("\"check2fa\"").expect("deserialize");
+        assert_eq!(legacy_check, Method::CheckTotp);
 
         let otp: Method = serde_json::from_str("\"authenticateotp\"").expect("deserialize");
         assert_eq!(otp, Method::AuthenticateOtp);
