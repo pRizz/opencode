@@ -141,10 +141,10 @@ Recent decisions affecting current work:
 | 10-01 | Separate PAM service for OTP validation                        | Isolate OTP-only auth from password+OTP combined auth                                         |
 | 10-01 | nullok option in PAM config                                    | Graceful fallback for users without TOTP configured                                           |
 | 10-02 | AuthenticateOtp uses same rate limiter as password auth        | Prevents brute force attacks on OTP codes                                                     |
-| 10-02 | Check2fa returns failure response for no TOTP                  | Client checks success field to determine TOTP status                                          |
+| 10-02 | CheckTotp returns failure response for no TOTP                 | Client checks success field to determine TOTP status                                          |
 | 10-02 | OTP code redacted in Debug output                              | Follows password redaction pattern for security                                               |
 | 10-03 | Added jose library to opencode package                         | Required for JWT signing/verification - already used in function package                      |
-| 10-04 | check2fa fails open on error                                   | For detection-only use case, assumes no TOTP when broker unavailable                          |
+| 10-04 | checkTotp fails open on error                                  | For detection-only use case, assumes no TOTP when broker unavailable                          |
 | 10-04 | authenticateOtp follows authenticate() pattern                 | Consistent error handling and response structure                                              |
 | 10-05 | Token secret generated once at startup via lazy initialization | Acceptable that tokens invalidate on restart, matching session design                         |
 | 10-05 | TOTP token bound to requesting IP                              | Security measure to prevent token theft                                                       |

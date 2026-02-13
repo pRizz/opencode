@@ -39,7 +39,7 @@ completed: 2026-01-24
 
 # Phase 10 Plan 04: BrokerClient TOTP Methods Summary
 
-**TypeScript client methods for TOTP operations via IPC protocol - check2fa() for detection and authenticateOtp() for validation**
+**TypeScript client methods for TOTP operations via IPC protocol - checkTotp() for detection and authenticateOtp() for validation**
 
 ## Performance
 
@@ -51,25 +51,25 @@ completed: 2026-01-24
 
 ## Accomplishments
 
-- Extended BrokerRequest interface with check2fa and authenticateotp methods
-- Implemented check2fa() to detect if user has TOTP configured
+- Extended BrokerRequest interface with checkTotp/check2fa compatibility and authenticateotp methods
+- Implemented checkTotp() to detect if user has TOTP configured
 - Implemented authenticateOtp() to validate OTP codes via broker
 
 ## Task Commits
 
 Each task was committed atomically:
 
-1. **Task 1: Add check2fa and authenticateOtp to BrokerRequest interface** - `41866cdde` (feat)
-2. **Task 2: Implement check2fa method** - `f6fa7d9ce` (feat)
+1. **Task 1: Add checkTotp/check2fa and authenticateOtp to BrokerRequest interface** - `41866cdde` (feat)
+2. **Task 2: Implement checkTotp method** - `f6fa7d9ce` (feat)
 3. **Task 3: Implement authenticateOtp method** - `314ba01c0` (feat)
 
 ## Files Created/Modified
 
-- `packages/opencode/src/auth/broker-client.ts` - Added TOTP methods (check2fa, authenticateOtp) and updated BrokerRequest interface
+- `packages/opencode/src/auth/broker-client.ts` - Added TOTP methods (checkTotp, authenticateOtp) and updated BrokerRequest interface
 
 ## Decisions Made
 
-- **check2fa fails open:** On error, returns false (assumes no TOTP) since this is for detection, not security enforcement
+- **checkTotp fails open:** On error, returns false (assumes no TOTP) since this is for detection, not security enforcement
 - **authenticateOtp follows authenticate() pattern:** Same error handling, response structure, and generic error messages for consistency
 
 ## Deviations from Plan
@@ -88,7 +88,7 @@ None - no external service configuration required.
 
 - BrokerClient now has complete TOTP support
 - Ready for Plan 10-05 (login route integration) to use these methods
-- check2fa() can detect TOTP requirement before prompting user
+- checkTotp() can detect TOTP requirement before prompting user
 - authenticateOtp() validates codes after password auth succeeds
 
 ---
