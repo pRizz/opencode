@@ -605,8 +605,8 @@ function injectPasskeySetupBootstrap(
  * - POST /passkey/register/verify - Verify passkey registration response
  * - GET /passkey/list - List passkeys for current user
  * - POST /passkey/remove - Remove a passkey for current user
- * - GET /2fa - TOTP verification page (HTML)
- * - POST /login/2fa - Complete TOTP login
+ * - GET /2fa - TOTP verification page (legacy path name)
+ * - POST /login/2fa - Complete TOTP login (legacy path name)
  * - GET /status - Get auth configuration status
  * - POST /logout - Logout current session
  * - POST /logout/all - Logout all sessions for user
@@ -1387,7 +1387,7 @@ export const AuthRoutes = lazy(() =>
       async (c) => {
         const authConfig = ServerAuth.get()
         if (!authConfig.enabled || !authConfig.twoFactorEnabled) {
-          return c.json({ error: "2fa_disabled", message: "Two-factor authentication is not enabled" }, 403)
+          return c.json({ error: "2fa_disabled", message: "TOTP authentication is not enabled" }, 403)
         }
 
         // Check X-Requested-With for CSRF
@@ -2390,10 +2390,7 @@ export const AuthRoutes = lazy(() =>
       // Check if TOTP is required - if so, cannot skip
       const authConfig = ServerAuth.get()
       if (authConfig.twoFactorRequired) {
-        return c.json(
-          { error: "2fa_required", message: "Two-factor authentication is required and cannot be skipped" },
-          403,
-        )
+        return c.json({ error: "2fa_required", message: "TOTP authentication is required and cannot be skipped" }, 403)
       }
 
       // Clear setup state so user can access the app
@@ -2467,10 +2464,7 @@ export const AuthRoutes = lazy(() =>
 
       const authConfig = ServerAuth.get()
       if (authConfig.twoFactorRequired) {
-        return c.json(
-          { error: "2fa_required", message: "Two-factor authentication is required and cannot be disabled" },
-          403,
-        )
+        return c.json({ error: "2fa_required", message: "TOTP authentication is required and cannot be disabled" }, 403)
       }
 
       const broker = new BrokerClient()

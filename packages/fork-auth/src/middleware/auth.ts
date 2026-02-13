@@ -203,7 +203,7 @@ export const authMiddleware = createMiddleware<AuthEnv>(async (c, next) => {
       return !accept.includes("text/html")
     }
     if (isApiCall()) {
-      return c.json({ error: "2fa_setup_required", message: "Two-factor authentication setup is required" }, 403)
+      return c.json({ error: "2fa_setup_required", message: "TOTP setup is required" }, 403)
     }
     return c.redirect("/auth/2fa/setup?required=1")
   }
