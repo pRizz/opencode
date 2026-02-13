@@ -397,20 +397,25 @@ function injectLoginBootstrap(
  * Load TOTP verification page HTML.
  */
 async function loadTwoFactorTemplate(uiDir: string): Promise<string> {
-  const templatePath = path.join(uiDir, "2fa.html")
-  if (cachedTwoFactorTemplate && cachedTwoFactorTemplatePath === templatePath) {
+  const candidatePaths = [path.join(uiDir, "totp.html"), path.join(uiDir, "2fa.html")]
+
+  for (const templatePath of candidatePaths) {
+    if (cachedTwoFactorTemplate && cachedTwoFactorTemplatePath === templatePath) {
+      return cachedTwoFactorTemplate
+    }
+
+    const file = Bun.file(templatePath)
+    const exists = await file.exists()
+    if (!exists) {
+      continue
+    }
+
+    cachedTwoFactorTemplate = await file.text()
+    cachedTwoFactorTemplatePath = templatePath
     return cachedTwoFactorTemplate
   }
 
-  const file = Bun.file(templatePath)
-  const exists = await file.exists()
-  if (!exists) {
-    throw new Error(`TOTP HTML not found at ${templatePath}`)
-  }
-
-  cachedTwoFactorTemplate = await file.text()
-  cachedTwoFactorTemplatePath = templatePath
-  return cachedTwoFactorTemplate
+  throw new Error(`TOTP HTML not found at ${candidatePaths.join(" or ")}`)
 }
 
 function injectTwoFactorBootstrap(
@@ -432,20 +437,25 @@ function injectTwoFactorBootstrap(
  * Load TOTP setup page HTML.
  */
 async function loadTwoFactorSetupTemplate(uiDir: string): Promise<string> {
-  const templatePath = path.join(uiDir, "2fa-setup.html")
-  if (cachedTwoFactorSetupTemplate && cachedTwoFactorSetupTemplatePath === templatePath) {
+  const candidatePaths = [path.join(uiDir, "totp-setup.html"), path.join(uiDir, "2fa-setup.html")]
+
+  for (const templatePath of candidatePaths) {
+    if (cachedTwoFactorSetupTemplate && cachedTwoFactorSetupTemplatePath === templatePath) {
+      return cachedTwoFactorSetupTemplate
+    }
+
+    const file = Bun.file(templatePath)
+    const exists = await file.exists()
+    if (!exists) {
+      continue
+    }
+
+    cachedTwoFactorSetupTemplate = await file.text()
+    cachedTwoFactorSetupTemplatePath = templatePath
     return cachedTwoFactorSetupTemplate
   }
 
-  const file = Bun.file(templatePath)
-  const exists = await file.exists()
-  if (!exists) {
-    throw new Error(`TOTP setup HTML not found at ${templatePath}`)
-  }
-
-  cachedTwoFactorSetupTemplate = await file.text()
-  cachedTwoFactorSetupTemplatePath = templatePath
-  return cachedTwoFactorSetupTemplate
+  throw new Error(`TOTP setup HTML not found at ${candidatePaths.join(" or ")}`)
 }
 
 function injectTwoFactorSetupBootstrap(template: string, bootstrap: TwoFactorSetupBootstrap): string {
@@ -1041,7 +1051,7 @@ export const AuthRoutes = lazy(() =>
         return c.html(injectTwoFactorBootstrap(template, { token, username, timeoutSeconds }))
       } catch (error) {
         log.error("Failed to load TOTP HTML", { error })
-        return c.text("TOTP UI is missing. Run the app build to generate 2fa.html.", 500)
+        return c.text("TOTP UI is missing. Run the app build to generate totp.html (legacy: 2fa.html).", 500)
       }
     })
     .post(
@@ -2209,7 +2219,10 @@ export const AuthRoutes = lazy(() =>
         return c.html(injectTwoFactorSetupBootstrap(template, bootstrap))
       } catch (error) {
         log.error("Failed to load TOTP setup HTML", { error })
-        return c.text("TOTP setup UI is missing. Run the app build to generate 2fa-setup.html.", 500)
+        return c.text(
+          "TOTP setup UI is missing. Run the app build to generate totp-setup.html (legacy: 2fa-setup.html).",
+          500,
+        )
       }
     })
     .post("/2fa/setup/start", async (c) => {
