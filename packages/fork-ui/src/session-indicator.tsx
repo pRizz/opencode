@@ -91,14 +91,14 @@ export function SessionIndicator(props: SessionIndicatorProps) {
   /**
    * Navigate to TOTP setup page.
    */
-  function handleSetup2FA(): void {
+  function handleSetupTotp(): void {
     const url = props.getServerUrl()
     if (!url) return
     // Open TOTP setup in new tab (could be external documentation or setup page)
     window.open(`${url}/auth/2fa/setup`, "_blank")
   }
 
-  function handleManage2FA(): void {
+  function handleManageTotp(): void {
     dialog.show(() => <ManageTwoFactorDialog onUpdate={fetchDeviceTrustStatus} getServerUrl={props.getServerUrl} />)
   }
 
@@ -150,7 +150,7 @@ export function SessionIndicator(props: SessionIndicatorProps) {
                 </DropdownMenu.Item>
               </Show>
               <DropdownMenu.Item
-                onSelect={isTwoFactorConfigured() ? handleManage2FA : handleSetup2FA}
+                onSelect={isTwoFactorConfigured() ? handleManageTotp : handleSetupTotp}
                 data-action="settings-authentication-menu-2fa"
               >
                 <DropdownMenu.ItemLabel>
