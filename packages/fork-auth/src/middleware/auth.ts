@@ -196,7 +196,8 @@ export const authMiddleware = createMiddleware<AuthEnv>(async (c, next) => {
   }
 
   // Check if user needs to complete TOTP setup
-  if (session.twoFactorPending && authConfig.twoFactorRequired) {
+  const totpSetupPending = session.totpPending ?? session.twoFactorPending
+  if (totpSetupPending && authConfig.twoFactorRequired) {
     // User must complete TOTP setup before accessing other pages
     const isApiCall = () => {
       const accept = c.req.header("Accept") ?? ""

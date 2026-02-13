@@ -981,6 +981,7 @@ describe("POST /auth/totp/setup/start", () => {
     expect(body.alreadyConfigured).toBe(false)
 
     const storedSession = UserSession.get(session.id)
+    expect(storedSession?.totpSetupSecret).toBe(body.secret)
     expect(storedSession?.twoFactorSetupSecret).toBe(body.secret)
     UserSession.remove(session.id)
   })

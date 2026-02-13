@@ -934,7 +934,7 @@ async function verifyTotpSetup(c: Context<AuthEnv>) {
     log.info("PAM service file auto-created", { path: otpConfig.pamServicePath })
   }
 
-  const setupSecret = session.twoFactorSetupSecret
+  const setupSecret = session.totpSetupSecret ?? session.twoFactorSetupSecret
   if (!setupSecret) {
     return c.json(
       {
@@ -968,7 +968,7 @@ async function verifyTotpSetup(c: Context<AuthEnv>) {
     )
   }
 
-  // Clear twoFactorPending flag now that TOTP is configured
+  // Clear pending TOTP setup flags now that setup is complete.
   UserSession.clearTotpPending(sessionId)
   UserSession.clearTotpSetupSecret(sessionId)
   await setTotpPreference(session.username, { skipSetup: false })

@@ -21,7 +21,11 @@ export namespace UserSession {
       lastAccessTime: z.number(),
       userAgent: z.string().optional(),
       rememberMe: z.boolean().optional(), // Extended session persistence
+      totpPending: z.boolean().optional(), // User needs to set up TOTP
+      totpSetupSecret: z.string().optional(), // TOTP secret awaiting verification
+      /** @deprecated Prefer `totpPending`. */
       twoFactorPending: z.boolean().optional(), // User needs to set up TOTP
+      /** @deprecated Prefer `totpSetupSecret`. */
       twoFactorSetupSecret: z.string().optional(), // TOTP secret awaiting verification
       bootstrapPending: z.boolean().optional(), // First-time bootstrap passkey setup required
       bootstrapOtp: z.string().optional(), // Verified OTP bound to bootstrap setup session
@@ -101,6 +105,7 @@ export namespace UserSession {
     const session = sessions.get(id)
     if (!session) return false
 
+    session.totpPending = false
     session.twoFactorPending = false
     return true
   }
@@ -112,6 +117,7 @@ export namespace UserSession {
     const session = sessions.get(id)
     if (!session) return false
 
+    session.totpSetupSecret = secret
     session.twoFactorSetupSecret = secret
     return true
   }
@@ -123,6 +129,7 @@ export namespace UserSession {
     const session = sessions.get(id)
     if (!session) return false
 
+    session.totpSetupSecret = undefined
     session.twoFactorSetupSecret = undefined
     return true
   }
