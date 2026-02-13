@@ -37,6 +37,8 @@ type DialogSettingsTab =
   | "repositories"
   | "auth-session"
   | "auth-passkeys"
+  | "auth-totp"
+  /** @deprecated Legacy tab id retained for compatibility. */
   | "auth-2fa"
 
 interface DialogSettingsProps {
@@ -59,7 +61,7 @@ const SettingsAuthenticationTabs: Component = () => {
           <Icon name="checklist" />
           Passkeys
         </Tabs.Trigger>
-        <Tabs.Trigger value="auth-2fa" data-action="settings-auth-tab-totp" disabled={disabled()}>
+        <Tabs.Trigger value="auth-totp" data-action="settings-auth-tab-totp" disabled={disabled()}>
           <Icon name="lock-open" />
           TOTP
         </Tabs.Trigger>
@@ -78,6 +80,13 @@ export const DialogSettings: Component<DialogSettingsProps> = (props) => {
   const navigate = useNavigate()
   const dialog = useDialog()
 
+  const initialTab = () => {
+    if (props.initialTab === "auth-2fa") {
+      return "auth-totp" as const
+    }
+    return props.initialTab ?? "general"
+  }
+
   const selectDirectory = (input: { title: string; multiple: boolean }) => {
     return new Promise<string | string[] | null>((resolve) => {
       dialog.show(
@@ -95,12 +104,7 @@ export const DialogSettings: Component<DialogSettingsProps> = (props) => {
   return (
     <SettingsAuthProvider getServerUrl={() => server.url}>
       <Dialog size="x-large" transition>
-        <Tabs
-          orientation="vertical"
-          variant="settings"
-          defaultValue={props.initialTab ?? "general"}
-          class="h-full settings-dialog"
-        >
+        <Tabs orientation="vertical" variant="settings" defaultValue={initialTab()} class="h-full settings-dialog">
           <Tabs.List>
             <div class="flex flex-col justify-between h-full w-full">
               <div class="flex flex-col gap-3 w-full pt-3">
@@ -182,7 +186,7 @@ export const DialogSettings: Component<DialogSettingsProps> = (props) => {
           <Tabs.Content value="auth-passkeys" class="no-scrollbar">
             <SettingsAuthPasskeysTab />
           </Tabs.Content>
-          <Tabs.Content value="auth-2fa" class="no-scrollbar">
+          <Tabs.Content value="auth-totp" class="no-scrollbar">
             <SettingsAuthTotpTab />
           </Tabs.Content>
           {/* <Tabs.Content value="agents" class="no-scrollbar"> */}
