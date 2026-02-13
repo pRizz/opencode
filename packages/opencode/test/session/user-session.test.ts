@@ -219,6 +219,17 @@ describe("UserSession", () => {
   })
 
   describe("totp session helpers", () => {
+    test("setTotpPending sets canonical and legacy pending flags", () => {
+      const session = UserSession.create("testuser")
+
+      const result = UserSession.setTotpPending(session.id)
+
+      expect(result).toBe(true)
+      const updated = UserSession.get(session.id)
+      expect(updated?.totpPending).toBe(true)
+      expect(updated?.twoFactorPending).toBe(true)
+    })
+
     test("setTotpSetupSecret updates canonical and legacy secret fields", () => {
       const session = UserSession.create("testuser")
 
@@ -244,10 +255,7 @@ describe("UserSession", () => {
 
     test("clearTotpPending clears canonical and legacy pending flags", () => {
       const session = UserSession.create("testuser")
-      const stored = UserSession.get(session.id)
-      if (!stored) throw new Error("Expected stored session to exist")
-      stored.totpPending = true
-      stored.twoFactorPending = true
+      UserSession.setTotpPending(session.id)
 
       const result = UserSession.clearTotpPending(session.id)
 
@@ -271,6 +279,22 @@ describe("UserSession", () => {
       const afterClear = UserSession.get(session.id)
       expect(afterClear?.totpSetupSecret).toBeUndefined()
       expect(afterClear?.twoFactorSetupSecret).toBeUndefined()
+    })
+
+    test("legacy two-factor pending helper alias remains functional", () => {
+      const session = UserSession.create("testuser")
+
+      const setResult = UserSession.setTwoFactorPending(session.id)
+      expect(setResult).toBe(true)
+      const afterSet = UserSession.get(session.id)
+      expect(afterSet?.totpPending).toBe(true)
+      expect(afterSet?.twoFactorPending).toBe(true)
+
+      const clearResult = UserSession.clearTwoFactorPending(session.id)
+      expect(clearResult).toBe(true)
+      const afterClear = UserSession.get(session.id)
+      expect(afterClear?.totpPending).toBe(false)
+      expect(afterClear?.twoFactorPending).toBe(false)
     })
   })
 })

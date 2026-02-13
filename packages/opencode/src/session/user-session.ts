@@ -98,6 +98,18 @@ export namespace UserSession {
   }
 
   /**
+   * Mark a session as pending TOTP setup.
+   */
+  export function setTotpPending(id: string): boolean {
+    const session = sessions.get(id)
+    if (!session) return false
+
+    session.totpPending = true
+    session.twoFactorPending = true
+    return true
+  }
+
+  /**
    * Clear the pending TOTP setup flag for a session.
    * Called after user completes TOTP setup.
    */
@@ -136,6 +148,9 @@ export namespace UserSession {
 
   /** @deprecated Prefer `clearTotpPending`. */
   export const clearTwoFactorPending = clearTotpPending
+
+  /** @deprecated Prefer `setTotpPending`. */
+  export const setTwoFactorPending = setTotpPending
 
   /** @deprecated Prefer `setTotpSetupSecret`. */
   export const setTwoFactorSetupSecret = setTotpSetupSecret
