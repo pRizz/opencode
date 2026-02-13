@@ -2,13 +2,13 @@
 phase: 23-during-2fa-setup-make-the-server-automatically-set-the-google-authenticator-file-in-the-appropriate-user-s-home-folder-instead-of-asking-the-user-to-run-the-command-on-their-machine
 plan: 01
 subsystem: broker
-tags: [broker, auth, 2fa, otp, ipc, rust]
+tags: [broker, auth, totp, otp, ipc, rust]
 
 # Dependency graph
 requires: []
 provides:
   - Broker IPC method to write ~/.google_authenticator for a session user
-  - Structured setup status codes for 2FA auto-provisioning
+  - Structured setup status codes for TOTP auto-provisioning
 affects: []
 
 # Tech tracking

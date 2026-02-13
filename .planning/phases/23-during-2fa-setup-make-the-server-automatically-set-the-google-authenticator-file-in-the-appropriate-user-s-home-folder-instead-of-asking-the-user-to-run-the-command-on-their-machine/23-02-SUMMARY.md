@@ -2,14 +2,14 @@
 phase: 23-during-2fa-setup-make-the-server-automatically-set-the-google-authenticator-file-in-the-appropriate-user-s-home-folder-instead-of-asking-the-user-to-run-the-command-on-their-machine
 plan: 02
 subsystem: auth
-tags: [solidjs, auth, 2fa, setup, ui]
+tags: [solidjs, auth, totp, setup, ui]
 
 # Dependency graph
 requires:
   - phase: 23-during-2fa-setup-make-the-server-automatically-set-the-google-authenticator-file-in-the-appropriate-user-s-home-folder-instead-of-asking-the-user-to-run-the-command-on-their-machine-01
     provides: Broker IPC write for google_authenticator
 provides:
-  - Auto-setup status in 2FA setup bootstrap payload
+  - Auto-setup status in TOTP setup bootstrap payload
   - UI fallback to manual setup only when required
 affects: []
 
@@ -33,7 +33,7 @@ key-decisions:
   - "Adjust HTTPS tests to validate login bootstrap flags."
 
 patterns-established:
-  - "2FA setup bootstrap includes setupStatus with manual fallback data."
+  - "TOTP setup bootstrap includes setupStatus with manual fallback data."
 
 # Metrics
 duration: 35 min
@@ -42,7 +42,7 @@ completed: 2026-01-31
 
 # Phase 23 Plan 02 Summary
 
-**The 2FA setup page now reflects automatic provisioning, with a manual command shown only when the broker cannot write the file.**
+**The TOTP setup page now reflects automatic provisioning, with a manual command shown only when the broker cannot write the file.**
 
 ## Performance
 
@@ -56,7 +56,7 @@ completed: 2026-01-31
 
 - Added broker client support for `setupotp` and mapped setup status into the bootstrap payload.
 - Updated `/auth/2fa/setup` to auto-provision the file, include manual fallback only on failure, and register setup sessions.
-- Adjusted 2FA setup UI to show status banners and hide the manual command step by default.
+- Adjusted TOTP setup UI to show status banners and hide the manual command step by default.
 - Updated HTTPS login tests to validate bootstrap flags instead of inline warning HTML.
 
 ## Task Commits
@@ -88,7 +88,7 @@ None.
 
 ## Next Phase Readiness
 
-Ready for manual verification of the 2FA setup flow in the UI.
+Ready for manual verification of the TOTP setup flow in the UI.
 
 ---
 
