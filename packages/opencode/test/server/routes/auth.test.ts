@@ -44,8 +44,7 @@ const mockVerifyPasskeyRegistration = mock<
 >(() => Promise.resolve({ verified: false, error: "failed" }))
 const mockListUserPasskeys = mock<() => Promise<Array<Record<string, unknown>>>>(() => Promise.resolve([]))
 const mockRemoveUserPasskey = mock<() => Promise<boolean>>(() => Promise.resolve(false))
-const mockCheck2fa = mock<() => Promise<boolean>>(() => Promise.resolve(false))
-const mockCheckTotp = mockCheck2fa
+const mockCheckTotp = mock<() => Promise<boolean>>(() => Promise.resolve(false))
 const mockBrokerPing = mock<() => Promise<boolean>>(() => Promise.resolve(true))
 const mockGetBootstrapStatus = mock<
   () => Promise<{ active: boolean; available: boolean; createdAt?: string; completedAt?: string; reason?: string }>
@@ -100,7 +99,7 @@ mock.module("../../../src/auth/broker-client", () => ({
     registerSession = mockRegisterSession
     unregisterSession = mockUnregisterSession
     checkTotp = mockCheckTotp
-    check2fa = mockCheck2fa
+    check2fa = mockCheckTotp
     ping = mockBrokerPing
   },
 }))
@@ -110,7 +109,7 @@ mock.module("@opencode-ai/fork-auth/auth/broker-client", () => ({
     registerSession = mockRegisterSession
     unregisterSession = mockUnregisterSession
     checkTotp = mockCheckTotp
-    check2fa = mockCheck2fa
+    check2fa = mockCheckTotp
     ping = mockBrokerPing
   },
 }))
@@ -288,7 +287,7 @@ describe("POST /auth/login", () => {
     mockVerifyPasskeyRegistration.mockClear()
     mockListUserPasskeys.mockClear()
     mockRemoveUserPasskey.mockClear()
-    mockCheck2fa.mockClear()
+    mockCheckTotp.mockClear()
     mockBrokerPing.mockClear()
 
     // Default successful mocks
@@ -313,7 +312,7 @@ describe("POST /auth/login", () => {
     mockVerifyPasskeyRegistration.mockResolvedValue({ verified: false, error: "failed" })
     mockListUserPasskeys.mockResolvedValue([])
     mockRemoveUserPasskey.mockResolvedValue(false)
-    mockCheck2fa.mockResolvedValue(false)
+    mockCheckTotp.mockResolvedValue(false)
     mockBrokerPing.mockResolvedValue(true)
     setMockAuthConfig({ enabled: true, method: "pam" })
 
@@ -611,7 +610,7 @@ describe("Bootstrap signup routes", () => {
     mockVerifyBootstrapOtp.mockClear()
     mockCompleteBootstrapOtp.mockClear()
     mockListUserPasskeys.mockClear()
-    mockCheck2fa.mockClear()
+    mockCheckTotp.mockClear()
     mockBrokerPing.mockClear()
 
     mockGetBootstrapStatus.mockResolvedValue({ active: false, available: false })
@@ -625,7 +624,7 @@ describe("Bootstrap signup routes", () => {
       shell: "/bin/bash",
     })
     mockListUserPasskeys.mockResolvedValue([])
-    mockCheck2fa.mockResolvedValue(false)
+    mockCheckTotp.mockResolvedValue(false)
     mockBrokerPing.mockResolvedValue(true)
 
     setMockAuthConfig({
@@ -827,9 +826,9 @@ describe("POST /auth/2fa/setup/start", () => {
 
   beforeEach(() => {
     setMockAuthConfig({ enabled: true, method: "pam", twoFactorEnabled: true })
-    mockCheck2fa.mockClear()
+    mockCheckTotp.mockClear()
     mockBrokerPing.mockClear()
-    mockCheck2fa.mockResolvedValue(false)
+    mockCheckTotp.mockResolvedValue(false)
     mockBrokerPing.mockResolvedValue(true)
     app = new Hono().route("/auth", AuthRoutes())
   })
@@ -935,7 +934,7 @@ describe("Passkey routes", () => {
     mockVerifyPasskeyRegistration.mockClear()
     mockListUserPasskeys.mockClear()
     mockRemoveUserPasskey.mockClear()
-    mockCheck2fa.mockClear()
+    mockCheckTotp.mockClear()
     mockBrokerPing.mockClear()
 
     mockGetUserInfo.mockResolvedValue({
@@ -958,7 +957,7 @@ describe("Passkey routes", () => {
     mockVerifyPasskeyRegistration.mockResolvedValue({ verified: false, error: "failed" })
     mockListUserPasskeys.mockResolvedValue([])
     mockRemoveUserPasskey.mockResolvedValue(false)
-    mockCheck2fa.mockResolvedValue(false)
+    mockCheckTotp.mockResolvedValue(false)
     mockBrokerPing.mockResolvedValue(true)
 
     setMockAuthConfig({
