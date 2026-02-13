@@ -78,7 +78,7 @@ export function TotpSetupFlow(props: TotpSetupFlowProps) {
 
     try {
       const csrf = getCsrfToken()
-      const res = await fetch(buildUrl(props.getServerUrl, "/auth/2fa/setup/start"), {
+      const res = await fetch(buildUrl(props.getServerUrl, "/auth/totp/setup/start"), {
         method: "POST",
         credentials: "include",
         headers: {
@@ -170,7 +170,7 @@ export function TotpSetupFlow(props: TotpSetupFlowProps) {
     setSuccess("")
 
     try {
-      const res = await fetch(buildUrl(props.getServerUrl, "/auth/2fa/verify"), {
+      const res = await fetch(buildUrl(props.getServerUrl, "/auth/totp/verify"), {
         method: "POST",
         credentials: "include",
         headers: {
@@ -216,7 +216,7 @@ export function TotpSetupFlow(props: TotpSetupFlowProps) {
     setError("")
 
     try {
-      const res = await fetch(buildUrl(props.getServerUrl, "/auth/2fa/skip"), {
+      const res = await fetch(buildUrl(props.getServerUrl, "/auth/totp/skip"), {
         method: "POST",
         credentials: "include",
         headers: {
@@ -246,7 +246,7 @@ export function TotpSetupFlow(props: TotpSetupFlowProps) {
     setError("")
 
     try {
-      const res = await fetch(buildUrl(props.getServerUrl, "/auth/2fa/disable"), {
+      const res = await fetch(buildUrl(props.getServerUrl, "/auth/totp/disable"), {
         method: "POST",
         credentials: "include",
         headers: {

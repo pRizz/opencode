@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test"
+import type { Page, Route } from "@playwright/test"
 
 export type TotpDeviceTrustStatus = {
   totpEnabled: boolean
@@ -173,13 +173,16 @@ export async function mockTotpSetupStart(page: Page, input: TotpSetupStartMockOp
     setupMessage: input.setupMessage ?? "We'll create your TOTP configuration after you verify your code.",
   }
 
-  await page.route("**/auth/2fa/setup/start", async (route) => {
+  const fulfillSetupStart = async (route: Route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify(options),
     })
-  })
+  }
+
+  await page.route("**/auth/totp/setup/start", fulfillSetupStart)
+  await page.route("**/auth/2fa/setup/start", fulfillSetupStart)
 }
 
 export async function mockAuthenticatedAuth(page: Page, options: AuthenticatedAuthMockOptions = {}) {

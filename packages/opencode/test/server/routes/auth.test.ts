@@ -821,7 +821,7 @@ describe("Bootstrap signup routes", () => {
   })
 })
 
-describe("POST /auth/2fa/setup/start", () => {
+describe("POST /auth/totp/setup/start", () => {
   let app: Hono
 
   beforeEach(() => {
@@ -834,6 +834,18 @@ describe("POST /auth/2fa/setup/start", () => {
   })
 
   test("returns 401 without authenticated session", async () => {
+    const res = await app.request("/auth/totp/setup/start", {
+      method: "POST",
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+      },
+    })
+
+    expect(res.status).toBe(401)
+    expect((await res.json()).error).toBe("not_authenticated")
+  })
+
+  test("legacy /auth/2fa/setup/start alias remains supported", async () => {
     const res = await app.request("/auth/2fa/setup/start", {
       method: "POST",
       headers: {
@@ -854,7 +866,7 @@ describe("POST /auth/2fa/setup/start", () => {
     })
     const csrfToken = generateCSRFToken(session.id, getCSRFSecret())
 
-    const res = await app.request("/auth/2fa/setup/start", {
+    const res = await app.request("/auth/totp/setup/start", {
       method: "POST",
       headers: {
         Cookie: `opencode_session=${session.id}`,
@@ -875,7 +887,7 @@ describe("POST /auth/2fa/setup/start", () => {
       shell: "/bin/bash",
     })
 
-    const res = await app.request("/auth/2fa/setup/start", {
+    const res = await app.request("/auth/totp/setup/start", {
       method: "POST",
       headers: {
         Cookie: `opencode_session=${session.id}`,
@@ -898,7 +910,7 @@ describe("POST /auth/2fa/setup/start", () => {
     })
     const csrfToken = generateCSRFToken(session.id, getCSRFSecret())
 
-    const res = await app.request("/auth/2fa/setup/start", {
+    const res = await app.request("/auth/totp/setup/start", {
       method: "POST",
       headers: {
         Cookie: `opencode_session=${session.id}`,

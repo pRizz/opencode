@@ -176,7 +176,7 @@ test("TOTP inline setup enables manage panel without opening new tab", async ({ 
   await mockTotpSetupStart(page)
 
   let verifyCalls = 0
-  await page.route(/\/auth\/2fa\/verify$/, async (route) => {
+  await page.route(/\/auth\/totp\/verify$/, async (route) => {
     if (route.request().method() === "POST") verifyCalls += 1
     await route.fulfill({
       status: 200,
@@ -211,7 +211,7 @@ test("TOTP manage actions hit reset and disable endpoints", async ({ page, gotoS
   let resetCalls = 0
   let disableCalls = 0
 
-  await page.route(/\/auth\/2fa\/reset$/, async (route) => {
+  await page.route(/\/auth\/totp\/reset$/, async (route) => {
     if (route.request().method() === "POST") resetCalls += 1
     await route.fulfill({
       status: 200,
@@ -220,7 +220,7 @@ test("TOTP manage actions hit reset and disable endpoints", async ({ page, gotoS
     })
   })
 
-  await page.route(/\/auth\/2fa\/disable$/, async (route) => {
+  await page.route(/\/auth\/totp\/disable$/, async (route) => {
     if (route.request().method() === "POST") disableCalls += 1
     await route.fulfill({
       status: 200,

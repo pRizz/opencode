@@ -801,6 +801,304 @@ async function renderTotpSetupPage(c: Context<AuthEnv>) {
   }
 }
 
+async function renderTotpVerificationPage(c: Context<AuthEnv>) {
+  // Get token, username, timeout from query params
+  const token = c.req.query("token")
+  const username = c.req.query("username")
+  const timeout = c.req.query("timeout")
+
+  // If no token/username, redirect to login
+  if (!token || !username) {
+    return c.redirect("/auth/login")
+  }
+
+  const parsedTimeout = Number.parseInt(timeout ?? "300", 10)
+  const timeoutSeconds = Number.isFinite(parsedTimeout) ? parsedTimeout : 300
+
+  const uiDir = getUiDir()
+  if (!uiDir) {
+    return c.text("TOTP UI is not configured. Build the app UI and set uiDir.", 500)
+  }
+
+  try {
+    const template = await loadTwoFactorTemplate(uiDir)
+    return c.html(injectTwoFactorBootstrap(template, { token, username, timeoutSeconds }))
+  } catch (error) {
+    log.error("Failed to load TOTP HTML", { error })
+    return c.text("TOTP UI is missing. Run the app build to generate totp.html (legacy: 2fa.html).", 500)
+  }
+}
+
+async function startTotpSetup(c: Context<AuthEnv>) {
+  const sessionId = getCookie(c, "opencode_session")
+  if (!sessionId) {
+    return c.json({ error: "not_authenticated", message: "Not authenticated" }, 401)
+  }
+  const session = UserSession.get(sessionId)
+  if (!session) {
+    return c.json({ error: "not_authenticated", message: "Not authenticated" }, 401)
+  }
+
+  const xrw = c.req.header("X-Requested-With")
+  if (!xrw) {
+    return c.json({ error: "csrf_missing", message: "CSRF token required" }, 400)
+  }
+
+  const csrfToken = c.req.header("X-CSRF-Token")
+  if (!csrfToken || !validateCSRFToken(csrfToken, sessionId, getCSRFSecret())) {
+    return c.json({ error: "csrf_invalid", message: "Invalid CSRF token" }, 403)
+  }
+
+  const body = await c.req.json().catch(() => ({}))
+  const required = c.req.query("required") === "1" || body.required === true
+  const bootstrap = await buildTwoFactorSetupBootstrap(sessionId, session, required)
+  return c.json(bootstrap)
+}
+
+async function verifyTotpSetup(c: Context<AuthEnv>) {
+  // Require authenticated session
+  const sessionId = getCookie(c, "opencode_session")
+  if (!sessionId) {
+    return c.json({ error: "not_authenticated" }, 401)
+  }
+  const session = UserSession.get(sessionId)
+  if (!session) {
+    return c.json({ error: "not_authenticated" }, 401)
+  }
+
+  // Check CSRF
+  const xrw = c.req.header("X-Requested-With")
+  if (!xrw) {
+    return c.json({ error: "csrf_missing", message: "CSRF token required" }, 400)
+  }
+
+  const body = await c.req.json()
+  const { code } = body as { code?: string }
+
+  if (!code || code.length < 6) {
+    return c.json({ error: "invalid_code", message: "Code is required" }, 400)
+  }
+
+  const broker = new BrokerClient()
+
+  // Check OTP server configuration first
+  const otpConfig = await broker.checkOtpConfig()
+  if (!otpConfig.configured) {
+    // Return specific error based on what's misconfigured
+    if (otpConfig.errorCode === "pam_module_not_installed") {
+      return c.json(
+        {
+          error: "server_misconfigured",
+          message:
+            "Server configuration error: libpam-google-authenticator is not installed. " +
+            "Install it with: Ubuntu/Debian: sudo apt install libpam-google-authenticator, " +
+            "macOS: brew install google-authenticator-libpam",
+          details: otpConfig,
+        },
+        500,
+      )
+    } else if (otpConfig.errorCode === "pam_service_not_configured") {
+      return c.json(
+        {
+          error: "server_misconfigured",
+          message:
+            `Server configuration error: PAM service file missing at ${otpConfig.pamServicePath}. ` +
+            'Create it with: echo "auth required pam_google_authenticator.so nullok" | sudo tee ' +
+            otpConfig.pamServicePath,
+          details: otpConfig,
+        },
+        500,
+      )
+    } else if (otpConfig.errorCode === "broker_unavailable") {
+      return c.json(
+        {
+          error: "server_error",
+          message: "Authentication service unavailable. Please try again later.",
+        },
+        503,
+      )
+    } else {
+      return c.json(
+        {
+          error: "server_misconfigured",
+          message: "Server configuration error: OTP validation is not properly configured.",
+          details: otpConfig,
+        },
+        500,
+      )
+    }
+  }
+
+  // Log if service file was auto-created
+  if (otpConfig.serviceAutoCreated) {
+    log.info("PAM service file auto-created", { path: otpConfig.pamServicePath })
+  }
+
+  const setupSecret = session.twoFactorSetupSecret
+  if (!setupSecret) {
+    return c.json(
+      {
+        error: "setup_missing",
+        message: "TOTP setup session expired. Please restart setup.",
+      },
+      400,
+    )
+  }
+
+  if (!verifyTotpCode(setupSecret, code)) {
+    return c.json(
+      {
+        error: "invalid_code",
+        message:
+          "Invalid verification code. Make sure your authenticator is set up and the code matches the QR code you scanned.",
+      },
+      401,
+    )
+  }
+
+  const setupResult = await broker.setupOtp(sessionId, setupSecret)
+  if (setupResult.errorCode && !setupResult.written && !setupResult.alreadyConfigured) {
+    return c.json(
+      {
+        error: "setup_failed",
+        message: "Unable to create your TOTP configuration. Please try again.",
+        details: setupResult,
+      },
+      500,
+    )
+  }
+
+  // Clear twoFactorPending flag now that TOTP is configured
+  UserSession.clearTwoFactorPending(sessionId)
+  UserSession.clearTwoFactorSetupSecret(sessionId)
+  await setTotpPreference(session.username, { skipSetup: false })
+
+  return c.json({ success: true })
+}
+
+async function skipTotpSetup(c: Context<AuthEnv>) {
+  // Require authenticated session
+  const sessionId = getCookie(c, "opencode_session")
+  if (!sessionId) {
+    return c.json({ error: "not_authenticated" }, 401)
+  }
+  const session = UserSession.get(sessionId)
+  if (!session) {
+    return c.json({ error: "not_authenticated" }, 401)
+  }
+
+  // Check CSRF
+  const xrw = c.req.header("X-Requested-With")
+  if (!xrw) {
+    return c.json({ error: "csrf_missing" }, 400)
+  }
+
+  // Check if TOTP is required - if so, cannot skip
+  const authConfig = ServerAuth.get()
+  if (authConfig.twoFactorRequired) {
+    return c.json({ error: "2fa_required", message: "TOTP authentication is required and cannot be skipped" }, 403)
+  }
+
+  // Clear setup state so user can access the app
+  UserSession.clearTwoFactorPending(sessionId)
+  UserSession.clearTwoFactorSetupSecret(sessionId)
+
+  return c.json({ success: true })
+}
+
+async function resetTotp(c: Context<AuthEnv>) {
+  // Require authenticated session
+  const sessionId = getCookie(c, "opencode_session")
+  if (!sessionId) {
+    return c.json({ error: "not_authenticated" }, 401)
+  }
+  const session = UserSession.get(sessionId)
+  if (!session) {
+    return c.json({ error: "not_authenticated" }, 401)
+  }
+
+  // Check CSRF
+  const xrw = c.req.header("X-Requested-With")
+  if (!xrw) {
+    return c.json({ error: "csrf_missing", message: "CSRF token required" }, 400)
+  }
+  const csrfToken = c.req.header("X-CSRF-Token")
+  if (!csrfToken || !validateCSRFToken(csrfToken, sessionId, getCSRFSecret())) {
+    return c.json({ error: "csrf_invalid", message: "Invalid CSRF token" }, 403)
+  }
+
+  const broker = new BrokerClient()
+  let result = await broker.removeOtp(sessionId)
+  if (result.errorCode === "session not found") {
+    const registered = await ensureBrokerSession(sessionId, session)
+    if (registered) {
+      result = await broker.removeOtp(sessionId)
+    }
+  }
+
+  if (result.errorCode && !result.removed && !result.alreadyMissing) {
+    return c.json({ error: "reset_failed", message: "Failed to reset TOTP", details: result }, 500)
+  }
+
+  await setTotpPreference(session.username, { skipSetup: false })
+
+  return c.json({
+    success: true as const,
+    removed: result.removed,
+    alreadyMissing: result.alreadyMissing,
+  })
+}
+
+async function disableTotp(c: Context<AuthEnv>) {
+  // Require authenticated session
+  const sessionId = getCookie(c, "opencode_session")
+  if (!sessionId) {
+    return c.json({ error: "not_authenticated" }, 401)
+  }
+  const session = UserSession.get(sessionId)
+  if (!session) {
+    return c.json({ error: "not_authenticated" }, 401)
+  }
+
+  // Check CSRF
+  const xrw = c.req.header("X-Requested-With")
+  if (!xrw) {
+    return c.json({ error: "csrf_missing", message: "CSRF token required" }, 400)
+  }
+  const csrfToken = c.req.header("X-CSRF-Token")
+  if (!csrfToken || !validateCSRFToken(csrfToken, sessionId, getCSRFSecret())) {
+    return c.json({ error: "csrf_invalid", message: "Invalid CSRF token" }, 403)
+  }
+
+  const authConfig = ServerAuth.get()
+  if (authConfig.twoFactorRequired) {
+    return c.json({ error: "2fa_required", message: "TOTP authentication is required and cannot be disabled" }, 403)
+  }
+
+  const broker = new BrokerClient()
+  let result = await broker.removeOtp(sessionId)
+  if (result.errorCode === "session not found") {
+    const registered = await ensureBrokerSession(sessionId, session)
+    if (registered) {
+      result = await broker.removeOtp(sessionId)
+    }
+  }
+
+  if (result.errorCode && !result.removed && !result.alreadyMissing) {
+    return c.json({ error: "disable_failed", message: "Failed to disable TOTP", details: result }, 500)
+  }
+
+  UserSession.clearTwoFactorPending(sessionId)
+  UserSession.clearTwoFactorSetupSecret(sessionId)
+  await setTotpPreference(session.username, { skipSetup: true })
+
+  return c.json({
+    success: true as const,
+    removed: result.removed,
+    alreadyMissing: result.alreadyMissing,
+  })
+}
+
 /**
  * Auth routes for session management.
  *
@@ -816,8 +1114,14 @@ async function renderTotpSetupPage(c: Context<AuthEnv>) {
  * - POST /passkey/register/verify - Verify passkey registration response
  * - GET /passkey/list - List passkeys for current user
  * - POST /passkey/remove - Remove a passkey for current user
+ * - GET /totp - TOTP verification page
  * - POST /login/totp - Complete TOTP login
  * - GET /totp/setup - TOTP setup page
+ * - POST /totp/setup/start - Start TOTP setup bootstrap flow
+ * - POST /totp/verify - Verify TOTP setup code
+ * - POST /totp/skip - Skip optional TOTP setup
+ * - POST /totp/reset - Reset TOTP configuration
+ * - POST /totp/disable - Disable TOTP setup reminders
  * - GET /2fa - TOTP verification page (legacy path name)
  * - POST /login/2fa - Complete TOTP login (legacy path name)
  * - GET /status - Get auth configuration status
@@ -1240,33 +1544,8 @@ export const AuthRoutes = lazy(() =>
         return c.text("Passkey setup UI is missing. Run the app build to generate passkey-setup.html.", 500)
       }
     })
-    .get("/2fa", async (c) => {
-      // Get token, username, timeout from query params
-      const token = c.req.query("token")
-      const username = c.req.query("username")
-      const timeout = c.req.query("timeout")
-
-      // If no token/username, redirect to login
-      if (!token || !username) {
-        return c.redirect("/auth/login")
-      }
-
-      const parsedTimeout = Number.parseInt(timeout ?? "300", 10)
-      const timeoutSeconds = Number.isFinite(parsedTimeout) ? parsedTimeout : 300
-
-      const uiDir = getUiDir()
-      if (!uiDir) {
-        return c.text("TOTP UI is not configured. Build the app UI and set uiDir.", 500)
-      }
-
-      try {
-        const template = await loadTwoFactorTemplate(uiDir)
-        return c.html(injectTwoFactorBootstrap(template, { token, username, timeoutSeconds }))
-      } catch (error) {
-        log.error("Failed to load TOTP HTML", { error })
-        return c.text("TOTP UI is missing. Run the app build to generate totp.html (legacy: 2fa.html).", 500)
-      }
-    })
+    .get("/totp", renderTotpVerificationPage)
+    .get("/2fa", renderTotpVerificationPage)
     .post(
       "/login",
       describeRoute({
@@ -2230,271 +2509,16 @@ export const AuthRoutes = lazy(() =>
     )
     .get("/totp/setup", renderTotpSetupPage)
     .get("/2fa/setup", renderTotpSetupPage)
-    .post("/2fa/setup/start", async (c) => {
-      const sessionId = getCookie(c, "opencode_session")
-      if (!sessionId) {
-        return c.json({ error: "not_authenticated", message: "Not authenticated" }, 401)
-      }
-      const session = UserSession.get(sessionId)
-      if (!session) {
-        return c.json({ error: "not_authenticated", message: "Not authenticated" }, 401)
-      }
-
-      const xrw = c.req.header("X-Requested-With")
-      if (!xrw) {
-        return c.json({ error: "csrf_missing", message: "CSRF token required" }, 400)
-      }
-
-      const csrfToken = c.req.header("X-CSRF-Token")
-      if (!csrfToken || !validateCSRFToken(csrfToken, sessionId, getCSRFSecret())) {
-        return c.json({ error: "csrf_invalid", message: "Invalid CSRF token" }, 403)
-      }
-
-      const body = await c.req.json().catch(() => ({}))
-      const required = c.req.query("required") === "1" || body.required === true
-      const bootstrap = await buildTwoFactorSetupBootstrap(sessionId, session, required)
-      return c.json(bootstrap)
-    })
-    .post("/2fa/verify", async (c) => {
-      // Require authenticated session
-      const sessionId = getCookie(c, "opencode_session")
-      if (!sessionId) {
-        return c.json({ error: "not_authenticated" }, 401)
-      }
-      const session = UserSession.get(sessionId)
-      if (!session) {
-        return c.json({ error: "not_authenticated" }, 401)
-      }
-
-      // Check CSRF
-      const xrw = c.req.header("X-Requested-With")
-      if (!xrw) {
-        return c.json({ error: "csrf_missing", message: "CSRF token required" }, 400)
-      }
-
-      const body = await c.req.json()
-      const { code } = body as { code?: string }
-
-      if (!code || code.length < 6) {
-        return c.json({ error: "invalid_code", message: "Code is required" }, 400)
-      }
-
-      const broker = new BrokerClient()
-
-      // Check OTP server configuration first
-      const otpConfig = await broker.checkOtpConfig()
-      if (!otpConfig.configured) {
-        // Return specific error based on what's misconfigured
-        if (otpConfig.errorCode === "pam_module_not_installed") {
-          return c.json(
-            {
-              error: "server_misconfigured",
-              message:
-                "Server configuration error: libpam-google-authenticator is not installed. " +
-                "Install it with: Ubuntu/Debian: sudo apt install libpam-google-authenticator, " +
-                "macOS: brew install google-authenticator-libpam",
-              details: otpConfig,
-            },
-            500,
-          )
-        } else if (otpConfig.errorCode === "pam_service_not_configured") {
-          return c.json(
-            {
-              error: "server_misconfigured",
-              message:
-                `Server configuration error: PAM service file missing at ${otpConfig.pamServicePath}. ` +
-                'Create it with: echo "auth required pam_google_authenticator.so nullok" | sudo tee ' +
-                otpConfig.pamServicePath,
-              details: otpConfig,
-            },
-            500,
-          )
-        } else if (otpConfig.errorCode === "broker_unavailable") {
-          return c.json(
-            {
-              error: "server_error",
-              message: "Authentication service unavailable. Please try again later.",
-            },
-            503,
-          )
-        } else {
-          return c.json(
-            {
-              error: "server_misconfigured",
-              message: "Server configuration error: OTP validation is not properly configured.",
-              details: otpConfig,
-            },
-            500,
-          )
-        }
-      }
-
-      // Log if service file was auto-created
-      if (otpConfig.serviceAutoCreated) {
-        log.info("PAM service file auto-created", { path: otpConfig.pamServicePath })
-      }
-
-      const setupSecret = session.twoFactorSetupSecret
-      if (!setupSecret) {
-        return c.json(
-          {
-            error: "setup_missing",
-            message: "TOTP setup session expired. Please restart setup.",
-          },
-          400,
-        )
-      }
-
-      if (!verifyTotpCode(setupSecret, code)) {
-        return c.json(
-          {
-            error: "invalid_code",
-            message:
-              "Invalid verification code. Make sure your authenticator is set up and the code matches the QR code you scanned.",
-          },
-          401,
-        )
-      }
-
-      const setupResult = await broker.setupOtp(sessionId, setupSecret)
-      if (setupResult.errorCode && !setupResult.written && !setupResult.alreadyConfigured) {
-        return c.json(
-          {
-            error: "setup_failed",
-            message: "Unable to create your TOTP configuration. Please try again.",
-            details: setupResult,
-          },
-          500,
-        )
-      }
-
-      // Clear twoFactorPending flag now that TOTP is configured
-      UserSession.clearTwoFactorPending(sessionId)
-      UserSession.clearTwoFactorSetupSecret(sessionId)
-      await setTotpPreference(session.username, { skipSetup: false })
-
-      return c.json({ success: true })
-    })
-    .post("/2fa/skip", async (c) => {
-      // Require authenticated session
-      const sessionId = getCookie(c, "opencode_session")
-      if (!sessionId) {
-        return c.json({ error: "not_authenticated" }, 401)
-      }
-      const session = UserSession.get(sessionId)
-      if (!session) {
-        return c.json({ error: "not_authenticated" }, 401)
-      }
-
-      // Check CSRF
-      const xrw = c.req.header("X-Requested-With")
-      if (!xrw) {
-        return c.json({ error: "csrf_missing" }, 400)
-      }
-
-      // Check if TOTP is required - if so, cannot skip
-      const authConfig = ServerAuth.get()
-      if (authConfig.twoFactorRequired) {
-        return c.json({ error: "2fa_required", message: "TOTP authentication is required and cannot be skipped" }, 403)
-      }
-
-      // Clear setup state so user can access the app
-      UserSession.clearTwoFactorPending(sessionId)
-      UserSession.clearTwoFactorSetupSecret(sessionId)
-
-      return c.json({ success: true })
-    })
-    .post("/2fa/reset", async (c) => {
-      // Require authenticated session
-      const sessionId = getCookie(c, "opencode_session")
-      if (!sessionId) {
-        return c.json({ error: "not_authenticated" }, 401)
-      }
-      const session = UserSession.get(sessionId)
-      if (!session) {
-        return c.json({ error: "not_authenticated" }, 401)
-      }
-
-      // Check CSRF
-      const xrw = c.req.header("X-Requested-With")
-      if (!xrw) {
-        return c.json({ error: "csrf_missing", message: "CSRF token required" }, 400)
-      }
-      const csrfToken = c.req.header("X-CSRF-Token")
-      if (!csrfToken || !validateCSRFToken(csrfToken, sessionId, getCSRFSecret())) {
-        return c.json({ error: "csrf_invalid", message: "Invalid CSRF token" }, 403)
-      }
-
-      const broker = new BrokerClient()
-      let result = await broker.removeOtp(sessionId)
-      if (result.errorCode === "session not found") {
-        const registered = await ensureBrokerSession(sessionId, session)
-        if (registered) {
-          result = await broker.removeOtp(sessionId)
-        }
-      }
-
-      if (result.errorCode && !result.removed && !result.alreadyMissing) {
-        return c.json({ error: "reset_failed", message: "Failed to reset TOTP", details: result }, 500)
-      }
-
-      await setTotpPreference(session.username, { skipSetup: false })
-
-      return c.json({
-        success: true as const,
-        removed: result.removed,
-        alreadyMissing: result.alreadyMissing,
-      })
-    })
-    .post("/2fa/disable", async (c) => {
-      // Require authenticated session
-      const sessionId = getCookie(c, "opencode_session")
-      if (!sessionId) {
-        return c.json({ error: "not_authenticated" }, 401)
-      }
-      const session = UserSession.get(sessionId)
-      if (!session) {
-        return c.json({ error: "not_authenticated" }, 401)
-      }
-
-      // Check CSRF
-      const xrw = c.req.header("X-Requested-With")
-      if (!xrw) {
-        return c.json({ error: "csrf_missing", message: "CSRF token required" }, 400)
-      }
-      const csrfToken = c.req.header("X-CSRF-Token")
-      if (!csrfToken || !validateCSRFToken(csrfToken, sessionId, getCSRFSecret())) {
-        return c.json({ error: "csrf_invalid", message: "Invalid CSRF token" }, 403)
-      }
-
-      const authConfig = ServerAuth.get()
-      if (authConfig.twoFactorRequired) {
-        return c.json({ error: "2fa_required", message: "TOTP authentication is required and cannot be disabled" }, 403)
-      }
-
-      const broker = new BrokerClient()
-      let result = await broker.removeOtp(sessionId)
-      if (result.errorCode === "session not found") {
-        const registered = await ensureBrokerSession(sessionId, session)
-        if (registered) {
-          result = await broker.removeOtp(sessionId)
-        }
-      }
-
-      if (result.errorCode && !result.removed && !result.alreadyMissing) {
-        return c.json({ error: "disable_failed", message: "Failed to disable TOTP", details: result }, 500)
-      }
-
-      UserSession.clearTwoFactorPending(sessionId)
-      UserSession.clearTwoFactorSetupSecret(sessionId)
-      await setTotpPreference(session.username, { skipSetup: true })
-
-      return c.json({
-        success: true as const,
-        removed: result.removed,
-        alreadyMissing: result.alreadyMissing,
-      })
-    })
+    .post("/totp/setup/start", startTotpSetup)
+    .post("/2fa/setup/start", startTotpSetup)
+    .post("/totp/verify", verifyTotpSetup)
+    .post("/2fa/verify", verifyTotpSetup)
+    .post("/totp/skip", skipTotpSetup)
+    .post("/2fa/skip", skipTotpSetup)
+    .post("/totp/reset", resetTotp)
+    .post("/2fa/reset", resetTotp)
+    .post("/totp/disable", disableTotp)
+    .post("/2fa/disable", disableTotp)
     .post(
       "/logout",
       describeRoute({

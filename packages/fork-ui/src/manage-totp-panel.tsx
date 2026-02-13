@@ -18,7 +18,11 @@ export function ManageTotpPanel(props: ManageTotpPanelProps) {
   const [confirmAction, setConfirmAction] = createSignal<"reset" | "disable" | null>(null)
   const [working, setWorking] = createSignal(false)
 
-  const doAction = async (path: "/auth/2fa/reset" | "/auth/2fa/disable", errorTitle: string, successTitle: string) => {
+  const doAction = async (
+    path: "/auth/totp/reset" | "/auth/totp/disable",
+    errorTitle: string,
+    successTitle: string,
+  ) => {
     if (working()) return false
     const url = props.getServerUrl()
     if (!url) return false
@@ -50,11 +54,11 @@ export function ManageTotpPanel(props: ManageTotpPanelProps) {
   }
 
   const handleReset = async () => {
-    await doAction("/auth/2fa/reset", "Failed to reset TOTP", "TOTP reset")
+    await doAction("/auth/totp/reset", "Failed to reset TOTP", "TOTP reset")
   }
 
   const handleDisable = async () => {
-    await doAction("/auth/2fa/disable", "Failed to disable TOTP", "TOTP disabled")
+    await doAction("/auth/totp/disable", "Failed to disable TOTP", "TOTP disabled")
   }
 
   return (
