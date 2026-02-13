@@ -52,12 +52,12 @@ Complete guide to configuring nginx or Caddy for HTTPS/TLS termination, WebSocke
 - Development vs production setups
 
 **[PAM Configuration](pam-config.md)**
-System authentication setup for password login, two-factor authentication (2FA), and LDAP/Active Directory integration.
+System authentication setup for password login, TOTP authentication, and LDAP/Active Directory integration.
 
 **Topics covered:**
 
 - Basic PAM setup (Linux and macOS)
-- Two-factor authentication with Google Authenticator
+- TOTP authentication with Google Authenticator
 - LDAP/Active Directory integration
 - Account lockout policies
 - Platform-specific configurations
@@ -118,7 +118,7 @@ graph TB
 1. **Reverse Proxy** - Handles HTTPS/TLS, forwards to OpenCode server
 2. **OpenCode Server** - Web application, session management, UI
 3. **Auth Broker** - Setuid root process for PAM authentication and user impersonation
-4. **System Auth** - PAM modules (local users, LDAP, 2FA)
+4. **System Auth** - PAM modules (local users, LDAP, TOTP)
 5. **User Shell** - PTY sessions running as authenticated user
 
 **Security model:**
@@ -126,7 +126,7 @@ graph TB
 - Reverse proxy enforces HTTPS (production)
 - OpenCode server manages sessions, CSRF tokens, rate limiting
 - Auth broker runs as setuid root, drops privileges after user spawn
-- PAM provides pluggable authentication (passwords, 2FA, LDAP)
+- PAM provides pluggable authentication (passwords, TOTP, LDAP)
 
 ## Security Features
 
@@ -136,8 +136,8 @@ graph TB
 - ✅ CSRF protection via double-submit cookie pattern
 - ✅ Rate limiting (5 attempts per 15 minutes)
 - ✅ Secure session cookies (httpOnly, SameSite)
-- ✅ Two-factor authentication support
-- ✅ Device trust for 2FA
+- ✅ TOTP authentication support
+- ✅ Device trust for TOTP
 - ✅ Session timeout and "remember me" options
 - ✅ Password redaction in logs
 
@@ -145,7 +145,7 @@ graph TB
 
 - Use a reverse proxy for TLS termination
 - Configure security headers (CSP, HSTS, X-Frame-Options)
-- Enable 2FA for sensitive accounts
+- Enable TOTP for sensitive accounts
 - Use strong PAM modules (pam_pwquality for password strength)
 - Monitor auth logs for suspicious activity
 - Set appropriate session timeouts

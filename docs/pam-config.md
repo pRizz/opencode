@@ -1,6 +1,6 @@
 # PAM Configuration Guide
 
-This guide covers PAM (Pluggable Authentication Modules) setup for OpenCode authentication, including basic password authentication, two-factor authentication (2FA), and integration with LDAP/Active Directory.
+This guide covers PAM (Pluggable Authentication Modules) setup for OpenCode authentication, including basic password authentication, TOTP authentication, and integration with LDAP/Active Directory.
 
 ## Quick Start (For PAM Experts)
 
@@ -60,7 +60,7 @@ If you're already familiar with PAM, here's the minimal setup:
    ls -l /run/opencode/broker.sock  # or /var/run/opencode/broker.sock
    ```
 
-Done! For 2FA setup, skip to [Two-Factor Authentication](#two-factor-authentication-2fa).
+Done! For TOTP setup, skip to [TOTP Authentication](#totp-authentication).
 
 ---
 
@@ -158,7 +158,7 @@ sudo cp packages/opencode-broker/service/opencode.pam /etc/pam.d/opencode
 auth       required     pam_unix.so
 account    required     pam_unix.so
 
-# Optional: Enable TOTP 2FA (uncomment when pam_google_authenticator is installed)
+# Optional: Enable TOTP (uncomment when pam_google_authenticator is installed)
 # auth       required     pam_google_authenticator.so
 ```
 
@@ -452,9 +452,9 @@ Same as Linux - enable authentication in `opencode.json`:
 
 ---
 
-## Two-Factor Authentication (2FA)
+## TOTP Authentication
 
-OpenCode supports **TOTP (Time-based One-Time Password)** 2FA using Google Authenticator or compatible apps.
+OpenCode supports **TOTP (Time-based One-Time Password)** authentication using Google Authenticator or compatible apps.
 
 ### Architecture
 
@@ -466,7 +466,7 @@ OpenCode uses a **two-step authentication flow**:
 This separation allows:
 
 - Different PAM configurations for password vs. OTP
-- Users without 2FA can still authenticate (via `nullok` option)
+- Users without TOTP can still authenticate (via `nullok` option)
 - Independent rate limiting for password and OTP attempts
 
 ### 1. Install google-authenticator PAM Module
@@ -508,16 +508,16 @@ auth required pam_google_authenticator.so nullok
 
 **Key option: `nullok`**
 
-- **`nullok`** - Allows authentication to succeed if user has **not** set up 2FA
-- Without `nullok` - All users **must** have 2FA configured or authentication fails
+- **`nullok`** - Allows authentication to succeed if user has **not** set up TOTP
+- Without `nullok` - All users **must** have TOTP configured or authentication fails
 
-**Recommendation:** Start with `nullok` to allow gradual 2FA adoption. Remove `nullok` once all users have enrolled.
+**Recommendation:** Start with `nullok` to allow gradual TOTP adoption. Remove `nullok` once all users have enrolled.
 
-### 3. Enable 2FA in OpenCode
+### 3. Enable TOTP in OpenCode
 
-Add 2FA configuration to `opencode.json`:
+Add TOTP configuration to `opencode.json`:
 
-**Basic 2FA (optional for users):**
+**Basic TOTP (optional for users):**
 
 ```json
 {
@@ -528,7 +528,7 @@ Add 2FA configuration to `opencode.json`:
 }
 ```
 
-**Required 2FA (enforced for all users):**
+**Required TOTP (enforced for all users):**
 
 ```json
 {
@@ -557,7 +557,7 @@ Add 2FA configuration to `opencode.json`:
 
 ### 4. User Setup
 
-Each user must configure 2FA individually:
+Each user must configure TOTP individually:
 
 #### Command-Line Setup (required for PAM)
 
@@ -581,7 +581,7 @@ This creates `~/.google_authenticator` with the TOTP secret.
 
 #### Web UI Setup (optional)
 
-OpenCode provides a web-based 2FA setup wizard at `/auth/setup-2fa`. This:
+OpenCode provides a web-based TOTP setup wizard at `/auth/2fa/setup`. This:
 
 - Generates QR code in browser
 - Walks user through authenticator app setup
@@ -597,19 +597,19 @@ During `google-authenticator` setup, emergency backup codes are displayed. Users
 - Use backup codes if they lose their authenticator device
 - Regenerate codes by running `google-authenticator` again
 
-### 5. Testing 2FA
+### 5. Testing TOTP
 
 1. Log out of OpenCode
 2. Enter username and password
-3. If user has 2FA configured, OTP prompt appears
+3. If user has TOTP configured, OTP prompt appears
 4. Enter 6-digit code from authenticator app
 5. Authentication succeeds
 
-If user does **not** have 2FA configured (and `nullok` is set), authentication succeeds after password only.
+If user does **not** have TOTP configured (and `nullok` is set), authentication succeeds after password only.
 
-### 6. Enforcing 2FA
+### 6. Enforcing TOTP
 
-To require all users to set up 2FA:
+To require all users to set up TOTP:
 
 1. **Remove `nullok` from PAM:**
 
@@ -631,11 +631,11 @@ To require all users to set up 2FA:
    }
    ```
 
-3. **Notify users** to set up 2FA before enforcement date
+3. **Notify users** to set up TOTP before enforcement date
 
-4. **Test with a non-2FA user** to confirm enforcement works
+4. **Test with a non-TOTP user** to confirm enforcement works
 
-Users without 2FA will be unable to authenticate until they run `google-authenticator`.
+Users without TOTP will be unable to authenticate until they run `google-authenticator`.
 
 ---
 
@@ -892,10 +892,10 @@ All authentication options from `packages/opencode/src/config/auth.ts`:
 | `trustProxy`            | boolean \| "auto"          | `"auto"`     | Proxy trust mode for HTTPS detection (`false`, `true`, or managed-env `auto`)    |
 | `csrfVerboseErrors`     | boolean                    | `false`      | Enable verbose CSRF error messages for debugging                                 |
 | `csrfAllowlist`         | string[]                   | `[]`         | Additional routes to exclude from CSRF validation                                |
-| `twoFactorEnabled`      | boolean                    | `false`      | Enable two-factor authentication support                                         |
-| `twoFactorRequired`     | boolean                    | `false`      | Require users to set up 2FA before accessing the app                             |
-| `twoFactorTokenTimeout` | duration                   | `"5m"`       | How long the 2FA token is valid after password success                           |
-| `deviceTrustDuration`   | duration                   | `"30d"`      | How long "remember this device" lasts for 2FA                                    |
+| `twoFactorEnabled`      | boolean                    | `false`      | Enable TOTP authentication support                                               |
+| `twoFactorRequired`     | boolean                    | `false`      | Require users to set up TOTP before accessing the app                           |
+| `twoFactorTokenTimeout` | duration                   | `"5m"`       | How long the TOTP token is valid after password success                         |
+| `deviceTrustDuration`   | duration                   | `"30d"`      | How long "remember this device" lasts for TOTP                                  |
 | `otpRateLimitMax`       | number                     | `5`          | Maximum OTP attempts per rate limit window                                       |
 | `otpRateLimitWindow`    | duration                   | `"15m"`      | OTP rate limit window duration                                                   |
 
@@ -911,7 +911,7 @@ All authentication options from `packages/opencode/src/config/auth.ts`:
 }
 ```
 
-**Production (HTTPS required, 2FA optional):**
+**Production (HTTPS required, TOTP optional):**
 
 ```json
 {
@@ -928,7 +928,7 @@ All authentication options from `packages/opencode/src/config/auth.ts`:
 }
 ```
 
-**High-security (2FA required, short sessions):**
+**High-security (TOTP required, short sessions):**
 
 ```json
 {
@@ -985,7 +985,7 @@ This corresponds to `/etc/pam.d/my-custom-pam-service`.
 OpenCode uses a **dedicated PAM service** (`/etc/pam.d/opencode`) rather than sharing a service like `login` or `sshd`. This allows:
 
 - **Customized authentication rules** for OpenCode
-- **Independent 2FA policies** (can enable 2FA for OpenCode without affecting SSH)
+- **Independent TOTP policies** (can enable TOTP for OpenCode without affecting SSH)
 - **Audit isolation** (PAM logs show "opencode" service)
 
 ### Broker Socket Permissions
@@ -1104,7 +1104,7 @@ Sessions are **in-memory** by default (lost on restart). For persistent sessions
 - [Linux PAM Documentation](http://www.linux-pam.org/Linux-PAM-html/)
 - [Red Hat PAM Guide](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html/configuring_authentication_and_authorization_in_rhel/configuring-user-authentication-using-authconfig_configuring-authentication-and-authorization-in-rhel)
 
-**2FA Setup:**
+**TOTP Setup:**
 
 - [Google Authenticator PAM Module](https://github.com/google/google-authenticator-libpam)
 

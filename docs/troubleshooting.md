@@ -61,7 +61,7 @@ flowchart TD
     B -->|"CSRF error"| F[Check cookies/browser]
     C --> G{PAM debug shows?}
     G -->|"No such user"| H[Verify user exists: id username]
-    G -->|"Auth failure"| I[Verify password/2FA]
+    G -->|"Auth failure"| I[Verify password/TOTP]
     G -->|"Permission denied"| J[Check PAM file permissions]
     D --> K{Broker socket exists?}
     K -->|No| L[Start broker service]
@@ -138,14 +138,14 @@ PAM authentication failed. By design, OpenCode returns a generic error to preven
    - `pam_unix(opencode:auth): authentication failure; user=username` - Wrong password
    - `pam_unix(opencode:auth): check pass; user unknown` - User doesn't exist
    - `pam_unix(opencode:account): account expired` - Account locked/expired
-   - `pam_google_authenticator(opencode:auth): Invalid verification code` - Wrong 2FA code
+   - `pam_google_authenticator(opencode:auth): Invalid verification code` - Wrong TOTP code
 
 **Common Causes:**
 
 - **Wrong credentials** - Verify password works with `su - username`
 - **User doesn't exist** - Check with `id username`
 - **Account locked** - Check with `passwd -S username` (Linux)
-- **2FA misconfiguration** - Verify `~/.google_authenticator` file exists if using 2FA
+- **TOTP misconfiguration** - Verify `~/.google_authenticator` file exists if using TOTP
 - **PAM service mismatch** - Verify `auth.pam.service` in `opencode.json` matches filename in `/etc/pam.d/`
 
 **Solution:**
@@ -154,7 +154,7 @@ Identify the specific PAM error from logs and address accordingly. Most commonly
 
 - Typo in password → retry with correct password
 - User needs to be created → `sudo useradd username` or equivalent
-- 2FA not set up → run `google-authenticator` as the user
+- TOTP not set up → run `google-authenticator` as the user
 
 ### 2. "Connection refused" - Broker Not Running
 
@@ -499,13 +499,13 @@ document.cookie.split(";").forEach((c) => {
 location.reload()
 ```
 
-### 7. 2FA Code Always Invalid
+### 7. TOTP Code Always Invalid
 
 **Symptom:**
 TOTP codes from authenticator app are always rejected.
 
 **Cause:**
-Time synchronization issue, wrong PAM service configuration, or 2FA not properly set up.
+Time synchronization issue, wrong PAM service configuration, or TOTP not properly set up.
 
 **Debug Steps:**
 
@@ -519,7 +519,7 @@ Time synchronization issue, wrong PAM service configuration, or 2FA not properly
    ntpdate -q pool.ntp.org
    ```
 
-2. Check user's 2FA setup:
+2. Check user's TOTP setup:
 
    ```bash
    # As the user
@@ -536,7 +536,7 @@ Time synchronization issue, wrong PAM service configuration, or 2FA not properly
    cat /etc/pam.d/opencode-otp
    ```
 
-4. Test 2FA with google-authenticator PAM directly:
+4. Test TOTP with google-authenticator PAM directly:
 
    ```bash
    # Install pamtester if not installed
@@ -550,7 +550,7 @@ Time synchronization issue, wrong PAM service configuration, or 2FA not properly
 
 - **Time drift** - Server time differs from authenticator app time by >30 seconds
 - **Wrong PAM service** - Using `opencode` instead of `opencode-otp` for OTP validation
-- **2FA not initialized** - User hasn't run `google-authenticator` command
+- **TOTP not initialized** - User hasn't run `google-authenticator` command
 - **File permissions** - `~/.google_authenticator` not readable
 
 **Solution:**
@@ -588,7 +588,7 @@ auth       required     pam_google_authenticator.so nullok
 account    required     pam_permit.so
 ```
 
-**Initialize 2FA for user:**
+**Initialize TOTP for user:**
 
 ```bash
 # Run as the user (not root!)
@@ -828,7 +828,7 @@ auth       required     pam_unix.so
 auth       required     pam_unix.so debug
 ```
 
-For 2FA debugging, edit `/etc/pam.d/opencode-otp`:
+For TOTP debugging, edit `/etc/pam.d/opencode-otp`:
 
 ```
 auth       required     pam_google_authenticator.so nullok debug
@@ -949,7 +949,7 @@ pam_unix(opencode:auth): 1 authentication failure; user=johndoe
 pam_unix(opencode:auth): check pass; user unknown
 ```
 
-**2FA failure:**
+**TOTP failure:**
 
 ```
 pam_google_authenticator(opencode-otp:auth): Invalid verification code for johndoe
