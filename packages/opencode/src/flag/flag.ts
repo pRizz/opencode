@@ -30,7 +30,10 @@ export namespace Flag {
   export declare const OPENCODE_CLIENT: string
   export const OPENCODE_SERVER_PASSWORD = process.env["OPENCODE_SERVER_PASSWORD"]
   export const OPENCODE_SERVER_USERNAME = process.env["OPENCODE_SERVER_USERNAME"]
-  export const OPENCODE_ENABLE_2FA_RESET = truthy("OPENCODE_ENABLE_2FA_RESET")
+  export const OPENCODE_ENABLE_TOTP_RESET =
+    truthy("OPENCODE_ENABLE_TOTP_RESET") || truthy("OPENCODE_ENABLE_2FA_RESET")
+  /** @deprecated Use OPENCODE_ENABLE_TOTP_RESET. */
+  export const OPENCODE_ENABLE_2FA_RESET = OPENCODE_ENABLE_TOTP_RESET
 
   // Experimental
   export const OPENCODE_EXPERIMENTAL = truthy("OPENCODE_EXPERIMENTAL")
