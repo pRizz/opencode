@@ -44,10 +44,7 @@ describe("auth middleware TOTP setup gating", () => {
     createdSessionIds.length = 0
   })
 
-  const createApp = () =>
-    new Hono<AuthEnv>()
-      .use("*", authMiddleware)
-      .get("/project", (c) => c.json({ ok: true }))
+  const createApp = () => new Hono<AuthEnv>().use("*", authMiddleware).get("/project", (c) => c.json({ ok: true }))
 
   const createSession = () => {
     const session = UserSession.create("testuser", "test-agent", {
