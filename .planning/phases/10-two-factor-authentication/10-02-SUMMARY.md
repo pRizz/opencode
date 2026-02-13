@@ -2,7 +2,7 @@
 phase: 10-two-factor-authentication
 plan: 02
 subsystem: auth
-tags: [2fa, otp, totp, pam, ipc]
+tags: [otp, totp, pam, ipc]
 
 # Dependency graph
 requires:
@@ -28,18 +28,18 @@ key-files:
 
 key-decisions:
   - "AuthenticateOtp uses same rate limiter as password auth"
-  - "Check2fa returns failure response for no 2FA (success field indicates status)"
+  - "Check2fa returns failure response for no TOTP (success field indicates status)"
   - "OTP code redacted in Debug output like password"
 
 patterns-established:
-  - "2FA protocol pattern: Check2fa for detection, AuthenticateOtp for validation"
+  - "TOTP protocol pattern: Check2fa for detection, AuthenticateOtp for validation"
 
 # Metrics
 duration: 2.3min
 completed: 2026-01-24
 ---
 
-# Phase 10 Plan 02: Broker Protocol 2FA Extension Summary
+# Phase 10 Plan 02: Broker Protocol TOTP Extension Summary
 
 **Extended IPC protocol with Check2fa and AuthenticateOtp methods, with rate-limited OTP validation using same infrastructure as password auth**
 
@@ -74,7 +74,7 @@ Each task was committed atomically:
 ## Decisions Made
 
 - **AuthenticateOtp uses same rate limiter as password auth** - Prevents brute force attacks on OTP codes using existing infrastructure
-- **Check2fa returns failure response when 2FA not configured** - Client checks success field to determine 2FA status
+- **Check2fa returns failure response when TOTP is not configured** - Client checks success field to determine TOTP status
 - **OTP code redacted in Debug output** - Follows password redaction pattern for security
 
 ## Deviations from Plan
@@ -92,7 +92,7 @@ None - no external service configuration required.
 ## Next Phase Readiness
 
 - Broker protocol ready for TypeScript client integration
-- Web server can now call Check2fa to detect 2FA requirement
+- Web server can now call Check2fa to detect TOTP requirement
 - Web server can now call AuthenticateOtp to validate OTP codes
 - Ready for Phase 10 Plan 03 (TypeScript client layer)
 

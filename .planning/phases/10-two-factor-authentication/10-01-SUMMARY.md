@@ -48,13 +48,13 @@ metrics:
 
 Added five new TOTP-related configuration fields:
 
-| Field                   | Type     | Default | Purpose                                         |
-| ----------------------- | -------- | ------- | ----------------------------------------------- |
-| `twoFactorEnabled`      | boolean  | false   | Enable TOTP support                             |
+| Field                   | Type     | Default | Purpose                                             |
+| ----------------------- | -------- | ------- | --------------------------------------------------- |
+| `twoFactorEnabled`      | boolean  | false   | Enable TOTP support                                 |
 | `twoFactorTokenTimeout` | Duration | "5m"    | How long TOTP token is valid after password success |
-| `deviceTrustDuration`   | Duration | "30d"   | "Remember this device" duration                 |
-| `otpRateLimitMax`       | number   | 5       | Max OTP attempts per window                     |
-| `otpRateLimitWindow`    | Duration | "15m"   | OTP rate limit window                           |
+| `deviceTrustDuration`   | Duration | "30d"   | "Remember this device" duration                     |
+| `otpRateLimitMax`       | number   | 5       | Max OTP attempts per window                         |
+| `otpRateLimitWindow`    | Duration | "15m"   | OTP rate limit window                               |
 
 ### 2. Broker OTP Module (`otp.rs`)
 
@@ -146,11 +146,11 @@ Following the same pattern as password authentication in `pam.rs`:
 
 ## Commits
 
-| Hash      | Description                                                         |
-| --------- | ------------------------------------------------------------------- |
-| f5a9fb21e | feat(10-01): add TOTP configuration options to AuthConfig           |
+| Hash      | Description                                                          |
+| --------- | -------------------------------------------------------------------- |
+| f5a9fb21e | feat(10-01): add TOTP configuration options to AuthConfig            |
 | c32afce44 | feat(10-01): add broker OTP module for TOTP detection and validation |
-| 662ef552f | feat(10-01): add OTP PAM service files for Linux and macOS          |
+| 662ef552f | feat(10-01): add OTP PAM service files for Linux and macOS           |
 
 ## Next Phase Readiness
 

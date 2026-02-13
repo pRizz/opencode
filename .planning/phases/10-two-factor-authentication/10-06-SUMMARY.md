@@ -4,10 +4,10 @@ TOTP page UI with countdown timer, auto-submit on 6 digits, and remember device 
 
 ## Tasks Completed
 
-| Task | Name                                            | Commit    | Files   |
-| ---- | ----------------------------------------------- | --------- | ------- |
-| 1    | Create TOTP page HTML generator                 | f011eb25d | auth.ts |
-| 2    | Add GET /auth/2fa route                         | 6c8f63169 | auth.ts |
+| Task | Name                                             | Commit    | Files   |
+| ---- | ------------------------------------------------ | --------- | ------- |
+| 1    | Create TOTP page HTML generator                  | f011eb25d | auth.ts |
+| 2    | Add GET /auth/2fa route                          | 6c8f63169 | auth.ts |
 | 3    | Update login page JavaScript to redirect to TOTP | f08ad1fef | auth.ts |
 
 ## Implementation Details
