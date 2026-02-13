@@ -9,6 +9,6 @@ declare global {
 }
 
 export function TwoFactorSetupApp() {
-  // Prefer TOTP bootstrap key, but preserve the legacy 2FA key fallback.
+  // Prefer the TOTP setup bootstrap key, while preserving the legacy key fallback.
   return <TwoFactorSetupFlow bootstrap={window.__OPENCODE_TOTP_SETUP__ ?? window.__OPENCODE_2FA_SETUP__} />
 }

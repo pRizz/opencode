@@ -16,7 +16,7 @@ declare global {
 }
 
 export function TwoFactorApp() {
-  // Prefer TOTP bootstrap key, but preserve the legacy 2FA key fallback.
+  // Prefer the TOTP bootstrap key, while preserving the legacy key fallback.
   const bootstrap = window.__OPENCODE_TOTP__ ?? window.__OPENCODE_2FA__
   const token = bootstrap?.token ?? ""
   const username = bootstrap?.username ?? ""
