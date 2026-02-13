@@ -7,7 +7,7 @@ tags: [jwt, totp, device-trust, hono]
 # Dependency graph
 requires:
   - phase: 10-03
-    provides: JWT token utilities (totp-token.ts with legacy two-factor-token compatibility, and device-trust.ts)
+    provides: JWT token utilities (totp-token.ts with legacy create2FAToken/verify2FAToken aliases, and device-trust.ts)
   - phase: 10-04
     provides: BrokerClient TOTP methods (checkTotp, authenticateOtp)
 provides:

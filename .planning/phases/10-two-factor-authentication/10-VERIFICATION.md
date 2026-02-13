@@ -38,7 +38,7 @@ score: 4/4 must-haves verified
 | `packages/fork-auth/src/auth/totp-token.ts`               | TOTP tokens                | VERIFIED | Exports canonical `createTotpToken`, `verifyTotpToken`, `getTokenRemainingSeconds` plus legacy aliases `create2FAToken` / `verify2FAToken`     |
 | `packages/opencode/src/auth/broker-client.ts`             | TOTP methods               | VERIFIED | `checkTotp()` canonical method with `check2fa()` compatibility alias, and `authenticateOtp()`                                                    |
 | `packages/opencode/src/server/security/token-secret.ts`   | JWT secret                 | VERIFIED | 26 lines, exports `getTokenSecret()` via lazy init                                                                                               |
-| `packages/opencode/src/server/routes/auth.ts`             | TOTP endpoints             | VERIFIED | `/login/2fa` (1396), `/2fa` page (1117), `/2fa/setup` (1675), `/2fa/verify` (1701), `/device-trust/status` (1594), `/device-trust/revoke` (1643) |
+| `packages/opencode/src/server/routes/auth.ts`             | TOTP endpoints             | VERIFIED | Canonical `/login/totp`, `/totp`, `/totp/setup`, `/totp/verify` endpoints are present with legacy `/2fa*` aliases retained; device-trust routes remain wired |
 | `packages/opencode/src/auth/totp-setup.ts`                | QR code generation         | VERIFIED | 95 lines, exports `generateTotpSetup`, `getGoogleAuthenticatorSetupCommand`                                                                      |
 | `packages/opencode-broker/service/opencode-otp.pam`       | PAM service (Linux)        | VERIFIED | Contains `auth required pam_google_authenticator.so nullok`                                                                                      |
 | `packages/opencode-broker/service/opencode-otp.pam.macos` | PAM service (macOS)        | VERIFIED | Contains `auth required pam_google_authenticator.so nullok`                                                                                      |
@@ -114,7 +114,7 @@ Phase 10 implements a complete TOTP authentication system:
 
 2. **Token Infrastructure (Plans 10-03, 10-04):** JWT-based device trust tokens and short-lived TOTP tokens with IP binding, TypeScript broker client methods
 
-3. **Auth Flow (Plan 10-05):** Login endpoint extended to detect TOTP requirement, return intermediate token, POST /login/2fa validates OTP and creates session
+3. **Auth Flow (Plan 10-05):** Login endpoint extended to detect TOTP requirement, return intermediate token, canonical `POST /login/totp` validates OTP and creates session (legacy `/login/2fa` alias retained)
 
 4. **TOTP UI (Plan 10-06):** Server-rendered TOTP page with countdown timer, auto-submit on 6 digits, remember device checkbox, consistent styling
 

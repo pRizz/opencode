@@ -16,7 +16,7 @@ tech-stack:
 key-files:
   created:
     - packages/opencode/src/auth/device-trust.ts
-    - packages/opencode/src/auth/two-factor-token.ts
+    - packages/fork-auth/src/auth/totp-token.ts
   modified:
     - packages/opencode/src/auth/index.ts
     - packages/opencode/package.json
@@ -82,7 +82,7 @@ JWT-based token modules for device trust and TOTP intermediate tokens using jose
 | File                                           | Change   | Purpose                      |
 | ---------------------------------------------- | -------- | ---------------------------- |
 | packages/opencode/src/auth/device-trust.ts     | Created  | Device trust token utilities |
-| packages/opencode/src/auth/two-factor-token.ts | Created  | TOTP token utilities         |
+| packages/fork-auth/src/auth/totp-token.ts      | Created  | TOTP token utilities         |
 | packages/opencode/src/auth/index.ts            | Modified | Export new modules           |
 | packages/opencode/package.json                 | Modified | Add jose dependency          |
 
