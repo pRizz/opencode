@@ -60,7 +60,7 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 - Tests:
   - `packages/fork-tests/server/middleware/csrf.test.ts`
 
-### A3. 2FA/TOTP (PAM OTP)
+### A3. TOTP authentication (PAM OTP)
 
 - Files:
   - `packages/fork-auth/src/auth/totp-setup.ts`
@@ -144,7 +144,7 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
   - `packages/app/src/pages/**`
   - `packages/app/src/components/**`
 - Behavior:
-  - Login forms, 2FA flow, HTTP warning UI.
+  - Login forms, TOTP flow, HTTP warning UI.
 
 ### C2. App UI changes
 
