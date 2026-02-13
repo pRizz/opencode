@@ -1,6 +1,12 @@
 import { test, expect } from "../../fixtures"
 import { closeDialog, openSettings } from "../../actions"
-import { mockAuthenticatedAuth, mockPasskeys, mockTotpSetupStart, mockUnauthenticatedAuth } from "../mocks/auth"
+import {
+  mockAuthenticatedAuth,
+  mockPasskeys,
+  mockTotpSetupStart,
+  mockUnauthenticatedAuth,
+  toDeviceTrustResponse,
+} from "../mocks/auth"
 import {
   settingsAuthTotpManageCardSelector,
   settingsAuthTotpManageDisabledReasonSelector,
@@ -132,7 +138,7 @@ test("passkeys tab remains reachable", async ({ page, gotoSession }) => {
 test("TOTP tab shows setup and disabled manage when not configured", async ({ page, gotoSession }) => {
   await mockAuthenticatedAuth(page, {
     deviceTrust: {
-      twoFactorConfigured: false,
+      totpConfigured: false,
       deviceTrusted: false,
     },
   })
@@ -156,12 +162,14 @@ test("TOTP inline setup enables manage panel without opening new tab", async ({ 
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({
-        twoFactorEnabled: true,
-        twoFactorConfigured: deviceTrustCalls > 1,
-        twoFactorOptedOut: false,
-        deviceTrusted: false,
-      }),
+      body: JSON.stringify(
+        toDeviceTrustResponse({
+          totpEnabled: true,
+          totpConfigured: deviceTrustCalls > 1,
+          totpOptedOut: false,
+          deviceTrusted: false,
+        }),
+      ),
     })
   })
 

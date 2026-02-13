@@ -1,6 +1,13 @@
 import type { Page } from "@playwright/test"
 
 export type TotpDeviceTrustStatus = {
+  totpEnabled: boolean
+  totpConfigured: boolean
+  totpOptedOut: boolean
+  deviceTrusted: boolean
+}
+
+interface DeviceTrustResponse {
   twoFactorEnabled: boolean
   twoFactorConfigured: boolean
   twoFactorOptedOut: boolean
@@ -8,7 +15,23 @@ export type TotpDeviceTrustStatus = {
 }
 
 /** @deprecated Prefer TotpDeviceTrustStatus. */
-export type DeviceTrustStatus = TotpDeviceTrustStatus
+export type DeviceTrustStatus = {
+  twoFactorEnabled: boolean
+  twoFactorConfigured: boolean
+  twoFactorOptedOut: boolean
+  deviceTrusted: boolean
+}
+
+type DeviceTrustStatusInput = Partial<
+  TotpDeviceTrustStatus & {
+    /** @deprecated Prefer `totpEnabled`. */
+    twoFactorEnabled: boolean
+    /** @deprecated Prefer `totpConfigured`. */
+    twoFactorConfigured: boolean
+    /** @deprecated Prefer `totpOptedOut`. */
+    twoFactorOptedOut: boolean
+  }
+>
 
 export interface AuthSessionMockOptions {
   id?: string
@@ -40,7 +63,7 @@ export type TwoFactorSetupStartMockOptions = TotpSetupStartMockOptions
 export interface AuthenticatedAuthMockOptions {
   session?: string | AuthSessionMockOptions
   authStatus?: boolean | AuthStatusMockOptions
-  deviceTrust?: Partial<TotpDeviceTrustStatus>
+  deviceTrust?: DeviceTrustStatusInput
 }
 
 export interface UnauthenticatedAuthMockOptions {
@@ -48,10 +71,33 @@ export interface UnauthenticatedAuthMockOptions {
 }
 
 const defaultDeviceTrustStatus: TotpDeviceTrustStatus = {
-  twoFactorEnabled: true,
-  twoFactorConfigured: true,
-  twoFactorOptedOut: false,
+  totpEnabled: true,
+  totpConfigured: true,
+  totpOptedOut: false,
   deviceTrusted: true,
+}
+
+function normalizeDeviceTrustStatus(input: DeviceTrustStatusInput): TotpDeviceTrustStatus {
+  const maybeTotpEnabled = input.totpEnabled ?? input.twoFactorEnabled
+  const maybeTotpConfigured = input.totpConfigured ?? input.twoFactorConfigured
+  const maybeTotpOptedOut = input.totpOptedOut ?? input.twoFactorOptedOut
+
+  return {
+    totpEnabled: maybeTotpEnabled ?? defaultDeviceTrustStatus.totpEnabled,
+    totpConfigured: maybeTotpConfigured ?? defaultDeviceTrustStatus.totpConfigured,
+    totpOptedOut: maybeTotpOptedOut ?? defaultDeviceTrustStatus.totpOptedOut,
+    deviceTrusted: input.deviceTrusted ?? defaultDeviceTrustStatus.deviceTrusted,
+  }
+}
+
+export function toDeviceTrustResponse(input: DeviceTrustStatusInput = {}): DeviceTrustResponse {
+  const status = normalizeDeviceTrustStatus(input)
+  return {
+    twoFactorEnabled: status.totpEnabled,
+    twoFactorConfigured: status.totpConfigured,
+    twoFactorOptedOut: status.totpOptedOut,
+    deviceTrusted: status.deviceTrusted,
+  }
 }
 
 function resolveSessionMock(input?: string | AuthSessionMockOptions): Required<AuthSessionMockOptions> {
@@ -101,12 +147,12 @@ export async function mockAuthStatus(page: Page, input?: boolean | AuthStatusMoc
   })
 }
 
-export async function mockDeviceTrust(page: Page, status: Partial<TotpDeviceTrustStatus> = {}) {
+export async function mockDeviceTrust(page: Page, status: DeviceTrustStatusInput = {}) {
   await page.route("**/auth/device-trust/status", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ ...defaultDeviceTrustStatus, ...status }),
+      body: JSON.stringify(toDeviceTrustResponse(status)),
     })
   })
 }
