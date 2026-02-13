@@ -1357,7 +1357,7 @@ export const AuthRoutes = lazy(() =>
       describeRoute({
         summary: "Complete TOTP login",
         description: "Validate OTP code and complete authentication.",
-        operationId: "auth.login2fa",
+        operationId: "auth.loginTotp",
         responses: {
           200: {
             description: "TOTP successful",

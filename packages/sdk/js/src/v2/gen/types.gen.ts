@@ -2635,14 +2635,14 @@ export type AuthLoginResponses = {
 
 export type AuthLoginResponse = AuthLoginResponses[keyof AuthLoginResponses]
 
-export type AuthLogin2FaData = {
+export type AuthLoginTotpData = {
   body?: never
   path?: never
   query?: never
   url: "/auth/login/2fa"
 }
 
-export type AuthLogin2FaErrors = {
+export type AuthLoginTotpErrors = {
   /**
    * Bad request (missing fields)
    */
@@ -2661,7 +2661,7 @@ export type AuthLogin2FaErrors = {
   429: unknown
 }
 
-export type AuthLogin2FaResponses = {
+export type AuthLoginTotpResponses = {
   /**
    * TOTP successful
    */
@@ -2677,7 +2677,7 @@ export type AuthLogin2FaResponses = {
   }
 }
 
-export type AuthLogin2FaResponse = AuthLogin2FaResponses[keyof AuthLogin2FaResponses]
+export type AuthLoginTotpResponse = AuthLoginTotpResponses[keyof AuthLoginTotpResponses]
 
 export type AuthPasskeyAuthOptionsData = {
   body?: never

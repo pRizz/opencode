@@ -11,10 +11,10 @@ import type {
   Auth as Auth3,
   AuthDeviceTrustRevokeResponses,
   AuthDeviceTrustStatusResponses,
-  AuthLogin2FaErrors,
-  AuthLogin2FaResponses,
   AuthLoginErrors,
   AuthLoginResponses,
+  AuthLoginTotpErrors,
+  AuthLoginTotpResponses,
   AuthPasskeyAuthOptionsErrors,
   AuthPasskeyAuthOptionsResponses,
   AuthPasskeyAuthVerifyErrors,
@@ -360,8 +360,8 @@ export class Auth extends HeyApiClient {
    *
    * Validate OTP code and complete authentication.
    */
-  public login2Fa<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
-    return (options?.client ?? this.client).post<AuthLogin2FaResponses, AuthLogin2FaErrors, ThrowOnError>({
+  public loginTotp<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).post<AuthLoginTotpResponses, AuthLoginTotpErrors, ThrowOnError>({
       url: "/auth/login/2fa",
       ...options,
     })

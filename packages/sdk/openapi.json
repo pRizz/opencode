@@ -280,7 +280,7 @@
     },
     "/auth/login/2fa": {
       "post": {
-        "operationId": "auth.login2fa",
+        "operationId": "auth.loginTotp",
         "summary": "Complete TOTP login",
         "description": "Validate OTP code and complete authentication.",
         "responses": {
@@ -338,7 +338,7 @@
         "x-codeSamples": [
           {
             "lang": "js",
-            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.auth.login2fa({\n  ...\n})"
+            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.auth.loginTotp({\n  ...\n})"
           }
         ]
       }
