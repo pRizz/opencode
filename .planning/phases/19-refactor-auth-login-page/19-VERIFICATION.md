@@ -17,15 +17,15 @@ human_verification: []
 
 ### Observable Truths
 
-| #   | Truth                                                                        | Status     | Evidence                                                                                                                                                                 |
-| --- | ---------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | Login page renders with the same layout and styling as the current page      | ✓ VERIFIED | Playwright screenshot `.playwright-mcp/uat-login-desktop.png`                                                                                                            |
-| 2   | HTTP warning dismissal and HTTPS block behavior match current login UX       | ✓ VERIFIED | Warning dismissal uses sessionStorage and block disables submit (`packages/app/src/login/login.tsx`)                                                                     |
+| #   | Truth                                                                         | Status     | Evidence                                                                                                                                                                 |
+| --- | ----------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Login page renders with the same layout and styling as the current page       | ✓ VERIFIED | Playwright screenshot `.playwright-mcp/uat-login-desktop.png`                                                                                                            |
+| 2   | HTTP warning dismissal and HTTPS block behavior match current login UX        | ✓ VERIFIED | Warning dismissal uses sessionStorage and block disables submit (`packages/app/src/login/login.tsx`)                                                                     |
 | 3   | Login submits credentials with remember-me default and handles TOTP redirects | ✓ VERIFIED | POST `/auth/login`, rememberMe default true, redirects on TOTP (`packages/app/src/login/login.tsx`)                                                                      |
-| 4   | Login layout remains mobile responsive                                       | ✓ VERIFIED | Playwright screenshot `.playwright-mcp/uat-login-mobile.png`                                                                                                             |
-| 5   | GET /auth/login serves the SolidJS-based login page                          | ✓ VERIFIED | `/auth/login` loads `login.html` and injects bootstrap (`packages/opencode/src/server/routes/auth.ts`)                                                                   |
-| 6   | Security context (warning/block) still controls the login UX                 | ✓ VERIFIED | `getConnectionSecurityInfo` injected into `window.__OPENCODE_LOGIN__` and read by UI (`packages/opencode/src/server/routes/auth.ts`, `packages/app/src/login/login.tsx`) |
-| 7   | String-based login page template is removed from auth routes                 | ✓ VERIFIED | Login route uses `login.html` loader; no login HTML template string remains in route                                                                                     |
+| 4   | Login layout remains mobile responsive                                        | ✓ VERIFIED | Playwright screenshot `.playwright-mcp/uat-login-mobile.png`                                                                                                             |
+| 5   | GET /auth/login serves the SolidJS-based login page                           | ✓ VERIFIED | `/auth/login` loads `login.html` and injects bootstrap (`packages/opencode/src/server/routes/auth.ts`)                                                                   |
+| 6   | Security context (warning/block) still controls the login UX                  | ✓ VERIFIED | `getConnectionSecurityInfo` injected into `window.__OPENCODE_LOGIN__` and read by UI (`packages/opencode/src/server/routes/auth.ts`, `packages/app/src/login/login.tsx`) |
+| 7   | String-based login page template is removed from auth routes                  | ✓ VERIFIED | Login route uses `login.html` loader; no login HTML template string remains in route                                                                                     |
 
 **Score:** 7/7 truths verified
 
