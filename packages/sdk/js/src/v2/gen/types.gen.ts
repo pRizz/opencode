@@ -54,6 +54,20 @@ export type EventServerInstanceDisposed = {
   }
 }
 
+export type EventServerConnected = {
+  type: "server.connected"
+  properties: {
+    [key: string]: unknown
+  }
+}
+
+export type EventGlobalDisposed = {
+  type: "global.disposed"
+  properties: {
+    [key: string]: unknown
+  }
+}
+
 export type EventLspClientDiagnostics = {
   type: "lsp.client.diagnostics"
   properties: {
@@ -921,25 +935,13 @@ export type EventWorktreeFailed = {
   }
 }
 
-export type EventGlobalDisposed = {
-  type: "global.disposed"
-  properties: {
-    [key: string]: unknown
-  }
-}
-
-export type EventServerConnected = {
-  type: "server.connected"
-  properties: {
-    [key: string]: unknown
-  }
-}
-
 export type Event =
   | EventInstallationUpdated
   | EventInstallationUpdateAvailable
   | EventProjectUpdated
   | EventServerInstanceDisposed
+  | EventServerConnected
+  | EventGlobalDisposed
   | EventLspClientDiagnostics
   | EventLspUpdated
   | EventFileEdited
@@ -976,8 +978,6 @@ export type Event =
   | EventPtyDeleted
   | EventWorktreeReady
   | EventWorktreeFailed
-  | EventGlobalDisposed
-  | EventServerConnected
 
 export type GlobalEvent = {
   directory: string
@@ -1428,6 +1428,7 @@ export type PermissionConfig =
       codesearch?: PermissionActionConfig
       lsp?: PermissionRuleConfig
       doom_loop?: PermissionActionConfig
+      skill?: PermissionRuleConfig
       [key: string]: PermissionRuleConfig | Array<string> | PermissionActionConfig | undefined
     }
   | PermissionActionConfig
@@ -1834,6 +1835,19 @@ export type Config = {
       subtask?: boolean
     }
   }
+  /**
+   * Additional skill folder paths
+   */
+  skills?: {
+    /**
+     * Additional paths to skill folders
+     */
+    paths?: Array<string>
+    /**
+     * URLs to fetch skills from (e.g., https://example.com/.well-known/skills/)
+     */
+    urls?: Array<string>
+  }
   watcher?: {
     ignore?: Array<string>
   }
@@ -1949,19 +1963,6 @@ export type Config = {
    * Additional instruction files or patterns to include
    */
   instructions?: Array<string>
-  /**
-   * Additional skill folder paths
-   */
-  skills?: {
-    /**
-     * Additional paths to skill folders
-     */
-    paths?: Array<string>
-    /**
-     * URLs to fetch skills from (e.g., https://example.com/.well-known/skills/)
-     */
-    urls?: Array<string>
-  }
   layout?: LayoutConfig
   permission?: PermissionConfig
   tools?: {
@@ -1988,26 +1989,6 @@ export type Config = {
     reserved?: number
   }
   experimental?: {
-    hook?: {
-      file_edited?: {
-        [key: string]: Array<{
-          command: Array<string>
-          environment?: {
-            [key: string]: string
-          }
-        }>
-      }
-      session_completed?: Array<{
-        command: Array<string>
-        environment?: {
-          [key: string]: string
-        }
-      }>
-    }
-    /**
-     * Number of retries for chat completions on failure
-     */
-    chatMaxRetries?: number
     disable_paste_summary?: boolean
     /**
      * Enable the batch tool
