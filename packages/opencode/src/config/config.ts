@@ -12,7 +12,13 @@ import { lazy } from "../util/lazy"
 import { NamedError } from "@opencode-ai/util/error"
 import { Flag } from "../flag/flag"
 import { Auth } from "../auth"
-import { type ParseError as JsoncParseError, parse as parseJsonc, printParseErrorCode } from "jsonc-parser"
+import {
+  type ParseError as JsoncParseError,
+  applyEdits,
+  modify,
+  parse as parseJsonc,
+  printParseErrorCode,
+} from "jsonc-parser"
 import { Instance } from "../project/instance"
 import { LSPServer } from "../lsp/server"
 import { BunProc } from "@/bun"
@@ -32,6 +38,21 @@ export namespace Config {
 
   const log = Log.create({ service: "config" })
 
+  // Managed settings directory for enterprise deployments (highest priority, admin-controlled)
+  // These settings override all user and project settings
+  function getManagedConfigDir(): string {
+    switch (process.platform) {
+      case "darwin":
+        return "/Library/Application Support/opencode"
+      case "win32":
+        return path.join(process.env.ProgramData || "C:\\ProgramData", "opencode")
+      default:
+        return "/etc/opencode"
+    }
+  }
+
+  const managedConfigDir = process.env.OPENCODE_TEST_MANAGED_CONFIG_DIR || getManagedConfigDir()
+
   // Custom merge function that concatenates array fields instead of replacing them
   function mergeConfigConcatArrays(target: Info, source: Info): Info {
     const merged = mergeDeep(target, source)
@@ -44,28 +65,17 @@ export namespace Config {
     return merged
   }
 
-  function parseInlineConfigContent(): Info | undefined {
-    const content = Flag.OPENCODE_CONFIG_CONTENT
-    if (!content) return undefined
-
-    try {
-      return JSON.parse(content)
-    } catch (cause) {
-      throw new InvalidError(
-        {
-          path: "OPENCODE_CONFIG_CONTENT",
-          message: "Invalid JSON in OPENCODE_CONFIG_CONTENT",
-        },
-        { cause },
-      )
-    }
-  }
-
   export const state = Instance.state(async () => {
     const auth = await Auth.all()
 
-    // Load remote/well-known config first as the base layer (lowest precedence)
-    // This allows organizations to provide default configs that users can override
+    // Config loading order (low -> high precedence): https://opencode.ai/docs/config#precedence-order
+    // 1) Remote .well-known/opencode (org defaults)
+    // 2) Global config (~/.config/opencode/opencode.json{,c})
+    // 3) Custom config (OPENCODE_CONFIG)
+    // 4) Project config (opencode.json{,c})
+    // 5) .opencode directories (.opencode/agents/, .opencode/commands/, .opencode/plugins/, .opencode/opencode.json{,c})
+    // 6) Inline config (OPENCODE_CONFIG_CONTENT)
+    // Managed config directory is enterprise-only and always overrides everything above.
     let result: Info = {}
     for (const [key, value] of Object.entries(auth)) {
       if (value.type === "wellknown") {
@@ -87,17 +97,16 @@ export namespace Config {
       }
     }
 
-    // Global user config overrides remote config
+    // Global user config overrides remote config.
     result = mergeConfigConcatArrays(result, await global())
 
-    // Custom config path overrides global
+    // Custom config path overrides global config.
     if (Flag.OPENCODE_CONFIG) {
       result = mergeConfigConcatArrays(result, await loadFile(Flag.OPENCODE_CONFIG))
       log.debug("loaded custom config", { path: Flag.OPENCODE_CONFIG })
     }
 
-    // Project config has highest precedence (overrides global and remote),
-    // unless explicitly disabled (useful for CI/e2e isolation).
+    // Project config overrides global and remote config.
     if (!Flag.OPENCODE_DISABLE_PROJECT_CONFIG) {
       for (const file of ["opencode.jsonc", "opencode.json"]) {
         const found = await Filesystem.findUp(file, Instance.directory, Instance.worktree)
@@ -115,19 +124,19 @@ export namespace Config {
       result.workspace.root = path.join(Global.Path.home, "opencode")
     }
 
-    const projectDirectories = Flag.OPENCODE_DISABLE_PROJECT_CONFIG
-      ? []
-      : await Array.fromAsync(
-          Filesystem.up({
-            targets: [".opencode"],
-            start: Instance.directory,
-            stop: Instance.worktree,
-          }),
-        )
-
     const directories = [
       Global.Path.config,
-      ...projectDirectories,
+      // Only scan project .opencode/ directories when project discovery is enabled
+      ...(!Flag.OPENCODE_DISABLE_PROJECT_CONFIG
+        ? await Array.fromAsync(
+            Filesystem.up({
+              targets: [".opencode"],
+              start: Instance.directory,
+              stop: Instance.worktree,
+            }),
+          )
+        : []),
+      // Always scan ~/.opencode/ (user home directory)
       ...(await Array.fromAsync(
         Filesystem.up({
           targets: [".opencode"],
@@ -137,6 +146,7 @@ export namespace Config {
       )),
     ]
 
+    // .opencode directory config overrides (project and global) config sources.
     if (Flag.OPENCODE_CONFIG_DIR) {
       directories.push(Flag.OPENCODE_CONFIG_DIR)
       log.debug("loading config from OPENCODE_CONFIG_DIR", { path: Flag.OPENCODE_CONFIG_DIR })
@@ -169,30 +179,36 @@ export namespace Config {
       result.plugin.push(...(await loadPlugin(dir)))
     }
 
+    // Inline config content overrides all non-managed config sources.
+    // Route through load() to enable {env:} and {file:} token substitution.
+    // Use a path within Instance.directory so relative {file:} paths resolve correctly.
+    // The filename "OPENCODE_CONFIG_CONTENT" appears in error messages for clarity.
+    if (Flag.OPENCODE_CONFIG_CONTENT) {
+      result = mergeConfigConcatArrays(
+        result,
+        await load(Flag.OPENCODE_CONFIG_CONTENT, path.join(Instance.directory, "OPENCODE_CONFIG_CONTENT")),
+      )
+      log.debug("loaded custom config from OPENCODE_CONFIG_CONTENT")
+    }
+
+    // Load managed config files last (highest priority) - enterprise admin-controlled
+    // Kept separate from directories array to avoid write operations when installing plugins
+    // which would fail on system directories requiring elevated permissions
+    // This way it only loads config file and not skills/plugins/commands
+    if (existsSync(managedConfigDir)) {
+      for (const file of ["opencode.jsonc", "opencode.json"]) {
+        result = mergeConfigConcatArrays(result, await loadFile(path.join(managedConfigDir, file)))
+      }
+    }
+
     // Migrate deprecated mode field to agent field
-    for (const [name, mode] of Object.entries(result.mode)) {
+    for (const [name, mode] of Object.entries(result.mode ?? {})) {
       result.agent = mergeDeep(result.agent ?? {}, {
         [name]: {
           ...mode,
           mode: "primary" as const,
         },
       })
-    }
-
-    // Inline config content has highest precedence over file-based configs.
-    const inlineConfig = parseInlineConfigContent()
-    if (inlineConfig) {
-      result = mergeConfigConcatArrays(result, inlineConfig)
-      result.agent ??= {}
-      result.mode ??= {}
-      result.plugin ??= []
-      log.debug("loaded custom config from OPENCODE_CONFIG_CONTENT")
-    }
-
-    // Managed settings have absolute highest precedence (enterprise/MDM overrides)
-    for (const file of ["opencode.jsonc", "opencode.json"]) {
-      const managedPath = path.join(Global.Path.managedConfig, file)
-      result = mergeConfigConcatArrays(result, await loadFile(managedPath))
     }
 
     if (Flag.OPENCODE_PERMISSION) {
@@ -649,6 +665,7 @@ export namespace Config {
           codesearch: PermissionAction.optional(),
           lsp: PermissionRule.optional(),
           doom_loop: PermissionAction.optional(),
+          skill: PermissionRule.optional(),
         })
         .catchall(PermissionRule)
         .or(PermissionAction),
@@ -717,6 +734,7 @@ export namespace Config {
       const knownKeys = new Set([
         "name",
         "model",
+        "variant",
         "prompt",
         "description",
         "temperature",
@@ -730,7 +748,6 @@ export namespace Config {
         "permission",
         "disable",
         "tools",
-        "variant",
       ])
 
       // Extract unknown properties into options
@@ -1050,6 +1067,7 @@ export namespace Config {
         .record(z.string(), Command)
         .optional()
         .describe("Command configuration, see https://opencode.ai/docs/commands"),
+      skills: Skills.optional().describe("Additional skill folder paths"),
       watcher: z
         .object({
           ignore: z.array(z.string()).optional(),
@@ -1186,7 +1204,6 @@ export namespace Config {
           },
         ),
       instructions: z.array(z.string()).optional().describe("Additional instruction files or patterns to include"),
-      skills: Skills.optional().describe("Additional skill folder paths"),
       layout: Layout.optional().describe("@deprecated Always uses stretch layout."),
       permission: Permission.optional(),
       tools: z.record(z.string(), z.boolean()).optional(),
@@ -1209,29 +1226,6 @@ export namespace Config {
         .optional(),
       experimental: z
         .object({
-          hook: z
-            .object({
-              file_edited: z
-                .record(
-                  z.string(),
-                  z
-                    .object({
-                      command: z.string().array(),
-                      environment: z.record(z.string(), z.string()).optional(),
-                    })
-                    .array(),
-                )
-                .optional(),
-              session_completed: z
-                .object({
-                  command: z.string().array(),
-                  environment: z.record(z.string(), z.string()).optional(),
-                })
-                .array()
-                .optional(),
-            })
-            .optional(),
-          chatMaxRetries: z.number().optional().describe("Number of retries for chat completions on failure"),
           disable_paste_summary: z.boolean().optional(),
           batch_tool: z.boolean().optional().describe("Enable the batch tool"),
           openTelemetry: z
@@ -1268,20 +1262,23 @@ export namespace Config {
       mergeDeep(await loadFile(path.join(Global.Path.config, "opencode.jsonc"))),
     )
 
-    await import(path.join(Global.Path.config, "config"), {
-      with: {
-        type: "toml",
-      },
-    })
-      .then(async (mod) => {
-        const { provider, model, ...rest } = mod.default
-        if (provider && model) result.model = `${provider}/${model}`
-        result["$schema"] = "https://opencode.ai/config.json"
-        result = mergeDeep(result, rest)
-        await Bun.write(path.join(Global.Path.config, "config.json"), JSON.stringify(result, null, 2))
-        await fs.unlink(path.join(Global.Path.config, "config"))
+    const legacy = path.join(Global.Path.config, "config")
+    if (existsSync(legacy)) {
+      await import(pathToFileURL(legacy).href, {
+        with: {
+          type: "toml",
+        },
       })
-      .catch(() => {})
+        .then(async (mod) => {
+          const { provider, model, ...rest } = mod.default
+          if (provider && model) result.model = `${provider}/${model}`
+          result["$schema"] = "https://opencode.ai/config.json"
+          result = mergeDeep(result, rest)
+          await Bun.write(path.join(Global.Path.config, "config.json"), JSON.stringify(result, null, 2))
+          await fs.unlink(legacy)
+        })
+        .catch(() => {})
+    }
 
     return result
   })
@@ -1428,6 +1425,10 @@ export namespace Config {
     return state().then((x) => x.config)
   }
 
+  export async function getGlobal() {
+    return global()
+  }
+
   export async function update(config: Info) {
     const filepath = path.join(Instance.directory, "config.json")
     const existing = await loadFile(filepath)
@@ -1435,17 +1436,109 @@ export namespace Config {
     await Instance.dispose()
   }
 
-  export async function getGlobal() {
-    return global()
+  function globalConfigFile() {
+    const candidates = ["opencode.jsonc", "opencode.json", "config.json"].map((file) =>
+      path.join(Global.Path.config, file),
+    )
+    for (const file of candidates) {
+      if (existsSync(file)) return file
+    }
+    return candidates[0]
+  }
+
+  function isRecord(value: unknown): value is Record<string, unknown> {
+    return !!value && typeof value === "object" && !Array.isArray(value)
+  }
+
+  function patchJsonc(input: string, patch: unknown, path: string[] = []): string {
+    if (!isRecord(patch)) {
+      const edits = modify(input, path, patch, {
+        formattingOptions: {
+          insertSpaces: true,
+          tabSize: 2,
+        },
+      })
+      return applyEdits(input, edits)
+    }
+
+    return Object.entries(patch).reduce((result, [key, value]) => {
+      if (value === undefined) return result
+      return patchJsonc(result, value, [...path, key])
+    }, input)
+  }
+
+  function parseConfig(text: string, filepath: string): Info {
+    const errors: JsoncParseError[] = []
+    const data = parseJsonc(text, errors, { allowTrailingComma: true })
+    if (errors.length) {
+      const lines = text.split("\n")
+      const errorDetails = errors
+        .map((e) => {
+          const beforeOffset = text.substring(0, e.offset).split("\n")
+          const line = beforeOffset.length
+          const column = beforeOffset[beforeOffset.length - 1].length + 1
+          const problemLine = lines[line - 1]
+
+          const error = `${printParseErrorCode(e.error)} at line ${line}, column ${column}`
+          if (!problemLine) return error
+
+          return `${error}\n   Line ${line}: ${problemLine}\n${"".padStart(column + 9)}^`
+        })
+        .join("\n")
+
+      throw new JsonError({
+        path: filepath,
+        message: `\n--- JSONC Input ---\n${text}\n--- Errors ---\n${errorDetails}\n--- End ---`,
+      })
+    }
+
+    const parsed = Info.safeParse(data)
+    if (parsed.success) return parsed.data
+
+    throw new InvalidError({
+      path: filepath,
+      issues: parsed.error.issues,
+    })
   }
 
   export async function updateGlobal(config: Info) {
-    const filepath = path.join(Global.Path.config, "config.json")
-    const existing = await global()
-    await Bun.write(filepath, JSON.stringify(mergeDeep(existing, config), null, 2))
+    const filepath = globalConfigFile()
+    const before = await Bun.file(filepath)
+      .text()
+      .catch((err) => {
+        if (err.code === "ENOENT") return "{}"
+        throw new JsonError({ path: filepath }, { cause: err })
+      })
+
+    const next = await (async () => {
+      if (!filepath.endsWith(".jsonc")) {
+        const existing = parseConfig(before, filepath)
+        const merged = mergeDeep(existing, config)
+        await Bun.write(filepath, JSON.stringify(merged, null, 2))
+        return merged
+      }
+
+      const updated = patchJsonc(before, config)
+      const merged = parseConfig(updated, filepath)
+      await Bun.write(filepath, updated)
+      return merged
+    })()
+
     global.reset()
-    await Instance.disposeAll()
-    return global()
+
+    void Instance.disposeAll()
+      .catch(() => undefined)
+      .finally(() => {
+        GlobalBus.emit("event", {
+          directory: "global",
+          payload: {
+            type: Event.Disposed.type,
+            properties: {},
+          },
+        })
+      })
+
+    return next
   }
 
   export async function directories() {
