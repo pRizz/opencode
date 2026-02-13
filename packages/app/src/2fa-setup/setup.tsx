@@ -1,1 +1,1 @@
-export { TwoFactorSetupApp } from "@opencode-ai/fork-ui"
+export { TotpSetupApp, TwoFactorSetupApp } from "@opencode-ai/fork-ui"

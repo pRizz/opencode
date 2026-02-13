@@ -1,6 +1,6 @@
 // @refresh reload
 import { render } from "solid-js/web"
-import { TwoFactorSetupApp } from "./setup"
+import { TotpSetupApp } from "./setup"
 import "@/index.css"
 
 const root = document.getElementById("root")
@@ -10,4 +10,4 @@ if (import.meta.env.DEV && !(root instanceof HTMLElement)) {
   )
 }
 
-render(() => <TwoFactorSetupApp />, root!)
+render(() => <TotpSetupApp />, root!)
