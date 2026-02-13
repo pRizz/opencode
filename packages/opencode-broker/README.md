@@ -165,10 +165,10 @@ If the socket exists but no process is listening, remove it:
 sudo rm /var/run/opencode/auth.sock
 ```
 
-## 2FA file debugging
+## TOTP file debugging
 
 The broker manages each user's `~/.google_authenticator` file. When debugging
-2FA setup, it helps to verify whether the file exists and remove it between
+TOTP setup, it helps to verify whether the file exists and remove it between
 tests.
 
 Check if the file exists:
@@ -183,7 +183,7 @@ Inspect permissions/ownership:
 sudo ls -l /Users/testuser/.google_authenticator
 ```
 
-Remove the file (reset 2FA for that user):
+Remove the file (reset TOTP for that user):
 
 ```bash
 sudo rm /Users/testuser/.google_authenticator
