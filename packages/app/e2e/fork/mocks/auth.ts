@@ -17,7 +17,7 @@ interface TotpDeviceTrustResponse {
   deviceTrusted: boolean
 }
 
-type DeviceTrustStatusInput = Partial<
+type TotpDeviceTrustStatusInput = Partial<
   TotpDeviceTrustStatus & {
     /** @deprecated Prefer `totpEnabled` in test inputs. */
     twoFactorEnabled: boolean
@@ -55,9 +55,9 @@ export interface TotpSetupStartMockOptions {
 export interface AuthenticatedAuthMockOptions {
   session?: string | AuthSessionMockOptions
   authStatus?: boolean | AuthStatusMockOptions
-  totpTrust?: DeviceTrustStatusInput
+  totpTrust?: TotpDeviceTrustStatusInput
   /** @deprecated Prefer `totpTrust`. */
-  deviceTrust?: DeviceTrustStatusInput
+  deviceTrust?: TotpDeviceTrustStatusInput
 }
 
 export interface UnauthenticatedAuthMockOptions {
@@ -71,7 +71,7 @@ const defaultTotpDeviceTrustStatus: TotpDeviceTrustStatus = {
   deviceTrusted: true,
 }
 
-function normalizeDeviceTrustStatus(input: DeviceTrustStatusInput): TotpDeviceTrustStatus {
+function normalizeTotpDeviceTrustStatus(input: TotpDeviceTrustStatusInput): TotpDeviceTrustStatus {
   const maybeTotpEnabled = input.totpEnabled ?? input.twoFactorEnabled
   const maybeTotpConfigured = input.totpConfigured ?? input.twoFactorConfigured
   const maybeTotpOptedOut = input.totpOptedOut ?? input.twoFactorOptedOut
@@ -84,8 +84,8 @@ function normalizeDeviceTrustStatus(input: DeviceTrustStatusInput): TotpDeviceTr
   }
 }
 
-export function toTotpDeviceTrustResponse(input: DeviceTrustStatusInput = {}): TotpDeviceTrustResponse {
-  const status = normalizeDeviceTrustStatus(input)
+export function toTotpDeviceTrustResponse(input: TotpDeviceTrustStatusInput = {}): TotpDeviceTrustResponse {
+  const status = normalizeTotpDeviceTrustStatus(input)
   return {
     totpEnabled: status.totpEnabled,
     totpConfigured: status.totpConfigured,
@@ -144,7 +144,7 @@ export async function mockAuthStatus(page: Page, input?: boolean | AuthStatusMoc
   })
 }
 
-export async function mockTotpDeviceTrust(page: Page, status: DeviceTrustStatusInput = {}) {
+export async function mockTotpDeviceTrust(page: Page, status: TotpDeviceTrustStatusInput = {}) {
   await page.route("**/auth/device-trust/status", async (route) => {
     await route.fulfill({
       status: 200,
