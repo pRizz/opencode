@@ -135,7 +135,7 @@ Build the minimum viable authenticated system:
 | Complexity | Features                                                                                                               |
 | ---------- | ---------------------------------------------------------------------------------------------------------------------- |
 | **Low**    | Login form, logout, session cookies, CSRF, HTTPS warning, session timeout, remember me, UI indicators, password toggle |
-| **Medium** | PAM integration, brute-force protection, multi-session tracking, TOTP authentication                                    |
+| **Medium** | PAM integration, brute-force protection, multi-session tracking, TOTP authentication                                   |
 | **High**   | Session-to-UID mapping (requires privilege escalation design), SSH key auth, sudo UI                                   |
 
 ## Cockpit Reference Points
