@@ -398,13 +398,13 @@ account required pam_unix.so
 password required pam_unix.so
 ```
 
-### PAM with TOTP (Google Authenticator)
+### PAM with TOTP authentication (Google Authenticator)
 
 ```
 # /etc/pam.d/opencode-2fa
 # Source: https://github.com/google/google-authenticator-libpam
 
-# Two-factor authentication
+# TOTP authentication
 auth required pam_google_authenticator.so nullok
 # nullok: users without TOTP setup can still login
 # Remove nullok to enforce TOTP for all users

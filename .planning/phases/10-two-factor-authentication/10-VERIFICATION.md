@@ -20,7 +20,7 @@ score: 4/4 must-haves verified
 | --- | ------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | TOTP prompt appears after password validation when enabled          | VERIFIED | Login endpoint returns `2fa_required` with token when user has `.google_authenticator` and `twoFactorEnabled=true` (auth.ts:1290-1336) |
 | 2   | TOTP codes validated via PAM (pam_google_authenticator or similar)  | VERIFIED | Broker `validate_otp()` calls PAM with `{service}-otp` service (otp.rs:72-167), PAM files exist (opencode-otp.pam)                     |
-| 3   | TOTP is optional per-user (configured via PAM, not opencode)        | VERIFIED | `has_2fa_configured()` checks `~/.google_authenticator` file existence (otp.rs:25-49); users without file skip TOTP                    |
+| 3   | TOTP is optional per-user (configured via PAM, not opencode)        | VERIFIED | `has_totp_configured()` checks `~/.google_authenticator` file existence (otp.rs:25-49); users without file skip TOTP                   |
 | 4   | Login fails with clear message if TOTP is required but not provided | VERIFIED | Returns `{error: "2fa_required", username, timeoutSeconds}` (auth.ts:1328-1334); TOTP page shows clear UI with countdown               |
 
 **Score:** 4/4 truths verified
@@ -110,7 +110,7 @@ No anti-patterns detected. All implementations are substantive with proper error
 
 Phase 10 implements a complete TOTP authentication system:
 
-1. **Backend Foundation (Plans 10-01, 10-02):** Rust broker OTP module with PAM integration, protocol extension for Check2fa and AuthenticateOtp methods with rate limiting
+1. **Backend Foundation (Plans 10-01, 10-02):** Rust broker OTP module with PAM integration, protocol extension for CheckTotp and AuthenticateOtp methods with rate limiting
 
 2. **Token Infrastructure (Plans 10-03, 10-04):** JWT-based device trust tokens and short-lived TOTP tokens with IP binding, TypeScript broker client methods
 

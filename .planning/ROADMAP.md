@@ -232,7 +232,7 @@ Plans:
 
 Plans:
 
-- [x] 10-01-PLAN.md — TOTP config and broker OTP module (config schema, has_2fa_configured, validate_otp)
+- [x] 10-01-PLAN.md — TOTP config and broker OTP module (config schema, has_totp_configured, validate_otp)
 - [x] 10-02-PLAN.md — Broker protocol extension (CheckTotp, AuthenticateOtp methods)
 - [x] 10-03-PLAN.md — Token utilities (device trust JWT, TOTP token JWT)
 - [x] 10-04-PLAN.md — BrokerClient TOTP methods (checkTotp, authenticateOtp)

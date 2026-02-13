@@ -2,7 +2,7 @@
 phase: 11-documentation
 plan: 02
 subsystem: documentation
-tags: [pam, authentication, 2fa, ldap, broker, systemd, launchd, security]
+tags: [pam, authentication, totp, ldap, broker, systemd, launchd, security]
 requires:
   - 10-08 # TOTP authentication complete - document TOTP setup
   - 03-04 # Broker systemd/launchd services created
@@ -11,7 +11,7 @@ provides:
   - Comprehensive PAM configuration documentation
   - Linux systemd setup guide
   - macOS launchd setup guide
-  - Two-factor authentication setup instructions
+  - TOTP authentication setup instructions
   - LDAP/SSSD integration guidance
   - Broker troubleshooting guide
   - Auth config reference table
@@ -267,7 +267,7 @@ Including full configuration files inline:
 
 **Dependencies satisfied:**
 
-- Two-factor authentication documented (phase 10 complete)
+- TOTP authentication documented (phase 10 complete)
 - Broker services documented (phase 3 artifacts exist)
 - Auth config reference complete
 

@@ -41,7 +41,7 @@ Milestone 1 delivered complete PAM-based system authentication for opencode's we
 - ✅ CSRF protection (double-submit cookie pattern)
 - ✅ Rate limiting (5 attempts per 15 minutes)
 - ✅ HTTPS detection and enforcement
-- ✅ Two-factor authentication (TOTP via PAM)
+- ✅ TOTP authentication (PAM-based)
 - ✅ Device trust for TOTP authentication
 - ✅ Secure session cookies (httpOnly, SameSite)
 

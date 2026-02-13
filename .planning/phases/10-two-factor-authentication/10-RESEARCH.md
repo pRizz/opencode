@@ -127,7 +127,7 @@ Response: { success: true, user: {...} }
 use std::path::Path;
 
 /// Check if user has TOTP configured by checking for .google_authenticator file
-pub fn has_2fa_configured(username: &str, home: &str) -> bool {
+pub fn has_totp_configured(username: &str, home: &str) -> bool {
     let secret_path = format!("{}/.google_authenticator", home);
     let path = Path::new(&secret_path);
 
@@ -136,7 +136,7 @@ pub fn has_2fa_configured(username: &str, home: &str) -> bool {
 }
 
 // Alternative: Check PAM-configured path
-pub fn has_2fa_configured_pam(secret_path: &str) -> bool {
+pub fn has_totp_configured_pam(secret_path: &str) -> bool {
     Path::new(secret_path).exists()
 }
 ```
@@ -398,7 +398,7 @@ Verified patterns from official sources and existing codebase:
 pub enum Method {
     Authenticate,
     AuthenticateOtp,   // NEW: Second step OTP validation
-    Check2fa,          // NEW: Check if user has TOTP configured
+    CheckTotp,         // NEW: Check if user has TOTP configured
     Ping,
     // ... existing methods
 }
@@ -415,7 +415,7 @@ pub struct AuthenticateOtpParams {
 
 /// Parameters for checking TOTP status
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Check2faParams {
+pub struct CheckTotpParams {
     /// Username to check
     pub username: String,
     /// User's home directory
@@ -442,13 +442,13 @@ pub struct AuthenticateResult {
 /**
  * Check if user has TOTP configured.
  */
-async check2fa(username: string, home: string): Promise<boolean> {
+async checkTotp(username: string, home: string): Promise<boolean> {
   const id = crypto.randomUUID()
 
   const request: BrokerRequest = {
     id,
     version: 1,
-    method: "check2fa",
+    method: "checktotp",
     username,
     home,
   }

@@ -198,7 +198,7 @@ All blocks properly opened/closed with valid Mermaid syntax.
 **pam-config.md:**
 
 - Basic PAM setup: Complete (Quick Start + detailed)
-- Two-factor authentication: Complete
+- TOTP authentication: Complete
 - LDAP/AD integration: Complete
 - Platform-specific: Linux and macOS covered
 

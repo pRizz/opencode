@@ -7,9 +7,9 @@ tags: [totp, broker-client, ipc]
 # Dependency graph
 requires:
   - phase: 10-02
-    provides: Broker protocol extension for check2fa and authenticateotp methods
+    provides: Broker protocol extension for checkTotp and authenticateotp methods
 provides:
-  - check2fa() method on BrokerClient
+  - checkTotp() method on BrokerClient
   - authenticateOtp() method on BrokerClient
   - TypeScript IPC interface for TOTP operations
 affects: [10-05, 10-06, login-ui-2fa]
@@ -26,7 +26,7 @@ key-files:
     - packages/opencode/src/auth/broker-client.ts
 
 key-decisions:
-  - "check2fa fails open (returns false on error) for detection-only use case"
+  - "checkTotp fails open (returns false on error) for detection-only use case"
   - "authenticateOtp follows authenticate() pattern exactly for consistency"
 
 patterns-established:

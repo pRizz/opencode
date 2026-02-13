@@ -9,7 +9,7 @@ requires:
   - phase: 10-03
     provides: JWT token utilities (two-factor-token.ts, device-trust.ts)
   - phase: 10-04
-    provides: BrokerClient TOTP methods (check2fa, authenticateOtp)
+    provides: BrokerClient TOTP methods (checkTotp, authenticateOtp)
 provides:
   - Server token secret module for JWT signing
   - TOTP-aware login flow with device trust bypass

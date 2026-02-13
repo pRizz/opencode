@@ -7,11 +7,11 @@ tags: [otp, totp, pam, ipc]
 # Dependency graph
 requires:
   - phase: 10-01
-    provides: has_2fa_configured and validate_otp functions
+    provides: has_totp_configured and validate_otp functions
   - phase: 03
     provides: IPC protocol and handler infrastructure
 provides:
-  - Check2fa and AuthenticateOtp broker protocol methods
+  - CheckTotp and AuthenticateOtp broker protocol methods
   - Handler implementations dispatching to OTP module
 affects: [10-03, 10-04]
 
@@ -28,11 +28,11 @@ key-files:
 
 key-decisions:
   - "AuthenticateOtp uses same rate limiter as password auth"
-  - "Check2fa returns failure response for no TOTP (success field indicates status)"
+  - "CheckTotp returns failure response for no TOTP (success field indicates status)"
   - "OTP code redacted in Debug output like password"
 
 patterns-established:
-  - "TOTP protocol pattern: Check2fa for detection, AuthenticateOtp for validation"
+  - "TOTP protocol pattern: CheckTotp for detection, AuthenticateOtp for validation"
 
 # Metrics
 duration: 2.3min
@@ -41,7 +41,7 @@ completed: 2026-01-24
 
 # Phase 10 Plan 02: Broker Protocol TOTP Extension Summary
 
-**Extended IPC protocol with Check2fa and AuthenticateOtp methods, with rate-limited OTP validation using same infrastructure as password auth**
+**Extended IPC protocol with CheckTotp and AuthenticateOtp methods, with rate-limited OTP validation using same infrastructure as password auth**
 
 ## Performance
 
@@ -53,8 +53,8 @@ completed: 2026-01-24
 
 ## Accomplishments
 
-- Added Check2fa and AuthenticateOtp methods to broker IPC protocol
-- Implemented Check2faParams and AuthenticateOtpParams with code redaction
+- Added CheckTotp and AuthenticateOtp methods to broker IPC protocol
+- Implemented CheckTotpParams and AuthenticateOtpParams with code redaction
 - Handler implementations calling OTP module functions with rate limiting
 - Comprehensive tests for serialization, deserialization, and code redaction
 
@@ -68,13 +68,13 @@ Each task was committed atomically:
 
 ## Files Created/Modified
 
-- `packages/opencode-broker/src/ipc/protocol.rs` - Added Check2fa/AuthenticateOtp methods, params structs with code redaction
+- `packages/opencode-broker/src/ipc/protocol.rs` - Added CheckTotp/AuthenticateOtp methods, params structs with code redaction
 - `packages/opencode-broker/src/ipc/handler.rs` - Handler implementations for new methods with rate limiting
 
 ## Decisions Made
 
 - **AuthenticateOtp uses same rate limiter as password auth** - Prevents brute force attacks on OTP codes using existing infrastructure
-- **Check2fa returns failure response when TOTP is not configured** - Client checks success field to determine TOTP status
+- **CheckTotp returns failure response when TOTP is not configured** - Client checks success field to determine TOTP status
 - **OTP code redacted in Debug output** - Follows password redaction pattern for security
 
 ## Deviations from Plan
@@ -92,7 +92,7 @@ None - no external service configuration required.
 ## Next Phase Readiness
 
 - Broker protocol ready for TypeScript client integration
-- Web server can now call Check2fa to detect TOTP requirement
+- Web server can now call CheckTotp to detect TOTP requirement
 - Web server can now call AuthenticateOtp to validate OTP codes
 - Ready for Phase 10 Plan 03 (TypeScript client layer)
 

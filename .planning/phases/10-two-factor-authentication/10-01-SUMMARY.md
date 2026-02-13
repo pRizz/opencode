@@ -58,7 +58,7 @@ Added five new TOTP-related configuration fields:
 
 ### 2. Broker OTP Module (`otp.rs`)
 
-**`has_2fa_configured(home: &str) -> bool`**
+**`has_totp_configured(home: &str) -> bool`**
 
 - Checks if `~/.google_authenticator` file exists
 - Used to determine if user has TOTP configured
@@ -131,7 +131,7 @@ Following the same pattern as password authentication in `pam.rs`:
 | TypeScript compiles    | Pass                             |
 | Rust compiles          | Pass                             |
 | Config fields present  | 5 new fields verified            |
-| OTP functions exported | has_2fa_configured, validate_otp |
+| OTP functions exported | has_totp_configured, validate_otp |
 | PAM files created      | Both Linux and macOS             |
 
 ## Artifacts
