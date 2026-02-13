@@ -769,6 +769,38 @@ async function completeTotpLogin(c: Context<AuthEnv>) {
   })
 }
 
+async function renderTotpSetupPage(c: Context<AuthEnv>) {
+  // Require authenticated session
+  const sessionId = getCookie(c, "opencode_session")
+  if (!sessionId) {
+    return c.redirect("/auth/login")
+  }
+  const session = UserSession.get(sessionId)
+  if (!session) {
+    return c.redirect("/auth/login")
+  }
+
+  // Check if setup is required (from login redirect)
+  const required = c.req.query("required") === "1"
+  const bootstrap = await buildTwoFactorSetupBootstrap(sessionId, session, required)
+
+  const uiDir = getUiDir()
+  if (!uiDir) {
+    return c.text("TOTP setup UI is not configured. Build the app UI and set uiDir.", 500)
+  }
+
+  try {
+    const template = await loadTwoFactorSetupTemplate(uiDir)
+    return c.html(injectTwoFactorSetupBootstrap(template, bootstrap))
+  } catch (error) {
+    log.error("Failed to load TOTP setup HTML", { error })
+    return c.text(
+      "TOTP setup UI is missing. Run the app build to generate totp-setup.html (legacy: 2fa-setup.html).",
+      500,
+    )
+  }
+}
+
 /**
  * Auth routes for session management.
  *
@@ -785,6 +817,7 @@ async function completeTotpLogin(c: Context<AuthEnv>) {
  * - GET /passkey/list - List passkeys for current user
  * - POST /passkey/remove - Remove a passkey for current user
  * - POST /login/totp - Complete TOTP login
+ * - GET /totp/setup - TOTP setup page
  * - GET /2fa - TOTP verification page (legacy path name)
  * - POST /login/2fa - Complete TOTP login (legacy path name)
  * - GET /status - Get auth configuration status
@@ -2195,37 +2228,8 @@ export const AuthRoutes = lazy(() =>
         return c.json({ success: true as const })
       },
     )
-    .get("/2fa/setup", async (c) => {
-      // Require authenticated session
-      const sessionId = getCookie(c, "opencode_session")
-      if (!sessionId) {
-        return c.redirect("/auth/login")
-      }
-      const session = UserSession.get(sessionId)
-      if (!session) {
-        return c.redirect("/auth/login")
-      }
-
-      // Check if setup is required (from login redirect)
-      const required = c.req.query("required") === "1"
-      const bootstrap = await buildTwoFactorSetupBootstrap(sessionId, session, required)
-
-      const uiDir = getUiDir()
-      if (!uiDir) {
-        return c.text("TOTP setup UI is not configured. Build the app UI and set uiDir.", 500)
-      }
-
-      try {
-        const template = await loadTwoFactorSetupTemplate(uiDir)
-        return c.html(injectTwoFactorSetupBootstrap(template, bootstrap))
-      } catch (error) {
-        log.error("Failed to load TOTP setup HTML", { error })
-        return c.text(
-          "TOTP setup UI is missing. Run the app build to generate totp-setup.html (legacy: 2fa-setup.html).",
-          500,
-        )
-      }
-    })
+    .get("/totp/setup", renderTotpSetupPage)
+    .get("/2fa/setup", renderTotpSetupPage)
     .post("/2fa/setup/start", async (c) => {
       const sessionId = getCookie(c, "opencode_session")
       if (!sessionId) {

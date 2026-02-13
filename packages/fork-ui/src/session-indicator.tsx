@@ -104,7 +104,7 @@ export function SessionIndicator(props: SessionIndicatorProps) {
     const url = props.getServerUrl()
     if (!url) return
     // Open TOTP setup in new tab (could be external documentation or setup page)
-    window.open(`${url}/auth/2fa/setup`, "_blank")
+    window.open(`${url}/auth/totp/setup`, "_blank")
   }
 
   function handleManageTotp(): void {
