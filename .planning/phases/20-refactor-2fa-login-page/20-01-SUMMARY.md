@@ -10,7 +10,7 @@ requires:
     provides: SolidJS login entry patterns and Vite multi-page build setup
 provides:
   - Solid TOTP verification entry with parity UI/behavior
-  - Vite build input for 2fa.html
+  - Vite build input for totp.html (with legacy 2fa compatibility)
 affects: [20-refactor-2fa-login-page-02]
 
 # Tech tracking
@@ -22,9 +22,9 @@ tech-stack:
 
 key-files:
   created:
-    - packages/app/2fa.html
-    - packages/app/src/2fa/index.tsx
-    - packages/app/src/2fa/verify.tsx
+    - packages/app/totp.html
+    - packages/app/src/totp/index.tsx
+    - packages/app/src/totp/verify.tsx
   modified:
     - packages/app/vite.config.ts
 
@@ -41,7 +41,7 @@ completed: 2026-01-31
 
 # Phase 20 Plan 01 Summary
 
-**SolidJS TOTP entry and Vite build input now mirror the inline TOTP verification page.**
+**SolidJS TOTP entry and Vite build input now mirror the inline TOTP verification page using canonical `totp.html` output.**
 
 ## Performance
 
@@ -53,9 +53,9 @@ completed: 2026-01-31
 
 ## Accomplishments
 
-- Added a standalone `2fa.html` entry aligned with the login HTML metadata and assets.
+- Added a standalone `totp.html` entry aligned with the login HTML metadata and assets.
 - Built a SolidJS TOTP verification UI with countdown, auto-submit, and remember-device behavior.
-- Wired Vite multi-page build input to emit `2fa.html`.
+- Wired Vite multi-page build input to emit `totp.html` (legacy `2fa.html` compatibility retained).
 
 ## Task Commits
 
@@ -63,9 +63,9 @@ No task commits were created (commits were not requested).
 
 ## Files Created/Modified
 
-- `packages/app/2fa.html` - TOTP HTML entry with root element and module script.
-- `packages/app/src/2fa/index.tsx` - SolidJS TOTP entrypoint.
-- `packages/app/src/2fa/verify.tsx` - TOTP verification UI and form logic.
+- `packages/app/totp.html` - TOTP HTML entry with root element and module script.
+- `packages/app/src/totp/index.tsx` - SolidJS TOTP entrypoint.
+- `packages/app/src/totp/verify.tsx` - TOTP verification UI and form logic.
 - `packages/app/vite.config.ts` - Adds TOTP entry to rollup inputs.
 
 ## Decisions Made
@@ -86,7 +86,7 @@ None - no external service configuration required.
 
 ## Next Phase Readiness
 
-Ready to wire `/auth/login/totp` (legacy `/auth/login/2fa` alias retained) to the built `2fa.html` output.
+Ready to wire `/auth/login/totp` (legacy `/auth/login/2fa` alias retained) to the built `totp.html` output.
 
 ---
 

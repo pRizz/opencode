@@ -10,7 +10,7 @@ requires:
     provides: SolidJS TOTP verification patterns and Vite multi-page build
 provides:
   - Solid TOTP setup entry with parity UI/behavior
-  - Vite build input for 2fa-setup.html
+  - Vite build input for totp-setup.html (with legacy 2fa-setup compatibility)
 affects: [22-refactor-the-auth-2fa-setup-page-from-the-auth-ts-into-the-solidjs-app-at-packages-app-02]
 
 # Tech tracking
@@ -22,9 +22,9 @@ tech-stack:
 
 key-files:
   created:
-    - packages/app/2fa-setup.html
-    - packages/app/src/2fa-setup/index.tsx
-    - packages/app/src/2fa-setup/setup.tsx
+    - packages/app/totp-setup.html
+    - packages/app/src/totp-setup/index.tsx
+    - packages/app/src/totp-setup/setup.tsx
   modified:
     - packages/app/vite.config.ts
 
@@ -41,7 +41,7 @@ completed: 2026-02-01
 
 # Phase 22 Plan 01 Summary
 
-**SolidJS TOTP setup entry now mirrors the inline setup wizard and builds as `2fa-setup.html`.**
+**SolidJS TOTP setup entry now mirrors the inline setup wizard and builds as canonical `totp-setup.html`.**
 
 ## Performance
 
@@ -53,9 +53,9 @@ completed: 2026-02-01
 
 ## Accomplishments
 
-- Added a dedicated `2fa-setup.html` entry aligned with existing app metadata and assets.
+- Added a dedicated `totp-setup.html` entry aligned with existing app metadata and assets.
 - Built a SolidJS TOTP setup UI with QR rendering, copy helper, verify flow, and skip handling.
-- Added `2fa-setup.html` to Vite multi-page inputs.
+- Added `totp-setup.html` to Vite multi-page inputs (legacy `2fa-setup.html` compatibility retained).
 
 ## Task Commits
 
@@ -63,9 +63,9 @@ No task commits were created (commits were not requested).
 
 ## Files Created/Modified
 
-- `packages/app/2fa-setup.html` - TOTP setup HTML entry with root element and module script.
-- `packages/app/src/2fa-setup/index.tsx` - SolidJS setup entrypoint.
-- `packages/app/src/2fa-setup/setup.tsx` - TOTP setup UI and form logic.
+- `packages/app/totp-setup.html` - TOTP setup HTML entry with root element and module script.
+- `packages/app/src/totp-setup/index.tsx` - SolidJS setup entrypoint.
+- `packages/app/src/totp-setup/setup.tsx` - TOTP setup UI and form logic.
 - `packages/app/vite.config.ts` - Adds TOTP setup entry to rollup inputs.
 
 ## Decisions Made
@@ -86,7 +86,7 @@ None - no external service configuration required.
 
 ## Next Phase Readiness
 
-Ready to wire `/auth/totp/setup` (legacy `/auth/2fa/setup` alias retained) to the built `2fa-setup.html` output.
+Ready to wire `/auth/totp/setup` (legacy `/auth/2fa/setup` alias retained) to the built `totp-setup.html` output.
 
 ---
 

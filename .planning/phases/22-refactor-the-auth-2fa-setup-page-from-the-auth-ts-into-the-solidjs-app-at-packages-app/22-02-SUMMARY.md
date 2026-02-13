@@ -7,9 +7,9 @@ tags: [hono, solidjs, 2fa, setup, ui-dir]
 # Dependency graph
 requires:
   - phase: 22-refactor-the-auth-2fa-setup-page-from-the-auth-ts-into-the-solidjs-app-at-packages-app-01
-    provides: SolidJS setup entry and 2fa-setup.html build output
+    provides: SolidJS setup entry and totp-setup.html build output
 provides:
-  - Auth route serves built 2fa-setup.html with bootstrap data
+  - Auth route serves built totp-setup.html with bootstrap data (with legacy 2fa-setup fallback)
   - Removal of inline TOTP setup HTML template
 affects: []
 
@@ -17,7 +17,7 @@ affects: []
 tech-stack:
   added: []
   patterns:
-    - Cached UI template loader for 2fa-setup.html
+    - Cached UI template loader for totp-setup.html with legacy 2fa-setup fallback
     - Per-request bootstrap injection for TOTP setup data
 
 key-files:
@@ -26,7 +26,7 @@ key-files:
     - packages/opencode/src/server/routes/auth.ts
 
 key-decisions:
-  - "Serve 2fa-setup.html from the UI directory and inject setup bootstrap data per request."
+  - "Serve canonical totp-setup.html from the UI directory and inject setup bootstrap data per request (legacy 2fa-setup fallback retained)."
 
 patterns-established:
   - "Auth TOTP setup route mirrors login/TOTP template loading and bootstrap injection."
@@ -38,7 +38,7 @@ completed: 2026-02-01
 
 # Phase 22 Plan 02 Summary
 
-**/auth/totp/setup now loads the built 2fa-setup.html and injects setup bootstrap data (legacy `/auth/2fa/setup` alias retained), removing the inline template.**
+**/auth/totp/setup now loads the built totp-setup.html (with legacy 2fa-setup fallback) and injects setup bootstrap data (legacy `/auth/2fa/setup` alias retained), removing the inline template.**
 
 ## Performance
 
@@ -50,7 +50,7 @@ completed: 2026-02-01
 
 ## Accomplishments
 
-- Added a cached loader for `2fa-setup.html` using the UI directory.
+- Added a cached loader for canonical `totp-setup.html` with legacy `2fa-setup.html` fallback using the UI directory.
 - Injected `window.__OPENCODE_TOTP_SETUP__` bootstrap data per request.
 - Removed the string-based TOTP setup HTML template from auth routes.
 
@@ -60,7 +60,7 @@ No task commits were created (commits were not requested).
 
 ## Files Created/Modified
 
-- `packages/opencode/src/server/routes/auth.ts` - Loads 2fa-setup.html and injects setup bootstrap data.
+- `packages/opencode/src/server/routes/auth.ts` - Loads `totp-setup.html` (fallback `2fa-setup.html`) and injects setup bootstrap data.
 
 ## Decisions Made
 
@@ -80,7 +80,7 @@ None - no external service configuration required.
 
 ## Next Phase Readiness
 
-Ready for manual verification of `/auth/totp/setup` (or legacy `/auth/2fa/setup`) in a local dev server session.
+Ready for manual verification of `/auth/totp/setup` (or legacy `/auth/2fa/setup`) in a local dev server session using canonical `totp-setup.html`.
 
 ---
 
