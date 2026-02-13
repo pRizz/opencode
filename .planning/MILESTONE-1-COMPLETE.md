@@ -10,19 +10,19 @@ Milestone 1 delivered complete PAM-based system authentication for opencode's we
 
 ## Phases Completed
 
-| Phase | Name                      | Plans | Duration | Status      |
-| ----- | ------------------------- | ----- | -------- | ----------- |
-| 1     | Configuration Foundation  | 3     | 12 min   | ✅ Complete |
-| 2     | Session Infrastructure    | 2     | 5 min    | ✅ Complete |
-| 3     | Auth Broker Core          | 6     | 33 min   | ✅ Complete |
-| 4     | Authentication Flow       | 2     | 8 min    | ✅ Complete |
-| 5     | User Process Execution    | 10    | 83 min   | ✅ Complete |
-| 6     | Login UI                  | 1     | 25 min   | ✅ Complete |
-| 7     | Security Hardening        | 3     | 20 min   | ✅ Complete |
-| 8     | Session Enhancements      | 4     | 11.5 min | ✅ Complete |
-| 9     | Connection Security UI    | 2     | 4.6 min  | ✅ Complete |
-| 10    | TOTP Authentication       | 8     | 19.6 min | ✅ Complete |
-| 11    | Documentation             | 4     | 9.9 min  | ✅ Complete |
+| Phase | Name                     | Plans | Duration | Status      |
+| ----- | ------------------------ | ----- | -------- | ----------- |
+| 1     | Configuration Foundation | 3     | 12 min   | ✅ Complete |
+| 2     | Session Infrastructure   | 2     | 5 min    | ✅ Complete |
+| 3     | Auth Broker Core         | 6     | 33 min   | ✅ Complete |
+| 4     | Authentication Flow      | 2     | 8 min    | ✅ Complete |
+| 5     | User Process Execution   | 10    | 83 min   | ✅ Complete |
+| 6     | Login UI                 | 1     | 25 min   | ✅ Complete |
+| 7     | Security Hardening       | 3     | 20 min   | ✅ Complete |
+| 8     | Session Enhancements     | 4     | 11.5 min | ✅ Complete |
+| 9     | Connection Security UI   | 2     | 4.6 min  | ✅ Complete |
+| 10    | TOTP Authentication      | 8     | 19.6 min | ✅ Complete |
+| 11    | Documentation            | 4     | 9.9 min  | ✅ Complete |
 
 **Total:** 43 plans, 224.5 minutes (3.7 hours)
 
