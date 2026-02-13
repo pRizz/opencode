@@ -393,11 +393,11 @@ export function TwoFactorSetupFlow(props: TwoFactorSetupFlowProps) {
                 </Show>
 
                 <form class="mt-3 flex flex-col gap-2" onSubmit={(event) => void handleSubmit(event)}>
-                  <label class="text-12-medium text-text-weak" for="two-factor-setup-code">
+                  <label class="text-12-medium text-text-weak" for="totp-setup-code">
                     Enter the 6-digit code from your authenticator app
                   </label>
                   <input
-                    id="two-factor-setup-code"
+                    id="totp-setup-code"
                     class={
                       embedded()
                         ? "h-10 rounded-md border border-border-weak-base bg-background-base px-3 text-14-medium"

@@ -188,7 +188,7 @@ test("TOTP inline setup enables manage panel without opening new tab", async ({ 
   await settings.locator(settingsAuthTabTotpSelector).click()
   await expect(settings.locator(settingsAuthTotpManageDisabledReasonSelector)).toBeVisible()
 
-  await settings.locator("#two-factor-setup-code").fill("123456")
+  await settings.locator("#totp-setup-code").fill("123456")
   await settings.getByRole("button", { name: "Verify & Enable TOTP" }).click()
 
   await expect.poll(() => verifyCalls).toBe(1)
