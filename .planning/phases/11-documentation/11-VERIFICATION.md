@@ -74,9 +74,9 @@ re_verification: false
 
 ### Requirements Coverage
 
-| Requirement                                                                      | Status      | Evidence                                                                                                                                                      |
-| -------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| DOC-01: Reverse proxy setup guide (nginx, Caddy) with TLS configuration examples | ✓ SATISFIED | reverse-proxy.md covers nginx (63 refs), Caddy (31 refs), TLS/Let's Encrypt (14 refs), plus full production configs                                           |
+| Requirement                                                                      | Status      | Evidence                                                                                                                                                       |
+| -------------------------------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| DOC-01: Reverse proxy setup guide (nginx, Caddy) with TLS configuration examples | ✓ SATISFIED | reverse-proxy.md covers nginx (63 refs), Caddy (31 refs), TLS/Let's Encrypt (14 refs), plus full production configs                                            |
 | DOC-02: PAM service file configuration and troubleshooting documentation         | ✓ SATISFIED | pam-config.md (1,065 lines) covers PAM setup, broker config, TOTP. troubleshooting.md (1,214 lines) covers diagnostic flowcharts, common issues, debug logging |
 
 **Requirements coverage:** 2/2 satisfied (100%)

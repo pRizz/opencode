@@ -43,7 +43,7 @@ completed: 2026-01-31
 
 # Phase 19 Plan 01 Summary
 
-**SolidJS login entry with parity styling, warning/2FA flows, and Vite multi-page build output.**
+**SolidJS login entry with parity styling, warning/TOTP flows, and Vite multi-page build output.**
 
 ## Performance
 

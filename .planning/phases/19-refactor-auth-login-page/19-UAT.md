@@ -42,12 +42,12 @@ result: pass (Playwright snapshot shows checkbox checked)
 expected: Invalid credentials show error message; submit button re-enables.
 result: pass (Playwright shows "Authentication failed" after invalid login)
 
-### 6. 2FA required redirect
+### 6. TOTP required redirect
 
-expected: Valid credentials with 2FA enabled redirect to `/auth/2fa` with token params.
+expected: Valid credentials with TOTP enabled redirect to `/auth/2fa` with token params.
 result: skipped (per user request)
 
-### 7. 2FA setup required redirect
+### 7. TOTP setup required redirect
 
 expected: Users needing setup are redirected to `/auth/2fa/setup` (or `?required=1`).
 result: skipped (per user request)
@@ -67,4 +67,4 @@ skipped: 4
 
 ## Gaps
 
-- Skipped per user request: HTTP warning/HTTPS block, 2FA redirects.
+- Skipped per user request: HTTP warning/HTTPS block, TOTP redirects.

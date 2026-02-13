@@ -6,9 +6,9 @@
 
 ## Summary
 
-The current login page is rendered from a large template literal inside `packages/opencode/src/server/routes/auth.ts`. The goal is to preserve visual and behavior parity while replacing the string template with a UI built using the existing `packages/app` SolidJS stack (Vite + Tailwind + @opencode-ai/ui). The architectural change is to move markup/behavior into Solid components within `packages/app` and have the server serve a built asset for `/auth/login`, while keeping the same server-side security context, request flow, and UI behavior (2FA redirects, HTTP warning, remember-me defaults).
+The current login page is rendered from a large template literal inside `packages/opencode/src/server/routes/auth.ts`. The goal is to preserve visual and behavior parity while replacing the string template with a UI built using the existing `packages/app` SolidJS stack (Vite + Tailwind + @opencode-ai/ui). The architectural change is to move markup/behavior into Solid components within `packages/app` and have the server serve a built asset for `/auth/login`, while keeping the same server-side security context, request flow, and UI behavior (TOTP redirects, HTTP warning, remember-me defaults).
 
-**Primary recommendation:** Implement the login page as a Solid entry inside `packages/app` (no new dependencies), then serve the built HTML/JS from the auth route instead of constructing it as a template string. Preserve existing inline behavior in Solid (form validation, 2FA redirects, HTTP warning dismissal, and HTTPS block state).
+**Primary recommendation:** Implement the login page as a Solid entry inside `packages/app` (no new dependencies), then serve the built HTML/JS from the auth route instead of constructing it as a template string. Preserve existing inline behavior in Solid (form validation, TOTP redirects, HTTP warning dismissal, and HTTPS block state).
 
 ## Standard Stack
 
@@ -53,7 +53,7 @@ packages/app/src/
 
 **What:** Add a new Vite entry HTML + Solid root for `/auth/login` that mirrors the existing UI.  
 **When to use:** When replacing string HTML with a real UI using the existing app stack.  
-**Notes:** Use the same styles and behavior as the current template (CSRF header, remember-me default, 2FA redirects, HTTP warning dismissal).
+**Notes:** Use the same styles and behavior as the current template (CSRF header, remember-me default, TOTP redirects, HTTP warning dismissal).
 
 ### Anti-Patterns to Avoid
 
