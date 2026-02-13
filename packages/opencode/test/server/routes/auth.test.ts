@@ -507,6 +507,60 @@ describe("POST /auth/login", () => {
     expect(res.status).toBe(200)
   })
 
+  test("redirects to required TOTP setup when required and not configured", async () => {
+    setMockAuthConfig({ enabled: true, method: "pam", twoFactorEnabled: true, twoFactorRequired: true })
+    mockCheckTotp.mockResolvedValue(false)
+
+    const res = await app.request("/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body: JSON.stringify({ username: "testuser", password: "correct", returnUrl: "/dashboard" }),
+    })
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.redirectTo).toBe("/auth/totp/setup?required=1&returnTo=%2Fdashboard")
+
+    const cookie = res.headers.get("Set-Cookie")
+    const match = cookie?.match(/opencode_session=([^;]+)/)
+    expect(match).toBeDefined()
+    const sessionId = match?.[1]
+    const storedSession = sessionId ? UserSession.get(sessionId) : undefined
+    expect(storedSession?.totpPending).toBe(true)
+    expect(storedSession?.twoFactorPending).toBe(true)
+    if (sessionId) UserSession.remove(sessionId)
+  })
+
+  test("does not force TOTP setup when required and already configured", async () => {
+    setMockAuthConfig({ enabled: true, method: "pam", twoFactorEnabled: true, twoFactorRequired: true })
+    mockCheckTotp.mockResolvedValue(true)
+
+    const res = await app.request("/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body: JSON.stringify({ username: "testuser", password: "correct", returnUrl: "/dashboard" }),
+    })
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.redirectTo).toBe("/dashboard")
+
+    const cookie = res.headers.get("Set-Cookie")
+    const match = cookie?.match(/opencode_session=([^;]+)/)
+    expect(match).toBeDefined()
+    const sessionId = match?.[1]
+    const storedSession = sessionId ? UserSession.get(sessionId) : undefined
+    expect(storedSession?.totpPending).toBeUndefined()
+    expect(storedSession?.twoFactorPending).toBeUndefined()
+    if (sessionId) UserSession.remove(sessionId)
+  })
+
   test("returns 403 when auth is disabled", async () => {
     setMockAuthConfig({ enabled: false })
 

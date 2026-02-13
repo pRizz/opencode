@@ -321,6 +321,24 @@ async function shouldPromptPasskeySetup(
   return credentials.length === 0
 }
 
+async function shouldRequireTotpSetup(
+  authConfig: ReturnType<typeof ServerAuth.get>,
+  username: string,
+  maybeHome: string | undefined,
+): Promise<boolean> {
+  if (!authConfig.enabled || !authConfig.twoFactorEnabled || !authConfig.twoFactorRequired) {
+    return false
+  }
+
+  if (!maybeHome) {
+    return true
+  }
+
+  const broker = new BrokerClient()
+  const totpConfigured = await broker.checkTotp(username, maybeHome)
+  return !totpConfigured
+}
+
 function passkeySetupPath(required: boolean, returnTo?: string): string {
   const params = new URLSearchParams()
   if (required) {
@@ -331,6 +349,18 @@ function passkeySetupPath(required: boolean, returnTo?: string): string {
   }
   const query = params.toString()
   return query.length > 0 ? `/auth/passkey/setup?${query}` : "/auth/passkey/setup"
+}
+
+function totpSetupPath(required: boolean, returnTo?: string): string {
+  const params = new URLSearchParams()
+  if (required) {
+    params.set("required", "1")
+  }
+  if (returnTo && isValidReturnUrl(returnTo)) {
+    params.set("returnTo", returnTo)
+  }
+  const query = params.toString()
+  return query.length > 0 ? `/auth/totp/setup?${query}` : "/auth/totp/setup"
 }
 
 function bootstrapSignupPath(returnTo?: string): string {
@@ -1827,8 +1857,17 @@ export const AuthRoutes = lazy(() =>
           userAgent,
         })
 
-        const needsPasskeySetup = await shouldPromptPasskeySetup(authConfig, username)
-        const redirectTo = needsPasskeySetup ? passkeySetupPath(false, returnUrl) : (returnUrl ?? "/")
+        const needsTotpSetup = await shouldRequireTotpSetup(authConfig, username, userInfo.home)
+        if (needsTotpSetup) {
+          UserSession.setTotpPending(session.id)
+        }
+
+        const needsPasskeySetup = needsTotpSetup ? false : await shouldPromptPasskeySetup(authConfig, username)
+        const redirectTo = needsTotpSetup
+          ? totpSetupPath(true, returnUrl)
+          : needsPasskeySetup
+            ? passkeySetupPath(false, returnUrl)
+            : (returnUrl ?? "/")
 
         // 13. Return success with user info
         return c.json({
