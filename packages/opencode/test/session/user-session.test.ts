@@ -217,4 +217,60 @@ describe("UserSession", () => {
       expect(UserSession.get(otherSession.id)?.username).toBe("otheruser")
     })
   })
+
+  describe("totp session helpers", () => {
+    test("setTotpSetupSecret updates canonical and legacy secret fields", () => {
+      const session = UserSession.create("testuser")
+
+      const result = UserSession.setTotpSetupSecret(session.id, "SECRET123")
+
+      expect(result).toBe(true)
+      const updated = UserSession.get(session.id)
+      expect(updated?.totpSetupSecret).toBe("SECRET123")
+      expect(updated?.twoFactorSetupSecret).toBe("SECRET123")
+    })
+
+    test("clearTotpSetupSecret clears canonical and legacy secret fields", () => {
+      const session = UserSession.create("testuser")
+      UserSession.setTotpSetupSecret(session.id, "SECRET123")
+
+      const result = UserSession.clearTotpSetupSecret(session.id)
+
+      expect(result).toBe(true)
+      const updated = UserSession.get(session.id)
+      expect(updated?.totpSetupSecret).toBeUndefined()
+      expect(updated?.twoFactorSetupSecret).toBeUndefined()
+    })
+
+    test("clearTotpPending clears canonical and legacy pending flags", () => {
+      const session = UserSession.create("testuser")
+      const stored = UserSession.get(session.id)
+      if (!stored) throw new Error("Expected stored session to exist")
+      stored.totpPending = true
+      stored.twoFactorPending = true
+
+      const result = UserSession.clearTotpPending(session.id)
+
+      expect(result).toBe(true)
+      const updated = UserSession.get(session.id)
+      expect(updated?.totpPending).toBe(false)
+      expect(updated?.twoFactorPending).toBe(false)
+    })
+
+    test("legacy two-factor secret helper aliases remain functional", () => {
+      const session = UserSession.create("testuser")
+
+      const setResult = UserSession.setTwoFactorSetupSecret(session.id, "SECRET123")
+      expect(setResult).toBe(true)
+      const afterSet = UserSession.get(session.id)
+      expect(afterSet?.totpSetupSecret).toBe("SECRET123")
+      expect(afterSet?.twoFactorSetupSecret).toBe("SECRET123")
+
+      const clearResult = UserSession.clearTwoFactorSetupSecret(session.id)
+      expect(clearResult).toBe(true)
+      const afterClear = UserSession.get(session.id)
+      expect(afterClear?.totpSetupSecret).toBeUndefined()
+      expect(afterClear?.twoFactorSetupSecret).toBeUndefined()
+    })
+  })
 })
