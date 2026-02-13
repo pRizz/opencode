@@ -198,13 +198,16 @@ export const authMiddleware = createMiddleware<AuthEnv>(async (c, next) => {
   // Check if user needs to complete TOTP setup
   const totpSetupPending = session.totpPending ?? session.twoFactorPending
   if (totpSetupPending && authConfig.twoFactorRequired) {
-    // User must complete TOTP setup before accessing other pages
-    const isApiCall = () => {
-      const accept = c.req.header("Accept") ?? ""
-      return !accept.includes("text/html")
-    }
     if (isApiCall()) {
-      return c.json({ error: "2fa_setup_required", message: "TOTP setup is required" }, 403)
+      return c.json(
+        {
+          /** @deprecated Prefer `code` (`totp_setup_required`). */
+          error: "2fa_setup_required",
+          code: "totp_setup_required",
+          message: "TOTP setup is required",
+        },
+        403,
+      )
     }
     return c.redirect("/auth/totp/setup?required=1")
   }

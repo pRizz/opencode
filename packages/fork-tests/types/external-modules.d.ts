@@ -16,6 +16,7 @@ export type AuthResult = any
 
 export const clearCSRFCookie: any
 export const createLoginRateLimiter: any
+export const authMiddleware: any
 export const csrfMiddleware: any
 export const CSRF_COOKIE_NAME: any
 export const CSRF_HEADER_NAME: any
