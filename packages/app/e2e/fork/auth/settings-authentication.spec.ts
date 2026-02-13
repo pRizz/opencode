@@ -2,14 +2,14 @@ import { test, expect } from "../../fixtures"
 import { closeDialog, openSettings } from "../../actions"
 import { mockAuthenticatedAuth, mockPasskeys, mockTwoFactorSetupStart, mockUnauthenticatedAuth } from "../mocks/auth"
 import {
-  settingsAuth2faManageCardSelector,
-  settingsAuth2faManageDisabledReasonSelector,
-  settingsAuth2faSetupCardSelector,
+  settingsAuthTotpManageCardSelector,
+  settingsAuthTotpManageDisabledReasonSelector,
+  settingsAuthTotpSetupCardSelector,
   settingsAuthFooterLogoutSelector,
   settingsAuthNavSectionSelector,
   settingsAuthSessionForgetDeviceSelector,
   settingsAuthSessionLogoutAllSelector,
-  settingsAuthTab2faSelector,
+  settingsAuthTabTotpSelector,
   settingsAuthTabPasskeysSelector,
   settingsAuthTabSessionSelector,
   settingsAuthenticationSectionSelector,
@@ -24,7 +24,7 @@ test("authentication nav section renders", async ({ page, gotoSession }) => {
   await expect(settings.locator(settingsAuthNavSectionSelector)).toBeVisible()
   await expect(settings.locator(settingsAuthTabSessionSelector)).toBeVisible()
   await expect(settings.locator(settingsAuthTabPasskeysSelector)).toBeVisible()
-  await expect(settings.locator(settingsAuthTab2faSelector)).toBeVisible()
+  await expect(settings.locator(settingsAuthTabTotpSelector)).toBeVisible()
 })
 
 test("unauthenticated state disables auth tabs and hides footer logout", async ({ page, gotoSession }) => {
@@ -35,7 +35,7 @@ test("unauthenticated state disables auth tabs and hides footer logout", async (
 
   await expect(settings.locator(settingsAuthTabSessionSelector)).toBeDisabled()
   await expect(settings.locator(settingsAuthTabPasskeysSelector)).toBeDisabled()
-  await expect(settings.locator(settingsAuthTab2faSelector)).toBeDisabled()
+  await expect(settings.locator(settingsAuthTabTotpSelector)).toBeDisabled()
   await expect(settings.locator(settingsAuthFooterLogoutSelector)).toHaveCount(0)
 })
 
@@ -57,7 +57,7 @@ test("authenticated state enables tabs and footer logout hits endpoint", async (
 
   await expect(settings.locator(settingsAuthTabSessionSelector)).toBeEnabled()
   await expect(settings.locator(settingsAuthTabPasskeysSelector)).toBeEnabled()
-  await expect(settings.locator(settingsAuthTab2faSelector)).toBeEnabled()
+  await expect(settings.locator(settingsAuthTabTotpSelector)).toBeEnabled()
 
   const footerLogout = settings.locator(settingsAuthFooterLogoutSelector)
   await expect(footerLogout).toBeVisible()
@@ -141,10 +141,10 @@ test("TOTP tab shows setup and disabled manage when not configured", async ({ pa
   await gotoSession()
   const settings = await openSettings(page)
 
-  await settings.locator(settingsAuthTab2faSelector).click()
-  await expect(settings.locator(settingsAuth2faSetupCardSelector)).toBeVisible()
-  await expect(settings.locator(settingsAuth2faManageCardSelector)).toBeVisible()
-  await expect(settings.locator(settingsAuth2faManageDisabledReasonSelector)).toBeVisible()
+  await settings.locator(settingsAuthTabTotpSelector).click()
+  await expect(settings.locator(settingsAuthTotpSetupCardSelector)).toBeVisible()
+  await expect(settings.locator(settingsAuthTotpManageCardSelector)).toBeVisible()
+  await expect(settings.locator(settingsAuthTotpManageDisabledReasonSelector)).toBeVisible()
 })
 
 test("TOTP inline setup enables manage panel without opening new tab", async ({ page, gotoSession }) => {
@@ -185,8 +185,8 @@ test("TOTP inline setup enables manage panel without opening new tab", async ({ 
   await gotoSession()
   const settings = await openSettings(page)
 
-  await settings.locator(settingsAuthTab2faSelector).click()
-  await expect(settings.locator(settingsAuth2faManageDisabledReasonSelector)).toBeVisible()
+  await settings.locator(settingsAuthTabTotpSelector).click()
+  await expect(settings.locator(settingsAuthTotpManageDisabledReasonSelector)).toBeVisible()
 
   await settings.locator("#two-factor-setup-code").fill("123456")
   await settings.getByRole("button", { name: "Verify & Enable TOTP" }).click()
@@ -224,7 +224,7 @@ test("TOTP manage actions hit reset and disable endpoints", async ({ page, gotoS
   await gotoSession()
   const settings = await openSettings(page)
 
-  await settings.locator(settingsAuthTab2faSelector).click()
+  await settings.locator(settingsAuthTabTotpSelector).click()
 
   await settings.locator('[data-action="settings-auth-totp-manage-reset"]').click()
   await settings.getByRole("button", { name: "Confirm reset" }).click()
@@ -233,7 +233,7 @@ test("TOTP manage actions hit reset and disable endpoints", async ({ page, gotoS
   await closeDialog(page, settings)
 
   const settingsAfterReset = await openSettings(page)
-  await settingsAfterReset.locator(settingsAuthTab2faSelector).click()
+  await settingsAfterReset.locator(settingsAuthTabTotpSelector).click()
 
   await settingsAfterReset.locator('[data-action="settings-auth-totp-manage-disable"]').click()
   await settingsAfterReset.getByRole("button", { name: "Confirm disable" }).click()
