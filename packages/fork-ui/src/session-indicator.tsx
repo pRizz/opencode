@@ -151,7 +151,7 @@ export function SessionIndicator(props: SessionIndicatorProps) {
               </Show>
               <DropdownMenu.Item
                 onSelect={isTwoFactorConfigured() ? handleManageTotp : handleSetupTotp}
-                data-action="settings-authentication-menu-2fa"
+                data-action="settings-authentication-menu-totp"
               >
                 <DropdownMenu.ItemLabel>
                   {isTwoFactorConfigured() ? "Manage TOTP" : isTwoFactorOptedOut() ? "Enable TOTP" : "Set up TOTP"}

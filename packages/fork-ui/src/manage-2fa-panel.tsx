@@ -58,7 +58,7 @@ export function ManageTwoFactorPanel(props: ManageTwoFactorPanelProps) {
   }
 
   return (
-    <div class="flex flex-col gap-4 px-2 pb-3" data-action="settings-auth-2fa-manage-panel">
+    <div class="flex flex-col gap-4 px-2 pb-3" data-action="settings-auth-totp-manage-panel">
       <div class="flex flex-col gap-2 rounded-md border border-border-weak-base p-3 text-14-regular text-text-weak">
         <div class="text-text-strong text-14-medium">TOTP authentication is enabled.</div>
         <div>Resetting TOTP removes your current authenticator setup.</div>
@@ -78,7 +78,7 @@ export function ManageTwoFactorPanel(props: ManageTwoFactorPanelProps) {
               size="large"
               variant="ghost"
               onClick={() => setConfirmAction("disable")}
-              data-action="settings-auth-2fa-manage-disable"
+              data-action="settings-auth-totp-manage-disable"
             >
               Disable TOTP
             </Button>
@@ -86,7 +86,7 @@ export function ManageTwoFactorPanel(props: ManageTwoFactorPanelProps) {
               size="large"
               variant="secondary"
               onClick={() => setConfirmAction("reset")}
-              data-action="settings-auth-2fa-manage-reset"
+              data-action="settings-auth-totp-manage-reset"
             >
               Reset TOTP
             </Button>

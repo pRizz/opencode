@@ -192,7 +192,7 @@ test("TOTP inline setup enables manage panel without opening new tab", async ({ 
   await settings.getByRole("button", { name: "Verify & Enable TOTP" }).click()
 
   await expect.poll(() => verifyCalls).toBe(1)
-  await expect(settings.locator('[data-action="settings-auth-2fa-manage-panel"]')).toBeVisible()
+  await expect(settings.locator('[data-action="settings-auth-totp-manage-panel"]')).toBeVisible()
   await expect.poll(() => popupCount).toBe(0)
 })
 
@@ -226,7 +226,7 @@ test("TOTP manage actions hit reset and disable endpoints", async ({ page, gotoS
 
   await settings.locator(settingsAuthTab2faSelector).click()
 
-  await settings.locator('[data-action="settings-auth-2fa-manage-reset"]').click()
+  await settings.locator('[data-action="settings-auth-totp-manage-reset"]').click()
   await settings.getByRole("button", { name: "Confirm reset" }).click()
   await expect.poll(() => resetCalls).toBe(1)
 
@@ -235,7 +235,7 @@ test("TOTP manage actions hit reset and disable endpoints", async ({ page, gotoS
   const settingsAfterReset = await openSettings(page)
   await settingsAfterReset.locator(settingsAuthTab2faSelector).click()
 
-  await settingsAfterReset.locator('[data-action="settings-auth-2fa-manage-disable"]').click()
+  await settingsAfterReset.locator('[data-action="settings-auth-totp-manage-disable"]').click()
   await settingsAfterReset.getByRole("button", { name: "Confirm disable" }).click()
   await expect.poll(() => disableCalls).toBe(1)
 })
