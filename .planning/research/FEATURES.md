@@ -36,7 +36,7 @@ Features that set the product apart. Not strictly required, but provide meaningf
 | Login page customization            | Branding for enterprise deployments  | Low        | Configurable logo/message on login page via config                 |
 | Keyboard navigation                 | Accessibility for power users        | Low        | Tab order, Enter to submit, focus management                       |
 | Password visibility toggle          | UX improvement for complex passwords | Low        | Eye icon to reveal password field                                  |
-| 2FA support (TOTP)                  | Additional security layer            | Medium     | Optional; PAM can delegate to pam_google_authenticator or pam_oath |
+| TOTP support                        | Additional security layer            | Medium     | Optional; PAM can delegate to pam_google_authenticator or pam_oath |
 | SSH key authentication              | Passwordless auth option             | High       | More complex; useful for automation/scripts                        |
 | Privilege escalation UI (sudo)      | Elevate permissions for admin tasks  | High       | Cockpit does this; prompt for password to run as root              |
 | Locale/timezone handling            | Commands run in user's environment   | Low        | Inherit user's LANG, TZ from system                                |
@@ -90,7 +90,7 @@ Logout --> Session Invalidation
 
 - Remember me (extension of session management)
 - Multi-session awareness (enhancement, not blocking)
-- 2FA (optional security layer)
+- TOTP authentication (optional security layer)
 
 ## Phase Recommendations
 
@@ -127,7 +127,7 @@ Build the minimum viable authenticated system:
 ### Phase 4: Advanced (Optional)
 
 1. **Multi-Session Awareness** - List/revoke sessions
-2. **2FA Support** - TOTP via PAM module
+2. **TOTP Authentication Support** - TOTP via PAM module
 3. **Privilege Escalation UI** - sudo prompts for admin actions
 
 ## Complexity Assessment
@@ -135,7 +135,7 @@ Build the minimum viable authenticated system:
 | Complexity | Features                                                                                                               |
 | ---------- | ---------------------------------------------------------------------------------------------------------------------- |
 | **Low**    | Login form, logout, session cookies, CSRF, HTTPS warning, session timeout, remember me, UI indicators, password toggle |
-| **Medium** | PAM integration, brute-force protection, multi-session tracking, 2FA                                                   |
+| **Medium** | PAM integration, brute-force protection, multi-session tracking, TOTP authentication                                    |
 | **High**   | Session-to-UID mapping (requires privilege escalation design), SSH key auth, sudo UI                                   |
 
 ## Cockpit Reference Points

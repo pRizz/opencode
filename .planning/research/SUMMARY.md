@@ -50,7 +50,7 @@ The existing Hono/Bun/TypeScript stack remains unchanged for the web layer. Hono
 - Multi-session awareness (list/revoke active sessions)
 - Session activity indicator showing time remaining
 - Automatic session refresh while tab is active
-- 2FA support via TOTP (PAM can delegate to pam_google_authenticator)
+- TOTP authentication support (PAM can delegate to pam_google_authenticator)
 
 **Defer (v2+):**
 
