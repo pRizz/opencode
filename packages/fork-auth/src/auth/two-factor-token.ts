@@ -38,7 +38,7 @@ export interface TwoFactorUserInfo {
  * @param secret - Signing secret
  * @param ip - Optional IP address for binding
  */
-export async function create2FAToken(
+export async function createTotpToken(
   userInfo: TwoFactorUserInfo,
   timeoutSeconds: number,
   secret: Uint8Array,
@@ -68,7 +68,7 @@ export async function create2FAToken(
  * @param expectedIp - Optional IP to verify against
  * @returns User info if valid, null if invalid/expired
  */
-export async function verify2FAToken(
+export async function verifyTotpToken(
   token: string,
   secret: Uint8Array,
   expectedIp?: string,
@@ -104,6 +104,16 @@ export async function verify2FAToken(
     return null
   }
 }
+
+/**
+ * @deprecated Use createTotpToken.
+ */
+export const create2FAToken = createTotpToken
+
+/**
+ * @deprecated Use verifyTotpToken.
+ */
+export const verify2FAToken = verifyTotpToken
 
 /**
  * Calculate remaining seconds until token expiration.

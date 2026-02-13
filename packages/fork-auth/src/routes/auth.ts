@@ -15,7 +15,7 @@ import { createManualRateLimiter, getClientIP, type ManualRateLimiter } from "..
 import { parseDuration } from "../../../opencode/src/util/duration"
 import { shouldBlockInsecureLogin } from "../security/https-detection"
 import { getEffectiveRequestUrl, isEffectiveHttps } from "../security/request-context"
-import { verify2FAToken } from "../auth/two-factor-token"
+import { verifyTotpToken } from "../auth/two-factor-token"
 import { verifyDeviceTrustToken, createDeviceTrustToken, createDeviceFingerprint } from "../auth/device-trust"
 import { getTokenSecret } from "../security/token-secret"
 import { generateTotpSetup, getGoogleAuthenticatorSetupCommand, verifyTotpCode } from "../auth/totp-setup"
@@ -1405,7 +1405,7 @@ export const AuthRoutes = lazy(() =>
 
         // Verify TOTP token
         const ip = getRequestIP(c)
-        const userInfo = await verify2FAToken(twoFactorToken, getTokenSecret(), ip)
+        const userInfo = await verifyTotpToken(twoFactorToken, getTokenSecret(), ip)
         if (!userInfo) {
           return c.json({ error: "token_expired", message: "TOTP session expired, please login again" }, 401)
         }
