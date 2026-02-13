@@ -1,11 +1,14 @@
 import type { Page } from "@playwright/test"
 
-export type DeviceTrustStatus = {
+export type TotpDeviceTrustStatus = {
   twoFactorEnabled: boolean
   twoFactorConfigured: boolean
   twoFactorOptedOut: boolean
   deviceTrusted: boolean
 }
+
+/** @deprecated Prefer TotpDeviceTrustStatus. */
+export type DeviceTrustStatus = TotpDeviceTrustStatus
 
 export interface AuthSessionMockOptions {
   id?: string
@@ -20,7 +23,7 @@ export interface AuthStatusMockOptions {
   passkeysEnabled?: boolean
 }
 
-export interface TwoFactorSetupStartMockOptions {
+export interface TotpSetupStartMockOptions {
   username?: string
   secret?: string
   qrCodeSvg?: string
@@ -31,17 +34,20 @@ export interface TwoFactorSetupStartMockOptions {
   setupMessage?: string
 }
 
+/** @deprecated Prefer TotpSetupStartMockOptions. */
+export type TwoFactorSetupStartMockOptions = TotpSetupStartMockOptions
+
 export interface AuthenticatedAuthMockOptions {
   session?: string | AuthSessionMockOptions
   authStatus?: boolean | AuthStatusMockOptions
-  deviceTrust?: Partial<DeviceTrustStatus>
+  deviceTrust?: Partial<TotpDeviceTrustStatus>
 }
 
 export interface UnauthenticatedAuthMockOptions {
   authStatus?: boolean | AuthStatusMockOptions
 }
 
-const defaultDeviceTrustStatus: DeviceTrustStatus = {
+const defaultDeviceTrustStatus: TotpDeviceTrustStatus = {
   twoFactorEnabled: true,
   twoFactorConfigured: true,
   twoFactorOptedOut: false,
@@ -95,7 +101,7 @@ export async function mockAuthStatus(page: Page, input?: boolean | AuthStatusMoc
   })
 }
 
-export async function mockDeviceTrust(page: Page, status: Partial<DeviceTrustStatus> = {}) {
+export async function mockDeviceTrust(page: Page, status: Partial<TotpDeviceTrustStatus> = {}) {
   await page.route("**/auth/device-trust/status", async (route) => {
     await route.fulfill({
       status: 200,
@@ -115,7 +121,7 @@ export async function mockPasskeys(page: Page, credentials: unknown[] = []) {
   })
 }
 
-export async function mockTwoFactorSetupStart(page: Page, input: TwoFactorSetupStartMockOptions = {}) {
+export async function mockTotpSetupStart(page: Page, input: TotpSetupStartMockOptions = {}) {
   const options = {
     username: input.username ?? "opencoder",
     secret: input.secret ?? "JBSWY3DPEHPK3PXP",
@@ -135,6 +141,9 @@ export async function mockTwoFactorSetupStart(page: Page, input: TwoFactorSetupS
     })
   })
 }
+
+/** @deprecated Prefer mockTotpSetupStart. */
+export const mockTwoFactorSetupStart = mockTotpSetupStart
 
 export async function mockAuthenticatedAuth(page: Page, options: AuthenticatedAuthMockOptions = {}) {
   await mockSession(page, options.session)

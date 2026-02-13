@@ -1,6 +1,6 @@
 import { test, expect } from "../../fixtures"
 import { closeDialog, openSettings } from "../../actions"
-import { mockAuthenticatedAuth, mockPasskeys, mockTwoFactorSetupStart, mockUnauthenticatedAuth } from "../mocks/auth"
+import { mockAuthenticatedAuth, mockPasskeys, mockTotpSetupStart, mockUnauthenticatedAuth } from "../mocks/auth"
 import {
   settingsAuthTotpManageCardSelector,
   settingsAuthTotpManageDisabledReasonSelector,
@@ -136,7 +136,7 @@ test("TOTP tab shows setup and disabled manage when not configured", async ({ pa
       deviceTrusted: false,
     },
   })
-  await mockTwoFactorSetupStart(page)
+  await mockTotpSetupStart(page)
 
   await gotoSession()
   const settings = await openSettings(page)
@@ -165,7 +165,7 @@ test("TOTP inline setup enables manage panel without opening new tab", async ({ 
     })
   })
 
-  await mockTwoFactorSetupStart(page)
+  await mockTotpSetupStart(page)
 
   let verifyCalls = 0
   await page.route(/\/auth\/2fa\/verify$/, async (route) => {
@@ -198,7 +198,7 @@ test("TOTP inline setup enables manage panel without opening new tab", async ({ 
 
 test("TOTP manage actions hit reset and disable endpoints", async ({ page, gotoSession }) => {
   await mockAuthenticatedAuth(page)
-  await mockTwoFactorSetupStart(page)
+  await mockTotpSetupStart(page)
 
   let resetCalls = 0
   let disableCalls = 0
