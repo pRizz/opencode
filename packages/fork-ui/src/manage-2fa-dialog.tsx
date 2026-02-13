@@ -1,6 +1,6 @@
 import { Dialog } from "@opencode-ai/ui/dialog"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
-import { ManageTotpPanel } from "./manage-2fa-panel"
+import { ManageTotpPanel } from "./manage-totp-panel"
 
 interface ManageTotpDialogProps {
   onUpdate?: () => void

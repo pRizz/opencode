@@ -1,8 +1,8 @@
 import { Show } from "solid-js"
 import { Tooltip } from "@opencode-ai/ui/tooltip"
-import { ManageTotpPanel } from "./manage-2fa-panel"
+import { ManageTotpPanel } from "./manage-totp-panel"
 import { useSettingsAuth } from "./settings-auth-state"
-import { TotpSetupFlow } from "./two-factor-setup-flow"
+import { TotpSetupFlow } from "./totp-setup-flow"
 
 export function SettingsAuthTotpTab() {
   const auth = useSettingsAuth()

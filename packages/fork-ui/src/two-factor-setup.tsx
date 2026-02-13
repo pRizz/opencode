@@ -1,4 +1,4 @@
-import { TotpSetupFlow, type TotpSetupBootstrap } from "./two-factor-setup-flow"
+import { TotpSetupFlow, type TotpSetupBootstrap } from "./totp-setup-flow"
 
 declare global {
   interface Window {
