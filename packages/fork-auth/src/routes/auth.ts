@@ -490,7 +490,7 @@ async function buildTotpSetupBootstrap(
   const hasTotp = await broker.checkTotp(session.username, session.home ?? "")
 
   const setupData = await generateTotpSetup(session.username)
-  UserSession.setTwoFactorSetupSecret(sessionId, setupData.secret)
+  UserSession.setTotpSetupSecret(sessionId, setupData.secret)
 
   let setupStatus: TotpSetupBootstrap["setupStatus"] = "pending_verification"
   let setupMessage: string | undefined = "We'll create your TOTP configuration after you verify your code."
@@ -969,8 +969,8 @@ async function verifyTotpSetup(c: Context<AuthEnv>) {
   }
 
   // Clear twoFactorPending flag now that TOTP is configured
-  UserSession.clearTwoFactorPending(sessionId)
-  UserSession.clearTwoFactorSetupSecret(sessionId)
+  UserSession.clearTotpPending(sessionId)
+  UserSession.clearTotpSetupSecret(sessionId)
   await setTotpPreference(session.username, { skipSetup: false })
 
   return c.json({ success: true })
@@ -1000,8 +1000,8 @@ async function skipTotpSetup(c: Context<AuthEnv>) {
   }
 
   // Clear setup state so user can access the app
-  UserSession.clearTwoFactorPending(sessionId)
-  UserSession.clearTwoFactorSetupSecret(sessionId)
+  UserSession.clearTotpPending(sessionId)
+  UserSession.clearTotpSetupSecret(sessionId)
 
   return c.json({ success: true })
 }
@@ -1088,8 +1088,8 @@ async function disableTotp(c: Context<AuthEnv>) {
     return c.json({ error: "disable_failed", message: "Failed to disable TOTP", details: result }, 500)
   }
 
-  UserSession.clearTwoFactorPending(sessionId)
-  UserSession.clearTwoFactorSetupSecret(sessionId)
+  UserSession.clearTotpPending(sessionId)
+  UserSession.clearTotpSetupSecret(sessionId)
   await setTotpPreference(session.username, { skipSetup: true })
 
   return c.json({

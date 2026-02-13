@@ -94,10 +94,10 @@ export namespace UserSession {
   }
 
   /**
-   * Clear the twoFactorPending flag for a session.
+   * Clear the pending TOTP setup flag for a session.
    * Called after user completes TOTP setup.
    */
-  export function clearTwoFactorPending(id: string): boolean {
+  export function clearTotpPending(id: string): boolean {
     const session = sessions.get(id)
     if (!session) return false
 
@@ -108,7 +108,7 @@ export namespace UserSession {
   /**
    * Store the pending TOTP setup secret for a session.
    */
-  export function setTwoFactorSetupSecret(id: string, secret: string): boolean {
+  export function setTotpSetupSecret(id: string, secret: string): boolean {
     const session = sessions.get(id)
     if (!session) return false
 
@@ -119,13 +119,22 @@ export namespace UserSession {
   /**
    * Clear the pending TOTP setup secret for a session.
    */
-  export function clearTwoFactorSetupSecret(id: string): boolean {
+  export function clearTotpSetupSecret(id: string): boolean {
     const session = sessions.get(id)
     if (!session) return false
 
     session.twoFactorSetupSecret = undefined
     return true
   }
+
+  /** @deprecated Prefer `clearTotpPending`. */
+  export const clearTwoFactorPending = clearTotpPending
+
+  /** @deprecated Prefer `setTotpSetupSecret`. */
+  export const setTwoFactorSetupSecret = setTotpSetupSecret
+
+  /** @deprecated Prefer `clearTotpSetupSecret`. */
+  export const clearTwoFactorSetupSecret = clearTotpSetupSecret
 
   /**
    * Mark a session as pending bootstrap passkey setup.
