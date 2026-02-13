@@ -1,11 +1,14 @@
-import { ManageTwoFactorDialog as ForkManageTwoFactorDialog } from "@opencode-ai/fork-ui"
+import { ManageTotpDialog as ForkManageTotpDialog } from "@opencode-ai/fork-ui"
 import { useServer } from "@/context/server"
 
 interface ManageTwoFactorDialogProps {
   onUpdate?: () => void
 }
 
-export function ManageTwoFactorDialog(props: ManageTwoFactorDialogProps) {
+export function ManageTotpDialog(props: ManageTwoFactorDialogProps) {
   const server = useServer()
-  return <ForkManageTwoFactorDialog onUpdate={props.onUpdate} getServerUrl={() => server.url} />
+  return <ForkManageTotpDialog onUpdate={props.onUpdate} getServerUrl={() => server.url} />
 }
+
+/** @deprecated Prefer ManageTotpDialog. */
+export const ManageTwoFactorDialog = ManageTotpDialog

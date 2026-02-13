@@ -3,7 +3,7 @@ import { DropdownMenu } from "@opencode-ai/ui/dropdown-menu"
 import { Button } from "@opencode-ai/ui/button"
 import { Icon } from "@opencode-ai/ui/icon"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
-import { ManageTwoFactorDialog } from "./manage-2fa-dialog"
+import { ManageTotpDialog } from "./manage-2fa-dialog"
 import { PasskeyManagerDialog } from "./passkey-manager-dialog"
 import { authForgetDevice, authLogout, authLogoutAll } from "./settings-auth-actions"
 
@@ -99,7 +99,7 @@ export function SessionIndicator(props: SessionIndicatorProps) {
   }
 
   function handleManageTotp(): void {
-    dialog.show(() => <ManageTwoFactorDialog onUpdate={fetchDeviceTrustStatus} getServerUrl={props.getServerUrl} />)
+    dialog.show(() => <ManageTotpDialog onUpdate={fetchDeviceTrustStatus} getServerUrl={props.getServerUrl} />)
   }
 
   function handleManagePasskeys(): void {

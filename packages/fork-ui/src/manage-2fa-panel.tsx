@@ -2,7 +2,7 @@ import { Show, createSignal } from "solid-js"
 import { Button } from "@opencode-ai/ui/button"
 import { showToast } from "@opencode-ai/ui/toast"
 
-interface ManageTwoFactorPanelProps {
+interface ManageTotpPanelProps {
   onUpdate?: () => void
   onClose?: () => void
   getServerUrl: () => string | undefined
@@ -14,7 +14,7 @@ function getCsrfToken(): string | undefined {
   return match ? match[1] : undefined
 }
 
-export function ManageTwoFactorPanel(props: ManageTwoFactorPanelProps) {
+export function ManageTotpPanel(props: ManageTotpPanelProps) {
   const [confirmAction, setConfirmAction] = createSignal<"reset" | "disable" | null>(null)
   const [working, setWorking] = createSignal(false)
 
@@ -126,3 +126,6 @@ export function ManageTwoFactorPanel(props: ManageTwoFactorPanelProps) {
     </div>
   )
 }
+
+/** @deprecated Prefer ManageTotpPanel. */
+export const ManageTwoFactorPanel = ManageTotpPanel

@@ -10,7 +10,7 @@ import {
   SettingsAuthPasskeysTab,
   SettingsAuthProvider,
   SettingsAuthSessionTab,
-  SettingsAuthTwoFactorTab,
+  SettingsAuthTotpTab,
   SettingsRepositoriesTab,
   SettingsWelcomeTab,
   useSettingsAuth,
@@ -183,7 +183,7 @@ export const DialogSettings: Component<DialogSettingsProps> = (props) => {
             <SettingsAuthPasskeysTab />
           </Tabs.Content>
           <Tabs.Content value="auth-2fa" class="no-scrollbar">
-            <SettingsAuthTwoFactorTab />
+            <SettingsAuthTotpTab />
           </Tabs.Content>
           {/* <Tabs.Content value="agents" class="no-scrollbar"> */}
           {/*   <SettingsAgents /> */}
