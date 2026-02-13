@@ -7,7 +7,7 @@ TOTP page UI with countdown timer, auto-submit on 6 digits, and remember device 
 | Task | Name                                             | Commit    | Files   |
 | ---- | ------------------------------------------------ | --------- | ------- |
 | 1    | Create TOTP page HTML generator                  | f011eb25d | auth.ts |
-| 2    | Add GET /auth/2fa route                          | 6c8f63169 | auth.ts |
+| 2    | Add GET /auth/totp route (legacy /auth/2fa alias) | 6c8f63169 | auth.ts |
 | 3    | Update login page JavaScript to redirect to TOTP | f08ad1fef | auth.ts |
 
 ## Implementation Details
@@ -28,21 +28,21 @@ TOTP page UI with countdown timer, auto-submit on 6 digits, and remember device 
 
 ### Route Handler
 
-- GET /auth/2fa accepts token, username, timeout query params
+- GET /auth/totp accepts token, username, timeout query params (legacy /auth/2fa alias retained)
 - Redirects to login if missing required params
 - Renders TOTP page with token embedded for form submission
 
 ### Login Page Integration
 
 - JavaScript updated to check for `error: "2fa_required"` response
-- Redirects to /auth/2fa with token, username, and timeout params
+- Redirects to /auth/totp with token, username, and timeout params (legacy /auth/2fa alias retained)
 - Normal success/error handling continues for other responses
 
 ## Verification Results
 
 1. TypeScript compiles: PASS
 2. generate2FAPageHtml exists: PASS
-3. GET /auth/2fa route exists: PASS
+3. GET /auth/totp route exists (legacy /auth/2fa alias retained): PASS
 4. 2fa_required redirect: PASS
 
 ## Deviations from Plan

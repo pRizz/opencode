@@ -80,7 +80,7 @@ Each task was committed atomically:
 
 - Device trust cookie cleared on all logout paths (both /logout and /logout/all) for consistency
 - Status endpoint verifies cookie validity before reporting deviceTrusted (prevents false positives)
-- TOTP setup link opens /auth/2fa/setup in new tab (placeholder for future setup page)
+- TOTP setup link opens /auth/totp/setup in new tab (legacy /auth/2fa/setup alias retained)
 
 ## Deviations from Plan
 

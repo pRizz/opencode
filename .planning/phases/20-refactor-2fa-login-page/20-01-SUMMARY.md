@@ -86,7 +86,7 @@ None - no external service configuration required.
 
 ## Next Phase Readiness
 
-Ready to wire `/auth/login/2fa` to the built `2fa.html` output.
+Ready to wire `/auth/login/totp` (legacy `/auth/login/2fa` alias retained) to the built `2fa.html` output.
 
 ---
 

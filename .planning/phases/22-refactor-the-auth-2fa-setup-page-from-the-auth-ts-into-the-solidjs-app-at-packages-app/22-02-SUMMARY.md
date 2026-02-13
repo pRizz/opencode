@@ -38,7 +38,7 @@ completed: 2026-02-01
 
 # Phase 22 Plan 02 Summary
 
-**/auth/2fa/setup now loads the built 2fa-setup.html and injects setup bootstrap data, removing the inline template.**
+**/auth/totp/setup now loads the built 2fa-setup.html and injects setup bootstrap data (legacy `/auth/2fa/setup` alias retained), removing the inline template.**
 
 ## Performance
 
@@ -80,7 +80,7 @@ None - no external service configuration required.
 
 ## Next Phase Readiness
 
-Ready for manual verification of `/auth/2fa/setup` in a local dev server session.
+Ready for manual verification of `/auth/totp/setup` (or legacy `/auth/2fa/setup`) in a local dev server session.
 
 ---
 

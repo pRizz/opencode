@@ -34,7 +34,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 19: Refactor auth login page** - Replace string-based login HTML with a proper SolidJS-based login page in `packages/opencode/src/server/routes/auth.ts`
 - [ ] **Phase 20: Refactor TOTP verification page** - Refactor generate2FAPageHtml so the content is moved and integrated with the project at `packages/app` instead of the large string in code
 - [ ] **Phase 21: Allow the user to add and manage SSH keys in the opencode webapp** - Allow the user to add and manage SSH keys in the opencode webapp; when attempting to clone via git SSH, prompt for a key if none are registered; add CRUD in settings; install keys in ~/.ssh; update ssh config; add server routes as needed
-- [ ] **Phase 22: Refactor the /auth/2fa/setup page from auth.ts into the SolidJS app at packages/app** - Refactor the /auth/2fa/setup page from auth.ts into the SolidJS app at packages/app
+- [ ] **Phase 22: Refactor the /auth/totp/setup page from auth.ts into the SolidJS app at packages/app** - Refactor the /auth/totp/setup page from auth.ts into the SolidJS app at packages/app
 - [ ] **Phase 23: During TOTP setup, make the server automatically set the .google_authenticator file in the appropriate user's home folder, instead of asking the user to run the command on their machine** - During TOTP setup, make the server automatically set the .google_authenticator file in the appropriate user's home folder, instead of asking the user to run the command on their machine
 - [ ] **Phase 24: Remote Terminal Reliability** - Investigate and fix remote terminal failures in the web app (PTY session creation, broker/session lifecycle, and /pty 500s)
 - [ ] **Phase 25: Allow ssh keys to be generated in the webapp and allow the user to freely see the public key; this functionality should be integrated with the existing ssh key manager** - Allow ssh keys to be generated in the webapp and allow the user to freely see the public key; this functionality should be integrated with the existing ssh key manager
@@ -236,7 +236,7 @@ Plans:
 - [x] 10-02-PLAN.md — Broker protocol extension (CheckTotp, AuthenticateOtp methods)
 - [x] 10-03-PLAN.md — Token utilities (device trust JWT, TOTP token JWT)
 - [x] 10-04-PLAN.md — BrokerClient TOTP methods (checkTotp, authenticateOtp)
-- [x] 10-05-PLAN.md — Auth routes TOTP flow (2fa_required response, /login/2fa endpoint)
+- [x] 10-05-PLAN.md — Auth routes TOTP flow (2fa_required response, /login/totp endpoint with legacy /login/2fa alias)
 - [x] 10-06-PLAN.md — TOTP verification page (countdown timer, auto-submit, remember device)
 - [x] 10-07-PLAN.md — Setup wizard (QR code generation, verification)
 - [x] 10-08-PLAN.md — Device trust UI (revoke device, setup link in dropdown)
@@ -416,7 +416,7 @@ Plans:
 **Details:**
 Allow the user to add and manage SSH keys in the opencode webapp; when attempting to clone via git SSH, prompt for a key if none are registered; add CRUD in settings; install keys in ~/.ssh; update ssh config; add server routes as needed.
 
-### Phase 22: Refactor the /auth/2fa/setup page from auth.ts into the SolidJS app at packages/app
+### Phase 22: Refactor the /auth/totp/setup page from auth.ts into the SolidJS app at packages/app
 
 **Goal:** [To be planned]
 **Depends on:** Phase 21

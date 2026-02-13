@@ -59,8 +59,8 @@ TOTP setup wizard with QR code generation for authenticator app enrollment.
 
 ### 3. Setup Wizard Endpoints
 
-- `GET /auth/2fa/setup` - Requires authenticated session, shows wizard with fresh QR code
-- `POST /auth/2fa/verify` - Validates OTP code to confirm setup is working
+- `GET /auth/totp/setup` - Requires authenticated session, shows wizard with fresh QR code (legacy `/auth/2fa/setup` alias retained)
+- `POST /auth/totp/verify` - Validates OTP code to confirm setup is working (legacy `/auth/2fa/verify` alias retained)
 
 ## Technical Details
 
@@ -78,7 +78,7 @@ TOTP setup wizard with QR code generation for authenticator app enrollment.
 
 ### Setup Flow
 
-1. User visits /auth/2fa/setup (must be logged in)
+1. User visits /auth/totp/setup (must be logged in; legacy /auth/2fa/setup alias retained)
 2. Page generates fresh secret and QR code
 3. User scans QR in authenticator app
 4. User runs google-authenticator command on server with --secret flag
@@ -107,7 +107,7 @@ None - plan executed exactly as written.
 TOTP setup wizard is complete. Users can now:
 
 1. Log in with password
-2. Visit /auth/2fa/setup to see QR code
+2. Visit /auth/totp/setup to see QR code
 3. Add account to their authenticator app
 4. Run server command to enable PAM OTP
 5. Verify setup with a test code

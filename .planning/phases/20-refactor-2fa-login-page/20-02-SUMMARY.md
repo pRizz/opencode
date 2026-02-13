@@ -38,7 +38,7 @@ completed: 2026-01-31
 
 # Phase 20 Plan 02 Summary
 
-**/auth/login/2fa now loads the built 2fa.html and injects TOTP bootstrap data, removing the inline template.**
+**/auth/login/totp now loads the built 2fa.html and injects TOTP bootstrap data (legacy `/auth/login/2fa` alias retained), removing the inline template.**
 
 ## Performance
 
@@ -80,7 +80,7 @@ None - no external service configuration required.
 
 ## Next Phase Readiness
 
-Ready for manual verification of `/auth/login/2fa` in a local dev server session.
+Ready for manual verification of `/auth/login/totp` (or legacy `/auth/login/2fa`) in a local dev server session.
 
 ---
 

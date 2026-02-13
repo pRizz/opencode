@@ -55,7 +55,7 @@ completed: 2026-01-31
 ## Accomplishments
 
 - Added broker client support for `setupotp` and mapped setup status into the bootstrap payload.
-- Updated `/auth/2fa/setup` to auto-provision the file, include manual fallback only on failure, and register setup sessions.
+- Updated `/auth/totp/setup` (legacy `/auth/2fa/setup` alias retained) to auto-provision the file, include manual fallback only on failure, and register setup sessions.
 - Adjusted TOTP setup UI to show status banners and hide the manual command step by default.
 - Updated HTTPS login tests to validate bootstrap flags instead of inline warning HTML.
 

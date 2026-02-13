@@ -111,7 +111,7 @@ Body: { username, password }
 Response: { success: false, error: "2fa_required", twoFactorToken: "<short-lived-jwt>" }
 
 // Step 2: OTP validation
-POST /auth/login/2fa
+POST /auth/login/totp (legacy alias: /auth/login/2fa)
 Body: { twoFactorToken, code, rememberDevice? }
 Response: { success: true, user: {...} }
 ```

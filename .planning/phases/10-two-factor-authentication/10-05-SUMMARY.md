@@ -13,7 +13,7 @@ requires:
 provides:
   - Server token secret module for JWT signing
   - TOTP-aware login flow with device trust bypass
-  - POST /auth/login/2fa endpoint for OTP validation
+  - POST /auth/login/totp endpoint for OTP validation (legacy /auth/login/2fa alias retained)
   - Device trust cookie setting on successful TOTP
 affects: [10-06, login-ui-2fa, session-management]
 
@@ -64,7 +64,7 @@ completed: 2026-01-24
 - Server token secret module for JWT signing across all TOTP operations
 - Login endpoint extended to check TOTP and return 2fa_required response
 - Device trust cookie verification to bypass TOTP on trusted devices
-- POST /auth/login/2fa endpoint for OTP validation with device trust setting
+- POST /auth/login/totp endpoint for OTP validation with device trust setting (legacy /auth/login/2fa alias retained)
 
 ## Task Commits
 
@@ -72,7 +72,7 @@ Each task was committed atomically:
 
 1. **Task 1: Create server token secret module** - `cc057c3b9` (feat)
 2. **Task 2: Modify login endpoint for TOTP flow** - `2550e6a1d` (feat)
-3. **Task 3: Add POST /auth/login/2fa endpoint** - `398119b61` (feat)
+3. **Task 3: Add POST /auth/login/totp endpoint** - `398119b61` (feat, legacy /auth/login/2fa alias retained)
 
 ## Files Created/Modified
 

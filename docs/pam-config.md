@@ -581,7 +581,7 @@ This creates `~/.google_authenticator` with the TOTP secret.
 
 #### Web UI Setup (optional)
 
-OpenCode provides a web-based TOTP setup wizard at `/auth/2fa/setup`. This:
+OpenCode provides a web-based TOTP setup wizard at `/auth/totp/setup` (legacy alias: `/auth/2fa/setup`). This:
 
 - Generates QR code in browser
 - Walks user through authenticator app setup

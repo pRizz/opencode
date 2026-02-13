@@ -44,12 +44,12 @@ result: pass (Playwright shows "Authentication failed" after invalid login)
 
 ### 6. TOTP required redirect
 
-expected: Valid credentials with TOTP enabled redirect to `/auth/2fa` with token params.
+expected: Valid credentials with TOTP enabled redirect to `/auth/totp` with token params (legacy `/auth/2fa` alias retained).
 result: skipped (per user request)
 
 ### 7. TOTP setup required redirect
 
-expected: Users needing setup are redirected to `/auth/2fa/setup` (or `?required=1`).
+expected: Users needing setup are redirected to `/auth/totp/setup` (or `?required=1`; legacy `/auth/2fa/setup` alias retained).
 result: skipped (per user request)
 
 ### 8. Mobile responsiveness

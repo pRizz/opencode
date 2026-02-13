@@ -57,7 +57,7 @@ score: 4/4 must-haves verified
 | handler.rs AuthenticateOtp | validate_otp()            | function call   | WIRED  | Line 211                                                                     |
 | session-indicator.tsx      | /auth/device-trust/status | fetch           | WIRED  | Line 42                                                                      |
 | session-indicator.tsx      | /auth/device-trust/revoke | fetch           | WIRED  | Line 99                                                                      |
-| TOTP page JS               | /auth/login/2fa           | fetch           | WIRED  | Line 759 in generate2FAPageHtml                                              |
+| TOTP page JS               | /auth/login/totp          | fetch           | WIRED  | Line 759 in generate2FAPageHtml (legacy /auth/login/2fa alias retained)      |
 | login page JS              | 2fa_required redirect     | window.location | WIRED  | Line 438-448 in generateLoginPageHtml                                        |
 
 ### Requirements Coverage
@@ -79,7 +79,7 @@ No anti-patterns detected. All implementations are substantive with proper error
 ### 1. TOTP Login Flow End-to-End
 
 **Test:** Enable TOTP for a user (run google-authenticator command), then attempt to login
-**Expected:** After password success, redirects to /auth/2fa page with countdown timer, entering correct TOTP code completes login
+**Expected:** After password success, redirects to /auth/totp page with countdown timer (legacy `/auth/2fa` alias retained), entering correct TOTP code completes login
 **Why human:** Requires actual PAM setup and authenticator app
 
 ### 2. Device Trust "Remember This Device"
@@ -90,7 +90,7 @@ No anti-patterns detected. All implementations are substantive with proper error
 
 ### 3. TOTP Setup Wizard QR Code
 
-**Test:** Visit /auth/2fa/setup while logged in
+**Test:** Visit /auth/totp/setup while logged in (legacy `/auth/2fa/setup` alias also supported)
 **Expected:** QR code is scannable by authenticator app, shows correct issuer (opencode) and username
 **Why human:** QR code must be visually verified and scanned
 

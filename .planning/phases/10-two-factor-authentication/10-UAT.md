@@ -34,12 +34,12 @@ result: pass
 
 ### 2. TOTP Setup Wizard Access
 
-expected: When logged in, navigate to /auth/2fa/setup. Page shows QR code, manual secret for backup, server command to run (google-authenticator), and a verification form.
+expected: When logged in, navigate to /auth/totp/setup (legacy /auth/2fa/setup alias supported). Page shows QR code, manual secret for backup, server command to run (google-authenticator), and a verification form.
 result: pass
 
 ### 3. QR Code in Setup Wizard
 
-expected: The QR code in /auth/2fa/setup can be scanned by an authenticator app (Google Authenticator, Authy, etc.). The manual secret is displayed below for manual entry if scanning fails.
+expected: The QR code in /auth/totp/setup can be scanned by an authenticator app (Google Authenticator, Authy, etc.). The manual secret is displayed below for manual entry if scanning fails.
 result: pass
 
 ### 4. Setup Verification Form
@@ -49,7 +49,7 @@ result: pass
 
 ### 5. Login with TOTP - Password Step
 
-expected: With TOTP configured for user, login with username/password. On success, you're redirected to /auth/2fa page (not directly to app) showing "Enter verification code for [username]".
+expected: With TOTP configured for user, login with username/password. On success, you're redirected to /auth/totp page (legacy /auth/2fa alias supported; not directly to app) showing "Enter verification code for [username]".
 result: pass
 
 ### 6. TOTP Verification Page - Countdown Timer

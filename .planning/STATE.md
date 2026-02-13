@@ -184,7 +184,7 @@ Recent decisions affecting current work:
 - Phase 19 added: Refactor auth login page (replace string-based login HTML with a SolidJS-based page)
 - Phase 20 added: Refactor TOTP verification page (move generate2FAPageHtml content into packages/app)
 - Phase 21 added: Allow the user to add and manage SSH keys in the opencode webapp; prompt for SSH key on clone; add settings CRUD; install keys in ~/.ssh; update ssh config; add server routes as needed
-- Phase 22 added: Refactor the /auth/2fa/setup page from auth.ts into the SolidJS app at packages/app
+- Phase 22 added: Refactor the /auth/totp/setup page from auth.ts into the SolidJS app at packages/app
 - Phase 23 added: During TOTP setup, make the server automatically set the .google_authenticator file in the appropriate user's home folder, instead of asking the user to run the command on their machine
 - Phase 25 added: Allow ssh keys to be generated in the webapp and allow the user to freely see the public key; this functionality should be integrated with the existing ssh key manager
 
