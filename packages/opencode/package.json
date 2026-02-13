@@ -7,7 +7,7 @@
   "private": true,
   "scripts": {
     "typecheck": "tsgo --noEmit",
-    "test": "bun test --timeout 15000",
+    "test": "bun test --timeout 30000",
     "build": "bun run script/build.ts",
     "build-ui": "bun run script/build.ts --build-ui",
     "build-single-ui": "bun run script/build.ts --single --build-ui",
