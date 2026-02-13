@@ -15,6 +15,9 @@ const defaultPreference: TotpPreference = {
   skipSetup: false,
 }
 
+const CANONICAL_PREFERENCE_PATH_PREFIX = ["auth", "totp", "preference"]
+const LEGACY_PREFERENCE_PATH_PREFIX = ["auth", "2fa", "preference"]
+
 function normalizePreference(input: unknown): TotpPreference {
   const parsed = preferenceSchema.safeParse(input)
   if (!parsed.success) return { ...defaultPreference }
@@ -25,8 +28,18 @@ function normalizePreference(input: unknown): TotpPreference {
 }
 
 export async function getTotpPreference(username: string): Promise<TotpPreference> {
+  const canonicalPath = [...CANONICAL_PREFERENCE_PATH_PREFIX, username]
+  const legacyPath = [...LEGACY_PREFERENCE_PATH_PREFIX, username]
+
   try {
-    const stored = await Storage.read<TotpPreference>(["auth", "2fa", "preference", username])
+    const stored = await Storage.read<TotpPreference>(canonicalPath)
+    return normalizePreference(stored)
+  } catch (err) {
+    if (!(err instanceof Storage.NotFoundError)) throw err
+  }
+
+  try {
+    const stored = await Storage.read<TotpPreference>(legacyPath)
     return normalizePreference(stored)
   } catch (err) {
     if (err instanceof Storage.NotFoundError) return { ...defaultPreference }
@@ -35,11 +48,16 @@ export async function getTotpPreference(username: string): Promise<TotpPreferenc
 }
 
 export async function setTotpPreference(username: string, next: TotpPreference): Promise<void> {
+  const canonicalPath = [...CANONICAL_PREFERENCE_PATH_PREFIX, username]
+  const legacyPath = [...LEGACY_PREFERENCE_PATH_PREFIX, username]
   const normalized = normalizePreference(next)
-  await Storage.write(["auth", "2fa", "preference", username], {
+  const payload = {
     ...normalized,
     updatedAt: Date.now(),
-  })
+  }
+  await Storage.write(canonicalPath, payload)
+  // Keep legacy key in sync for older clients still reading auth/2fa preference.
+  await Storage.write(legacyPath, payload)
 }
 
 /** @deprecated Use getTotpPreference. */
