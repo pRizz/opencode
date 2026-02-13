@@ -10,11 +10,13 @@ type TwoFactorBootstrap = {
 declare global {
   interface Window {
     __OPENCODE_TOTP__?: TwoFactorBootstrap
+    /** @deprecated Legacy bootstrap key retained for backward compatibility. */
     __OPENCODE_2FA__?: TwoFactorBootstrap
   }
 }
 
 export function TwoFactorApp() {
+  // Prefer TOTP bootstrap key, but preserve the legacy 2FA key fallback.
   const bootstrap = window.__OPENCODE_TOTP__ ?? window.__OPENCODE_2FA__
   const token = bootstrap?.token ?? ""
   const username = bootstrap?.username ?? ""

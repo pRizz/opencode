@@ -417,6 +417,7 @@ function injectTwoFactorBootstrap(
   template: string,
   bootstrap: { token: string; username: string; timeoutSeconds: number },
 ): string {
+  // Set the new TOTP key and mirror to legacy 2FA key for older clients.
   const script = `<script>window.__OPENCODE_TOTP__ = ${JSON.stringify(bootstrap)};window.__OPENCODE_2FA__ = window.__OPENCODE_TOTP__;</script>`
   if (template.includes("</head>")) {
     return template.replace("</head>", `${script}\n</head>`)
@@ -448,6 +449,7 @@ async function loadTwoFactorSetupTemplate(uiDir: string): Promise<string> {
 }
 
 function injectTwoFactorSetupBootstrap(template: string, bootstrap: TwoFactorSetupBootstrap): string {
+  // Set the new TOTP setup key and mirror to legacy 2FA setup key for older clients.
   const script = `<script>window.__OPENCODE_TOTP_SETUP__ = ${JSON.stringify(bootstrap)};window.__OPENCODE_2FA_SETUP__ = window.__OPENCODE_TOTP_SETUP__;</script>`
   if (template.includes("</head>")) {
     return template.replace("</head>", `${script}\n</head>`)
