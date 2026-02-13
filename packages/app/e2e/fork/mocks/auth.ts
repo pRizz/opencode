@@ -124,7 +124,7 @@ export async function mockTwoFactorSetupStart(page: Page, input: TwoFactorSetupS
     alreadyConfigured: input.alreadyConfigured ?? false,
     required: input.required ?? false,
     setupStatus: input.setupStatus ?? "pending_verification",
-    setupMessage: input.setupMessage ?? "We'll create your 2FA configuration after you verify your code.",
+    setupMessage: input.setupMessage ?? "We'll create your TOTP configuration after you verify your code.",
   }
 
   await page.route("**/auth/2fa/setup/start", async (route) => {

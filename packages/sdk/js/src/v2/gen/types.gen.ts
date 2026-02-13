@@ -1716,11 +1716,11 @@ export type AuthConfig = {
    */
   csrfAllowlist?: Array<string>
   /**
-   * Enable two-factor authentication support
+   * Enable TOTP authentication support
    */
   twoFactorEnabled?: boolean
   /**
-   * Require users to set up 2FA before accessing the app (implies twoFactorEnabled)
+   * Require users to set up TOTP before accessing the app (implies twoFactorEnabled)
    */
   twoFactorRequired?: boolean
   twoFactorTokenTimeout?: DurationString
@@ -2652,7 +2652,7 @@ export type AuthLogin2FaErrors = {
    */
   401: unknown
   /**
-   * 2FA not enabled
+   * TOTP not enabled
    */
   403: unknown
   /**
@@ -2663,7 +2663,7 @@ export type AuthLogin2FaErrors = {
 
 export type AuthLogin2FaResponses = {
   /**
-   * 2FA successful
+   * TOTP successful
    */
   200: {
     success: true

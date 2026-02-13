@@ -11,7 +11,7 @@ export { getUserInfo, type UnixUserInfo } from "./user-info.js"
 // Re-export device trust token utilities
 export * from "./device-trust.js"
 
-// Re-export 2FA token utilities
+// Re-export TOTP token utilities
 export * from "./two-factor-token.js"
 
 // Re-export TOTP setup utilities

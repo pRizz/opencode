@@ -195,9 +195,9 @@ export const authMiddleware = createMiddleware<AuthEnv>(async (c, next) => {
     return c.redirect("/auth/passkey/setup?required=1")
   }
 
-  // Check if user needs to complete 2FA setup
+  // Check if user needs to complete TOTP setup
   if (session.twoFactorPending && authConfig.twoFactorRequired) {
-    // User must complete 2FA setup before accessing other pages
+    // User must complete TOTP setup before accessing other pages
     const isApiCall = () => {
       const accept = c.req.header("Accept") ?? ""
       return !accept.includes("text/html")

@@ -327,7 +327,7 @@ async fn handle_authenticate_otp(
     }
 }
 
-/// Handle a 2FA configuration check request.
+/// Handle a TOTP configuration check request.
 ///
 /// Checks if the user has a .google_authenticator file in their home directory.
 /// This is a simple file existence check, no authentication required.
@@ -343,7 +343,7 @@ async fn handle_check_2fa(request: Request) -> Response {
         id = %request.id,
         username = %username,
         home = %home,
-        "checking 2FA configuration"
+        "checking TOTP configuration"
     );
 
     let has_2fa = has_2fa_configured(home);
@@ -352,17 +352,17 @@ async fn handle_check_2fa(request: Request) -> Response {
         info!(
             id = %request.id,
             username = %username,
-            "user has 2FA configured"
+            "user has TOTP configured"
         );
         Response::success(&request.id)
     } else {
         debug!(
             id = %request.id,
             username = %username,
-            "user does not have 2FA configured"
+            "user does not have TOTP configured"
         );
-        // Use failure to indicate no 2FA - client checks success field
-        Response::failure(&request.id, "2FA not configured")
+        // Use failure to indicate no TOTP - client checks success field
+        Response::failure(&request.id, "TOTP not configured")
     }
 }
 
@@ -437,11 +437,11 @@ async fn handle_setup_otp(request: Request, user_sessions: &UserSessionStore) ->
 
 /// Handle an OTP configuration check request.
 ///
-/// Verifies the server's OTP/2FA configuration:
+/// Verifies the server's OTP/TOTP configuration:
 /// - PAM google_authenticator module is installed
 /// - PAM service file exists (will attempt to auto-create if missing)
 ///
-/// This is used to provide specific error messages when 2FA validation fails
+/// This is used to provide specific error messages when TOTP validation fails
 /// due to server misconfiguration rather than invalid codes.
 async fn handle_check_otp_config(request: Request, config: &BrokerConfig) -> Response {
     // Verify params (though CheckOtpConfigParams is empty)

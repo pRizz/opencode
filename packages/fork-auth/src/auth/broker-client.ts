@@ -257,7 +257,7 @@ function classifyBrokerError(error: unknown): { reason: BrokerUnavailableReason;
 /**
  * Result of OTP server configuration check.
  *
- * Provides detailed information about why 2FA might not be working,
+ * Provides detailed information about why TOTP might not be working,
  * allowing administrators to diagnose and fix server misconfigurations.
  */
 export interface OtpConfigResult {
@@ -539,11 +539,11 @@ export class BrokerClient {
   }
 
   /**
-   * Check if user has 2FA configured.
+   * Check if user has TOTP configured.
    *
    * @param username - Username to check
    * @param home - User's home directory (for .google_authenticator check)
-   * @returns true if user has 2FA configured, false otherwise
+   * @returns true if user has TOTP configured, false otherwise
    */
   async check2fa(username: string, home: string): Promise<boolean> {
     const id = crypto.randomUUID()
@@ -560,7 +560,7 @@ export class BrokerClient {
       const response = await this.sendRequest(request)
       return response.id === id && response.success
     } catch {
-      // On error, assume no 2FA (fail open for detection)
+      // On error, assume no TOTP (fail open for detection)
       return false
     }
   }
@@ -568,7 +568,7 @@ export class BrokerClient {
   /**
    * Check OTP server configuration.
    *
-   * Verifies that the server is properly configured for 2FA/OTP validation:
+   * Verifies that the server is properly configured for TOTP/OTP validation:
    * 1. PAM google_authenticator module is installed
    * 2. PAM service file exists at /etc/pam.d/opencode-otp
    *

@@ -129,7 +129,7 @@ test("passkeys tab remains reachable", async ({ page, gotoSession }) => {
   await expect(settings.getByRole("button", { name: "Add passkey" })).toBeVisible()
 })
 
-test("2FA tab shows setup and disabled manage when not configured", async ({ page, gotoSession }) => {
+test("TOTP tab shows setup and disabled manage when not configured", async ({ page, gotoSession }) => {
   await mockAuthenticatedAuth(page, {
     deviceTrust: {
       twoFactorConfigured: false,
@@ -147,7 +147,7 @@ test("2FA tab shows setup and disabled manage when not configured", async ({ pag
   await expect(settings.locator(settingsAuth2faManageDisabledReasonSelector)).toBeVisible()
 })
 
-test("2FA inline setup enables manage panel without opening new tab", async ({ page, gotoSession }) => {
+test("TOTP inline setup enables manage panel without opening new tab", async ({ page, gotoSession }) => {
   await mockAuthenticatedAuth(page)
 
   let deviceTrustCalls = 0
@@ -189,14 +189,14 @@ test("2FA inline setup enables manage panel without opening new tab", async ({ p
   await expect(settings.locator(settingsAuth2faManageDisabledReasonSelector)).toBeVisible()
 
   await settings.locator("#two-factor-setup-code").fill("123456")
-  await settings.getByRole("button", { name: "Verify & Enable 2FA" }).click()
+  await settings.getByRole("button", { name: "Verify & Enable TOTP" }).click()
 
   await expect.poll(() => verifyCalls).toBe(1)
   await expect(settings.locator('[data-action="settings-auth-2fa-manage-panel"]')).toBeVisible()
   await expect.poll(() => popupCount).toBe(0)
 })
 
-test("2FA manage actions hit reset and disable endpoints", async ({ page, gotoSession }) => {
+test("TOTP manage actions hit reset and disable endpoints", async ({ page, gotoSession }) => {
   await mockAuthenticatedAuth(page)
   await mockTwoFactorSetupStart(page)
 

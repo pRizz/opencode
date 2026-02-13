@@ -1,8 +1,8 @@
 import { SignJWT, jwtVerify, type JWTPayload } from "jose"
 
 /**
- * 2FA token payload - issued after password success, consumed by OTP validation.
- * Contains user info needed to create session after successful 2FA.
+ * TOTP token payload - issued after password success, consumed by OTP validation.
+ * Contains user info needed to create session after successful TOTP.
  */
 interface TwoFactorTokenPayload extends JWTPayload {
   /** Username */
@@ -20,7 +20,7 @@ interface TwoFactorTokenPayload extends JWTPayload {
 }
 
 /**
- * User info needed for session creation after 2FA.
+ * User info needed for session creation after TOTP.
  */
 export interface TwoFactorUserInfo {
   username: string
@@ -31,7 +31,7 @@ export interface TwoFactorUserInfo {
 }
 
 /**
- * Create a short-lived 2FA token after password validation.
+ * Create a short-lived TOTP token after password validation.
  *
  * @param userInfo - User info from password auth
  * @param timeoutSeconds - Token validity (default 5 minutes = 300 seconds)
@@ -61,7 +61,7 @@ export async function create2FAToken(
 }
 
 /**
- * Verify a 2FA token and extract user info.
+ * Verify a TOTP token and extract user info.
  *
  * @param token - The JWT token to verify
  * @param secret - Signing secret

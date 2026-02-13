@@ -1,6 +1,6 @@
-//! OTP (One-Time Password) module for two-factor authentication.
+//! OTP (One-Time Password) module for TOTP authentication.
 //!
-//! Provides detection and validation of TOTP-based 2FA using pam_google_authenticator.
+//! Provides detection and validation of TOTP-based authentication using pam_google_authenticator.
 
 use std::ffi::OsString;
 use std::fs;
@@ -65,7 +65,7 @@ fn find_pam_module() -> Option<String> {
     None
 }
 
-/// Check the OTP/2FA server configuration.
+/// Check the OTP/TOTP server configuration.
 ///
 /// Verifies:
 /// 1. PAM google_authenticator module is installed
@@ -155,7 +155,7 @@ pub fn check_otp_config(pam_service: &str) -> OtpConfigStatus {
     status
 }
 
-/// Check if a user has 2FA configured.
+/// Check if a user has TOTP configured.
 ///
 /// Looks for the presence of a `.google_authenticator` file in the user's home directory.
 /// This file is created by `google-authenticator` when setting up TOTP.
@@ -179,7 +179,7 @@ pub fn has_2fa_configured(home: &str) -> bool {
                 home = home,
                 auth_file = ?auth_file,
                 exists = exists,
-                "2FA configuration check"
+                "TOTP configuration check"
             );
             exists
         }
@@ -187,7 +187,7 @@ pub fn has_2fa_configured(home: &str) -> bool {
             tracing::debug!(
                 home = home,
                 auth_file = ?auth_file,
-                "2FA configuration file not found"
+                "TOTP configuration file not found"
             );
             false
         }

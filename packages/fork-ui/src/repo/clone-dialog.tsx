@@ -555,7 +555,7 @@ export function CloneDialog(props: CloneDialogProps) {
                   <li>Rotate or revoke stale keys and remove old keys in Settings &gt; Repositories.</li>
                   <li>Treat the opencode host as a key-holding machine: keep access tight and software updated.</li>
                   <li>
-                    For cloud-hosted usage, enforce strong account security (for example 2FA) and minimize sharing.
+                    For cloud-hosted usage, enforce strong account security (for example TOTP) and minimize sharing.
                   </li>
                 </ul>
               </div>

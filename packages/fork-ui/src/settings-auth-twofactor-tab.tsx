@@ -8,7 +8,7 @@ export function SettingsAuthTwoFactorTab() {
   const auth = useSettingsAuth()
 
   const manageDisabled = () => !auth.state.twoFactorConfigured
-  const manageDisabledReason = () => "Set up 2FA first to unlock manage actions."
+  const manageDisabledReason = () => "Set up TOTP first to unlock manage actions."
 
   return (
     <div
@@ -17,7 +17,7 @@ export function SettingsAuthTwoFactorTab() {
     >
       <div class="sticky top-0 z-10 bg-[linear-gradient(to_bottom,var(--surface-raised-stronger-non-alpha)_calc(100%_-_24px),transparent)]">
         <div class="flex flex-col gap-1 pt-6 pb-8">
-          <h2 class="text-16-medium text-text-strong">2FA</h2>
+          <h2 class="text-16-medium text-text-strong">TOTP</h2>
         </div>
       </div>
 
@@ -25,7 +25,7 @@ export function SettingsAuthTwoFactorTab() {
         <div class="rounded-lg bg-surface-raised-base p-4" data-action="settings-auth-2fa-setup-card">
           <Show
             when={auth.state.twoFactorEnabled}
-            fallback={<div class="text-13-regular text-text-weak">2FA is disabled on this server.</div>}
+            fallback={<div class="text-13-regular text-text-weak">TOTP is disabled on this server.</div>}
           >
             <TwoFactorSetupFlow
               embedded

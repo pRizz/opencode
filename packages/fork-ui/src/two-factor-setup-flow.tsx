@@ -86,12 +86,12 @@ export function TwoFactorSetupFlow(props: TwoFactorSetupFlowProps) {
 
       const body = (await res.json().catch(() => ({}))) as Partial<TwoFactorSetupBootstrap> & { message?: string }
       if (!res.ok) {
-        setError(body.message ?? "Unable to start 2FA setup.")
+        setError(body.message ?? "Unable to start TOTP setup.")
         return
       }
 
       if (!body.secret || !body.qrCodeSvg || !body.username || !body.setupStatus) {
-        setError("2FA setup response was incomplete.")
+        setError("TOTP setup response was incomplete.")
         return
       }
 
@@ -106,7 +106,7 @@ export function TwoFactorSetupFlow(props: TwoFactorSetupFlowProps) {
         setupMessage: body.setupMessage,
       })
     } catch {
-      setError("Unable to start 2FA setup.")
+      setError("Unable to start TOTP setup.")
     } finally {
       setLoadingBootstrap(false)
     }
@@ -152,7 +152,7 @@ export function TwoFactorSetupFlow(props: TwoFactorSetupFlowProps) {
 
     const setup = setupData()
     if (!setup) {
-      setError("Unable to start 2FA setup.")
+      setError("Unable to start TOTP setup.")
       return
     }
 
@@ -192,7 +192,7 @@ export function TwoFactorSetupFlow(props: TwoFactorSetupFlowProps) {
       }
 
       if (embedded()) {
-        setSuccess("2FA has been enabled.")
+        setSuccess("TOTP has been enabled.")
         setCode("")
         setSubmitting(false)
         await props.onConfigured?.()
@@ -259,7 +259,7 @@ export function TwoFactorSetupFlow(props: TwoFactorSetupFlowProps) {
       }
 
       const data = (await res.json().catch(() => ({}))) as { message?: string }
-      setError(data.message || "Failed to disable 2FA.")
+      setError(data.message || "Failed to disable TOTP.")
       setDisableSubmitting(false)
     } catch {
       setError("Connection error")
@@ -342,13 +342,13 @@ export function TwoFactorSetupFlow(props: TwoFactorSetupFlowProps) {
 
       <div class={embedded() ? "flex flex-col gap-3" : "two-factor-page"}>
         <div class={embedded() ? "rounded-lg border border-border-weak-base p-4" : "two-factor-card"}>
-          <div class="text-15-medium text-text-strong">Setup 2FA</div>
+          <div class="text-15-medium text-text-strong">Setup TOTP</div>
           <Show when={setupData()} fallback={<div class="mt-2 text-13-regular text-text-weak">Preparing setup...</div>}>
             {(setup) => (
               <>
                 <Show when={required() && !embedded()}>
                   <div class="mt-3 rounded-md border border-info-weak-base bg-info-weak-base/30 p-3 text-12-regular text-info-strong">
-                    Two-factor authentication is required for this account.
+                    TOTP authentication is required for this account.
                   </div>
                 </Show>
 
@@ -363,8 +363,18 @@ export function TwoFactorSetupFlow(props: TwoFactorSetupFlowProps) {
                 </Show>
 
                 <Show when={Boolean(setup().qrCodeSvg)}>
-                  <div class="mt-3 flex justify-center rounded-md border border-border-weak-base bg-white p-3">
-                    <div innerHTML={setup().qrCodeSvg} />
+                  <div class="mt-4 flex justify-center">
+                    <div class="relative overflow-hidden rounded-[26px] border border-sky-200/80 bg-white p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.42)_inset,0_14px_30px_rgba(14,165,233,0.2)]">
+                      <div class="rounded-[18px] bg-[#f6fdff] p-2 [&>svg]:block [&>svg]:h-[210px] [&>svg]:w-[210px] [&>svg]:brightness-110">
+                        <div innerHTML={setup().qrCodeSvg} />
+                      </div>
+                      <div class="pointer-events-none absolute left-1/2 top-1/2 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-xl border border-white/90 bg-black/90 shadow-lg">
+                        <svg viewBox="0 0 80 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5">
+                          <path d="M60 80H20V40H60V80Z" fill="#7dd3fc" />
+                          <path d="M60 20H20V80H60V20ZM80 100H0V0H80V100Z" fill="#e2e8f0" />
+                        </svg>
+                      </div>
+                    </div>
                   </div>
                 </Show>
 
@@ -404,7 +414,7 @@ export function TwoFactorSetupFlow(props: TwoFactorSetupFlowProps) {
                   />
                   <div class="flex justify-end">
                     <Button size="small" variant="secondary" disabled={formDisabled()}>
-                      {submitting() ? "Verifying..." : "Verify & Enable 2FA"}
+                      {submitting() ? "Verifying..." : "Verify & Enable TOTP"}
                     </Button>
                   </div>
                 </form>

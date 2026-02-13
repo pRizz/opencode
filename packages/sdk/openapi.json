@@ -281,11 +281,11 @@
     "/auth/login/2fa": {
       "post": {
         "operationId": "auth.login2fa",
-        "summary": "Complete 2FA login",
+        "summary": "Complete TOTP login",
         "description": "Validate OTP code and complete authentication.",
         "responses": {
           "200": {
-            "description": "2FA successful",
+            "description": "TOTP successful",
             "content": {
               "application/json": {
                 "schema": {
@@ -329,7 +329,7 @@
             "description": "OTP validation failed or token expired"
           },
           "403": {
-            "description": "2FA not enabled"
+            "description": "TOTP not enabled"
           },
           "429": {
             "description": "Rate limit exceeded"
@@ -561,7 +561,7 @@
       "get": {
         "operationId": "auth.deviceTrustStatus",
         "summary": "Get device trust status",
-        "description": "Check if 2FA is enabled and if the current device is trusted.",
+        "description": "Check if TOTP is enabled and if the current device is trusted.",
         "responses": {
           "200": {
             "description": "Device trust status",
@@ -601,7 +601,7 @@
       "post": {
         "operationId": "auth.deviceTrustRevoke",
         "summary": "Revoke device trust",
-        "description": "Clear the device trust cookie to require 2FA on next login.",
+        "description": "Clear the device trust cookie to require TOTP on next login.",
         "responses": {
           "200": {
             "description": "Device trust revoked",
@@ -10862,12 +10862,12 @@
             }
           },
           "twoFactorEnabled": {
-            "description": "Enable two-factor authentication support",
+            "description": "Enable TOTP authentication support",
             "default": true,
             "type": "boolean"
           },
           "twoFactorRequired": {
-            "description": "Require users to set up 2FA before accessing the app (implies twoFactorEnabled)",
+            "description": "Require users to set up TOTP before accessing the app (implies twoFactorEnabled)",
             "default": false,
             "type": "boolean"
           },

@@ -8,13 +8,13 @@ interface ManageTwoFactorDialogProps {
 }
 
 /**
- * Dialog for managing 2FA when already enabled.
+ * Dialog for managing TOTP when already enabled.
  */
 export function ManageTwoFactorDialog(props: ManageTwoFactorDialogProps) {
   const dialog = useDialog()
 
   return (
-    <Dialog title="Manage 2FA" description="Review or reset your two-factor authentication settings.">
+    <Dialog title="Manage TOTP" description="Review or reset your authenticator app settings.">
       <ManageTwoFactorPanel
         onUpdate={props.onUpdate}
         onClose={() => dialog.close()}

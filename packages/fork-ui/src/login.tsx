@@ -855,28 +855,30 @@ export function LoginApp() {
           background: rgba(163,163,163,0.2);
         }
         .bootstrap-panel {
-          border: 1px solid rgba(14,165,233,0.4);
-          border-radius: 10px;
-          padding: 1rem;
-          background: rgba(14,165,233,0.08);
-          margin-bottom: 1.25rem;
+          border: 1px solid rgba(56, 189, 248, 0.42);
+          border-radius: 12px;
+          padding: 1rem 1rem 0.9rem;
+          background: linear-gradient(135deg, rgba(14, 165, 233, 0.18) 0%, rgba(37, 99, 235, 0.08) 100%);
+          box-shadow: inset 0 0 0 1px rgba(186, 230, 253, 0.08);
         }
         .bootstrap-title {
-          font-size: 0.95rem;
+          font-size: 0.98rem;
           font-weight: 700;
-          color: #bae6fd;
-          margin-bottom: 0.5rem;
+          color: #dbeafe;
+          margin-bottom: 0.45rem;
+          letter-spacing: 0.01em;
         }
         .bootstrap-text {
-          color: #bfdbfe;
-          font-size: 0.75rem;
-          line-height: 1.5;
-          margin-bottom: 0.9rem;
+          color: #dbeafe;
+          font-size: 0.76rem;
+          line-height: 1.56;
+          margin-bottom: 0.8rem;
+          opacity: 0.95;
         }
         .bootstrap-step {
-          border-top: 1px solid rgba(148,163,184,0.25);
-          padding-top: 0.85rem;
-          margin-top: 0.85rem;
+          border-top: 1px solid rgba(148, 163, 184, 0.34);
+          padding-top: 0.8rem;
+          margin-top: 0.8rem;
         }
         .bootstrap-step:first-of-type {
           border-top: none;
@@ -884,16 +886,17 @@ export function LoginApp() {
           margin-top: 0;
         }
         .bootstrap-step-title {
-          font-size: 0.78rem;
+          font-size: 0.8rem;
           font-weight: 600;
-          color: #cbd5e1;
+          color: #e2e8f0;
           margin-bottom: 0.55rem;
         }
         .bootstrap-hint {
-          color: #93c5fd;
+          color: #bfdbfe;
           font-size: 0.72rem;
-          line-height: 1.4;
-          margin-top: -0.55rem;
+          line-height: 1.48;
+          margin-top: -0.45rem;
+          opacity: 0.95;
         }
         .bootstrap-hint code {
           background: rgba(2, 132, 199, 0.2);
@@ -1061,7 +1064,9 @@ export function LoginApp() {
           </div>
         </Show>
 
-        <hr class="divider" />
+        <Show when={bootstrapActive}>
+          <hr class="divider" />
+        </Show>
 
         <form onSubmit={handleSubmit}>
           <div class="error" classList={{ visible: Boolean(state.error) }}>

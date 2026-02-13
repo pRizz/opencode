@@ -60,7 +60,7 @@ export function SettingsAuthenticationSection(props: SettingsAuthenticationSecti
             <div class="flex flex-col gap-0.5 min-w-0">
               <span class="text-14-medium text-text-strong">Account</span>
               <span class="text-12-regular text-text-weak">
-                Manage your active session, two-factor authentication, and passkeys.
+                Manage your active session, TOTP authentication, and passkeys.
               </span>
             </div>
             <div class="flex-shrink-0">

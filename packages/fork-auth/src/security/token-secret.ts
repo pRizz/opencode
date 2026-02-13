@@ -2,7 +2,7 @@ import { lazy } from "../../../opencode/src/util/lazy"
 
 /**
  * Generate a cryptographically secure random secret.
- * Used for signing JWTs (device trust, 2FA tokens).
+ * Used for signing JWTs (device trust, TOTP tokens).
  */
 function generateSecret(): Uint8Array {
   return crypto.getRandomValues(new Uint8Array(32))

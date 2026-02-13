@@ -61,7 +61,7 @@ const SettingsAuthenticationTabs: Component = () => {
         </Tabs.Trigger>
         <Tabs.Trigger value="auth-2fa" data-action="settings-auth-tab-2fa" disabled={disabled()}>
           <Icon name="lock-open" />
-          2FA
+          TOTP
         </Tabs.Trigger>
       </div>
     </div>

@@ -72,16 +72,16 @@ export const AuthConfig = z
       .optional()
       .default([])
       .describe("Additional routes to exclude from CSRF validation"),
-    twoFactorEnabled: z.boolean().optional().default(true).describe("Enable two-factor authentication support"),
+    twoFactorEnabled: z.boolean().optional().default(true).describe("Enable TOTP authentication support"),
     twoFactorRequired: z
       .boolean()
       .optional()
       .default(false)
-      .describe("Require users to set up 2FA before accessing the app (implies twoFactorEnabled)"),
+      .describe("Require users to set up TOTP before accessing the app (implies twoFactorEnabled)"),
     twoFactorTokenTimeout: Duration.optional()
       .default("5m")
-      .describe("How long the 2FA token is valid after password success"),
-    deviceTrustDuration: Duration.optional().default("30d").describe("How long 'remember this device' lasts for 2FA"),
+      .describe("How long the TOTP token is valid after password success"),
+    deviceTrustDuration: Duration.optional().default("30d").describe("How long 'remember this device' lasts for TOTP"),
     otpRateLimitMax: z.number().optional().default(5).describe("Maximum OTP attempts per rate limit window"),
     otpRateLimitWindow: Duration.optional().default("15m").describe("OTP rate limit window duration"),
     passkeysEnabled: z.boolean().optional().default(true).describe("Enable WebAuthn passkey authentication"),

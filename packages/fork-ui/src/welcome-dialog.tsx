@@ -60,7 +60,7 @@ export function WelcomeDialog() {
           <div class="text-13-medium text-text-strong">What this fork adds</div>
           <ul class="mt-2 list-disc pl-5 text-12-regular text-text-weak">
             <li>Passkey-first authentication with password and TOTP fallback options.</li>
-            <li>Built-in session and device security controls with passkey/2FA management.</li>
+            <li>Built-in session and device security controls with passkey/TOTP management.</li>
             <li>Repository workflow UX for cloning/managing repos and handling SSH keys in the web app.</li>
             <li>Cloud-oriented security UX, including HTTP safety warnings and session-expiry handling.</li>
           </ul>

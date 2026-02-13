@@ -78,7 +78,7 @@ export function SessionIndicator(props: SessionIndicatorProps) {
   }
 
   /**
-   * Revoke device trust, requiring 2FA on next login.
+   * Revoke device trust, requiring TOTP on next login.
    */
   async function handleForgetDevice(): Promise<void> {
     const ok = await authForgetDevice({ getServerUrl: props.getServerUrl })
@@ -89,12 +89,12 @@ export function SessionIndicator(props: SessionIndicatorProps) {
   }
 
   /**
-   * Navigate to 2FA setup page.
+   * Navigate to TOTP setup page.
    */
   function handleSetup2FA(): void {
     const url = props.getServerUrl()
     if (!url) return
-    // Open 2FA setup in new tab (could be external documentation or setup page)
+    // Open TOTP setup in new tab (could be external documentation or setup page)
     window.open(`${url}/auth/2fa/setup`, "_blank")
   }
 
@@ -146,7 +146,7 @@ export function SessionIndicator(props: SessionIndicatorProps) {
                   onSelect={handleForgetDevice}
                   data-action="settings-authentication-menu-forget-device"
                 >
-                  <DropdownMenu.ItemLabel>Forget this device (require 2FA)</DropdownMenu.ItemLabel>
+                  <DropdownMenu.ItemLabel>Forget this device (require TOTP)</DropdownMenu.ItemLabel>
                 </DropdownMenu.Item>
               </Show>
               <DropdownMenu.Item
@@ -154,7 +154,7 @@ export function SessionIndicator(props: SessionIndicatorProps) {
                 data-action="settings-authentication-menu-2fa"
               >
                 <DropdownMenu.ItemLabel>
-                  {isTwoFactorConfigured() ? "Manage 2FA" : isTwoFactorOptedOut() ? "Enable 2FA" : "Set up 2FA"}
+                  {isTwoFactorConfigured() ? "Manage TOTP" : isTwoFactorOptedOut() ? "Enable TOTP" : "Set up TOTP"}
                 </DropdownMenu.ItemLabel>
               </DropdownMenu.Item>
             </Show>

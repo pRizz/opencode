@@ -51,15 +51,15 @@ impl fmt::Debug for Request {
 #[serde(rename_all = "lowercase")]
 pub enum Method {
     Authenticate,
-    /// Validate OTP code for two-factor authentication.
+    /// Validate OTP code for TOTP authentication.
     AuthenticateOtp,
     /// Write ~/.google_authenticator for the session user.
     SetupOtp,
     /// Remove ~/.google_authenticator for the session user.
     RemoveOtp,
-    /// Check if user has 2FA configured.
+    /// Check if user has TOTP configured.
     Check2fa,
-    /// Check OTP/2FA server configuration (PAM module, service file).
+    /// Check OTP/TOTP server configuration (PAM module, service file).
     CheckOtpConfig,
     Ping,
     /// Spawn a new PTY session for a user.
@@ -143,7 +143,7 @@ impl fmt::Debug for AuthenticateParams {
     }
 }
 
-/// Parameters for checking if user has 2FA configured.
+/// Parameters for checking if user has TOTP configured.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Check2faParams {
     /// Username to check.
@@ -195,7 +195,7 @@ impl fmt::Debug for SetupOtpParams {
 pub struct RemoveOtpParams {
     /// Session ID of the authenticated user (for user lookup).
     pub session_id: String,
-    /// Explicit confirmation to remove 2FA.
+    /// Explicit confirmation to remove TOTP.
     pub confirm: bool,
 }
 
@@ -208,7 +208,7 @@ impl fmt::Debug for RemoveOtpParams {
     }
 }
 
-/// Parameters for checking OTP/2FA server configuration.
+/// Parameters for checking OTP/TOTP server configuration.
 ///
 /// Uses `deny_unknown_fields` to prevent matching with untagged serde
 /// since it has no required fields.
@@ -218,7 +218,7 @@ pub struct CheckOtpConfigParams {}
 
 /// Result of OTP configuration check.
 ///
-/// Contains detailed information about the server's 2FA/OTP configuration status.
+/// Contains detailed information about the server's TOTP/OTP configuration status.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OtpConfigResult {
     /// Whether all configuration is valid.

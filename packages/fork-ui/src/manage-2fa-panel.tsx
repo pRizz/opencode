@@ -50,19 +50,19 @@ export function ManageTwoFactorPanel(props: ManageTwoFactorPanelProps) {
   }
 
   const handleReset = async () => {
-    await doAction("/auth/2fa/reset", "Failed to reset 2FA", "2FA reset")
+    await doAction("/auth/2fa/reset", "Failed to reset TOTP", "TOTP reset")
   }
 
   const handleDisable = async () => {
-    await doAction("/auth/2fa/disable", "Failed to disable 2FA", "2FA disabled")
+    await doAction("/auth/2fa/disable", "Failed to disable TOTP", "TOTP disabled")
   }
 
   return (
     <div class="flex flex-col gap-4 px-2 pb-3" data-action="settings-auth-2fa-manage-panel">
       <div class="flex flex-col gap-2 rounded-md border border-border-weak-base p-3 text-14-regular text-text-weak">
-        <div class="text-text-strong text-14-medium">Two-factor authentication is enabled.</div>
-        <div>Resetting 2FA removes your current authenticator setup.</div>
-        <div>Disabling 2FA stops future setup prompts.</div>
+        <div class="text-text-strong text-14-medium">TOTP authentication is enabled.</div>
+        <div>Resetting TOTP removes your current authenticator setup.</div>
+        <div>Disabling TOTP stops future setup prompts.</div>
       </div>
 
       <Show
@@ -80,7 +80,7 @@ export function ManageTwoFactorPanel(props: ManageTwoFactorPanelProps) {
               onClick={() => setConfirmAction("disable")}
               data-action="settings-auth-2fa-manage-disable"
             >
-              Disable 2FA
+              Disable TOTP
             </Button>
             <Button
               size="large"
@@ -88,7 +88,7 @@ export function ManageTwoFactorPanel(props: ManageTwoFactorPanelProps) {
               onClick={() => setConfirmAction("reset")}
               data-action="settings-auth-2fa-manage-reset"
             >
-              Reset 2FA
+              Reset TOTP
             </Button>
           </div>
         }
@@ -99,8 +99,8 @@ export function ManageTwoFactorPanel(props: ManageTwoFactorPanelProps) {
           </div>
           <div class="text-text-weak">
             {confirmAction() === "disable"
-              ? "You will not be prompted to set up 2FA again unless you re-enable it."
-              : "This will disable 2FA until you set it up again."}
+              ? "You will not be prompted to set up TOTP again unless you re-enable it."
+              : "This will disable TOTP until you set it up again."}
           </div>
           <div class="flex justify-end gap-2 pt-2">
             <Button size="large" variant="ghost" onClick={() => setConfirmAction(null)}>

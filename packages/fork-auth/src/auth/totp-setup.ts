@@ -97,7 +97,7 @@ function generateTotpCode(secret: string, counter: number): string | null {
 /**
  * Generate TOTP setup data including secret and QR code.
  *
- * @param username - User setting up 2FA
+ * @param username - User setting up TOTP
  * @param issuer - Issuer name shown in authenticator app (default: "opencode")
  */
 export async function generateTotpSetup(username: string, issuer = "opencode"): Promise<TotpSetupData> {
@@ -118,9 +118,13 @@ export async function generateTotpSetup(username: string, issuer = "opencode"): 
   // Generate QR code as SVG
   const qrCodeSvg = await QRCode.toString(otpauthUrl.toString(), {
     type: "svg",
-    errorCorrectionLevel: "M",
+    errorCorrectionLevel: "H",
     margin: 2,
-    width: 200,
+    width: 220,
+    color: {
+      dark: "#0f172a",
+      light: "#f6fdff",
+    },
   })
 
   return {
@@ -185,7 +189,7 @@ export function verifyTotpCode(
  *
  * Each Unix user has their own ~/.google_authenticator file in their home
  * directory. The PAM module reads from the authenticating user's home,
- * so multiple users can each have independent 2FA configurations.
+ * so multiple users can each have independent TOTP configurations.
  *
  * ## Security considerations
  *
@@ -235,5 +239,5 @@ cat > "$target" << "EOF"
 ${fileContent}
 EOF
 chmod 400 "$target"
-echo "2FA configured successfully"'`
+echo "TOTP configured successfully"'`
 }

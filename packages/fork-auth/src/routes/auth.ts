@@ -394,7 +394,7 @@ function injectLoginBootstrap(
 }
 
 /**
- * Load 2FA verification page HTML.
+ * Load TOTP verification page HTML.
  */
 async function loadTwoFactorTemplate(uiDir: string): Promise<string> {
   const templatePath = path.join(uiDir, "2fa.html")
@@ -405,7 +405,7 @@ async function loadTwoFactorTemplate(uiDir: string): Promise<string> {
   const file = Bun.file(templatePath)
   const exists = await file.exists()
   if (!exists) {
-    throw new Error(`2FA HTML not found at ${templatePath}`)
+    throw new Error(`TOTP HTML not found at ${templatePath}`)
   }
 
   cachedTwoFactorTemplate = await file.text()
@@ -428,7 +428,7 @@ function injectTwoFactorBootstrap(
 }
 
 /**
- * Load 2FA setup page HTML.
+ * Load TOTP setup page HTML.
  */
 async function loadTwoFactorSetupTemplate(uiDir: string): Promise<string> {
   const templatePath = path.join(uiDir, "2fa-setup.html")
@@ -439,7 +439,7 @@ async function loadTwoFactorSetupTemplate(uiDir: string): Promise<string> {
   const file = Bun.file(templatePath)
   const exists = await file.exists()
   if (!exists) {
-    throw new Error(`2FA setup HTML not found at ${templatePath}`)
+    throw new Error(`TOTP setup HTML not found at ${templatePath}`)
   }
 
   cachedTwoFactorSetupTemplate = await file.text()
@@ -481,12 +481,12 @@ async function buildTwoFactorSetupBootstrap(
   UserSession.setTwoFactorSetupSecret(sessionId, setupData.secret)
 
   let setupStatus: TwoFactorSetupBootstrap["setupStatus"] = "pending_verification"
-  let setupMessage: string | undefined = "We'll create your 2FA configuration after you verify your code."
+  let setupMessage: string | undefined = "We'll create your TOTP configuration after you verify your code."
   let setupCommand: string | undefined
 
   if (has2fa) {
     setupStatus = "already_configured"
-    setupMessage = "We detected an existing 2FA configuration for this account."
+    setupMessage = "We detected an existing TOTP configuration for this account."
   } else {
     const brokerAvailable = await broker.ping()
     if (!brokerAvailable) {
@@ -593,8 +593,8 @@ function injectPasskeySetupBootstrap(
  * - POST /passkey/register/verify - Verify passkey registration response
  * - GET /passkey/list - List passkeys for current user
  * - POST /passkey/remove - Remove a passkey for current user
- * - GET /2fa - 2FA verification page (HTML)
- * - POST /login/2fa - Complete 2FA login
+ * - GET /2fa - TOTP verification page (HTML)
+ * - POST /login/2fa - Complete TOTP login
  * - GET /status - Get auth configuration status
  * - POST /logout - Logout current session
  * - POST /logout/all - Logout all sessions for user
@@ -1031,15 +1031,15 @@ export const AuthRoutes = lazy(() =>
 
       const uiDir = getUiDir()
       if (!uiDir) {
-        return c.text("2FA UI is not configured. Build the app UI and set uiDir.", 500)
+        return c.text("TOTP UI is not configured. Build the app UI and set uiDir.", 500)
       }
 
       try {
         const template = await loadTwoFactorTemplate(uiDir)
         return c.html(injectTwoFactorBootstrap(template, { token, username, timeoutSeconds }))
       } catch (error) {
-        log.error("Failed to load 2FA HTML", { error })
-        return c.text("2FA UI is missing. Run the app build to generate 2fa.html.", 500)
+        log.error("Failed to load TOTP HTML", { error })
+        return c.text("TOTP UI is missing. Run the app build to generate 2fa.html.", 500)
       }
     })
     .post(
@@ -1343,12 +1343,12 @@ export const AuthRoutes = lazy(() =>
     .post(
       "/login/2fa",
       describeRoute({
-        summary: "Complete 2FA login",
+        summary: "Complete TOTP login",
         description: "Validate OTP code and complete authentication.",
         operationId: "auth.login2fa",
         responses: {
           200: {
-            description: "2FA successful",
+            description: "TOTP successful",
             content: {
               "application/json": {
                 schema: resolver(
@@ -1368,7 +1368,7 @@ export const AuthRoutes = lazy(() =>
           },
           400: { description: "Bad request (missing fields)" },
           401: { description: "OTP validation failed or token expired" },
-          403: { description: "2FA not enabled" },
+          403: { description: "TOTP not enabled" },
           429: { description: "Rate limit exceeded" },
         },
       }),
@@ -1403,11 +1403,11 @@ export const AuthRoutes = lazy(() =>
           return c.json({ error: "invalid_request", message: "Token and code are required" }, 400)
         }
 
-        // Verify 2FA token
+        // Verify TOTP token
         const ip = getRequestIP(c)
         const userInfo = await verify2FAToken(twoFactorToken, getTokenSecret(), ip)
         if (!userInfo) {
-          return c.json({ error: "token_expired", message: "2FA session expired, please login again" }, 401)
+          return c.json({ error: "token_expired", message: "TOTP session expired, please login again" }, 401)
         }
 
         // Check rate limiting for OTP attempts
@@ -1492,7 +1492,7 @@ export const AuthRoutes = lazy(() =>
             home: userInfo.home,
             shell: userInfo.shell,
           },
-          false, // 2FA login doesn't use rememberMe for session (device trust is separate)
+          false, // TOTP login doesn't use rememberMe for session (device trust is separate)
         )
 
         // Set session cookie
@@ -2089,7 +2089,7 @@ export const AuthRoutes = lazy(() =>
       "/device-trust/status",
       describeRoute({
         summary: "Get device trust status",
-        description: "Check if 2FA is enabled and if the current device is trusted.",
+        description: "Check if TOTP is enabled and if the current device is trusted.",
         operationId: "auth.deviceTrustStatus",
         responses: {
           200: {
@@ -2152,7 +2152,7 @@ export const AuthRoutes = lazy(() =>
       "/device-trust/revoke",
       describeRoute({
         summary: "Revoke device trust",
-        description: "Clear the device trust cookie to require 2FA on next login.",
+        description: "Clear the device trust cookie to require TOTP on next login.",
         operationId: "auth.deviceTrustRevoke",
         responses: {
           200: {
@@ -2199,15 +2199,15 @@ export const AuthRoutes = lazy(() =>
 
       const uiDir = getUiDir()
       if (!uiDir) {
-        return c.text("2FA setup UI is not configured. Build the app UI and set uiDir.", 500)
+        return c.text("TOTP setup UI is not configured. Build the app UI and set uiDir.", 500)
       }
 
       try {
         const template = await loadTwoFactorSetupTemplate(uiDir)
         return c.html(injectTwoFactorSetupBootstrap(template, bootstrap))
       } catch (error) {
-        log.error("Failed to load 2FA setup HTML", { error })
-        return c.text("2FA setup UI is missing. Run the app build to generate 2fa-setup.html.", 500)
+        log.error("Failed to load TOTP setup HTML", { error })
+        return c.text("TOTP setup UI is missing. Run the app build to generate 2fa-setup.html.", 500)
       }
     })
     .post("/2fa/setup/start", async (c) => {
@@ -2319,7 +2319,7 @@ export const AuthRoutes = lazy(() =>
         return c.json(
           {
             error: "setup_missing",
-            message: "2FA setup session expired. Please restart setup.",
+            message: "TOTP setup session expired. Please restart setup.",
           },
           400,
         )
@@ -2341,14 +2341,14 @@ export const AuthRoutes = lazy(() =>
         return c.json(
           {
             error: "setup_failed",
-            message: "Unable to create your 2FA configuration. Please try again.",
+            message: "Unable to create your TOTP configuration. Please try again.",
             details: setupResult,
           },
           500,
         )
       }
 
-      // Clear twoFactorPending flag now that 2FA is configured
+      // Clear twoFactorPending flag now that TOTP is configured
       UserSession.clearTwoFactorPending(sessionId)
       UserSession.clearTwoFactorSetupSecret(sessionId)
       await setTwoFactorPreference(session.username, { skipSetup: false })
@@ -2372,7 +2372,7 @@ export const AuthRoutes = lazy(() =>
         return c.json({ error: "csrf_missing" }, 400)
       }
 
-      // Check if 2FA is required - if so, cannot skip
+      // Check if TOTP is required - if so, cannot skip
       const authConfig = ServerAuth.get()
       if (authConfig.twoFactorRequired) {
         return c.json(
@@ -2418,7 +2418,7 @@ export const AuthRoutes = lazy(() =>
       }
 
       if (result.errorCode && !result.removed && !result.alreadyMissing) {
-        return c.json({ error: "reset_failed", message: "Failed to reset 2FA", details: result }, 500)
+        return c.json({ error: "reset_failed", message: "Failed to reset TOTP", details: result }, 500)
       }
 
       await setTwoFactorPreference(session.username, { skipSetup: false })
@@ -2468,7 +2468,7 @@ export const AuthRoutes = lazy(() =>
       }
 
       if (result.errorCode && !result.removed && !result.alreadyMissing) {
-        return c.json({ error: "disable_failed", message: "Failed to disable 2FA", details: result }, 500)
+        return c.json({ error: "disable_failed", message: "Failed to disable TOTP", details: result }, 500)
       }
 
       UserSession.clearTwoFactorPending(sessionId)

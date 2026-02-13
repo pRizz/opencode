@@ -356,7 +356,7 @@ export class Auth extends HeyApiClient {
   }
 
   /**
-   * Complete 2FA login
+   * Complete TOTP login
    *
    * Validate OTP code and complete authentication.
    */
@@ -458,7 +458,7 @@ export class Auth extends HeyApiClient {
   /**
    * Get device trust status
    *
-   * Check if 2FA is enabled and if the current device is trusted.
+   * Check if TOTP is enabled and if the current device is trusted.
    */
   public deviceTrustStatus<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
     return (options?.client ?? this.client).get<AuthDeviceTrustStatusResponses, unknown, ThrowOnError>({
@@ -470,7 +470,7 @@ export class Auth extends HeyApiClient {
   /**
    * Revoke device trust
    *
-   * Clear the device trust cookie to require 2FA on next login.
+   * Clear the device trust cookie to require TOTP on next login.
    */
   public deviceTrustRevoke<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
     return (options?.client ?? this.client).post<AuthDeviceTrustRevokeResponses, unknown, ThrowOnError>({
