@@ -16,11 +16,11 @@ score: 4/4 must-haves verified
 
 ### Observable Truths
 
-| #   | Truth                                                              | Status   | Evidence                                                                                                                               |
-| --- | ------------------------------------------------------------------ | -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | TOTP prompt appears after password validation when enabled         | VERIFIED | Login endpoint returns `2fa_required` with token when user has `.google_authenticator` and `twoFactorEnabled=true` (auth.ts:1290-1336) |
-| 2   | TOTP codes validated via PAM (pam_google_authenticator or similar) | VERIFIED | Broker `validate_otp()` calls PAM with `{service}-otp` service (otp.rs:72-167), PAM files exist (opencode-otp.pam)                     |
-| 3   | TOTP is optional per-user (configured via PAM, not opencode)       | VERIFIED | `has_2fa_configured()` checks `~/.google_authenticator` file existence (otp.rs:25-49); users without file skip TOTP                    |
+| #   | Truth                                                               | Status   | Evidence                                                                                                                               |
+| --- | ------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | TOTP prompt appears after password validation when enabled          | VERIFIED | Login endpoint returns `2fa_required` with token when user has `.google_authenticator` and `twoFactorEnabled=true` (auth.ts:1290-1336) |
+| 2   | TOTP codes validated via PAM (pam_google_authenticator or similar)  | VERIFIED | Broker `validate_otp()` calls PAM with `{service}-otp` service (otp.rs:72-167), PAM files exist (opencode-otp.pam)                     |
+| 3   | TOTP is optional per-user (configured via PAM, not opencode)        | VERIFIED | `has_2fa_configured()` checks `~/.google_authenticator` file existence (otp.rs:25-49); users without file skip TOTP                    |
 | 4   | Login fails with clear message if TOTP is required but not provided | VERIFIED | Returns `{error: "2fa_required", username, timeoutSeconds}` (auth.ts:1328-1334); TOTP page shows clear UI with countdown               |
 
 **Score:** 4/4 truths verified
@@ -29,14 +29,14 @@ score: 4/4 must-haves verified
 
 | Artifact                                                  | Expected                  | Status   | Details                                                                                                                                          |
 | --------------------------------------------------------- | ------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `packages/opencode/src/config/auth.ts`                    | TOTP config fields        | VERIFIED | Contains `twoFactorEnabled`, `twoFactorTokenTimeout`, `deviceTrustDuration`, `otpRateLimitMax`, `otpRateLimitWindow` (lines 51-57)              |
+| `packages/opencode/src/config/auth.ts`                    | TOTP config fields        | VERIFIED | Contains `twoFactorEnabled`, `twoFactorTokenTimeout`, `deviceTrustDuration`, `otpRateLimitMax`, `otpRateLimitWindow` (lines 51-57)               |
 | `packages/opencode-broker/src/auth/otp.rs`                | OTP module                | VERIFIED | 167 lines, exports `has_2fa_configured`, `validate_otp`, includes tests                                                                          |
 | `packages/opencode-broker/src/auth/mod.rs`                | OTP exports               | VERIFIED | Exports `has_2fa_configured`, `validate_otp`                                                                                                     |
 | `packages/opencode-broker/src/ipc/protocol.rs`            | Check2fa, AuthenticateOtp | VERIFIED | Methods defined (lines 51-54), params structs (129-155), tests for serialization                                                                 |
-| `packages/opencode-broker/src/ipc/handler.rs`             | TOTP handlers             | VERIFIED | `handle_authenticate_otp` (169-231), `handle_check_2fa` (237-270) with rate limiting                                                            |
+| `packages/opencode-broker/src/ipc/handler.rs`             | TOTP handlers             | VERIFIED | `handle_authenticate_otp` (169-231), `handle_check_2fa` (237-270) with rate limiting                                                             |
 | `packages/opencode/src/auth/device-trust.ts`              | Device trust tokens       | VERIFIED | 85 lines, exports `createDeviceFingerprint`, `createDeviceTrustToken`, `verifyDeviceTrustToken`                                                  |
-| `packages/opencode/src/auth/two-factor-token.ts`          | TOTP tokens               | VERIFIED | 129 lines, exports `create2FAToken`, `verify2FAToken`, `getTokenRemainingSeconds`                                                               |
-| `packages/opencode/src/auth/broker-client.ts`             | TOTP methods              | VERIFIED | `check2fa()` (285-303), `authenticateOtp()` (223-254)                                                                                           |
+| `packages/opencode/src/auth/two-factor-token.ts`          | TOTP tokens               | VERIFIED | 129 lines, exports `create2FAToken`, `verify2FAToken`, `getTokenRemainingSeconds`                                                                |
+| `packages/opencode/src/auth/broker-client.ts`             | TOTP methods              | VERIFIED | `check2fa()` (285-303), `authenticateOtp()` (223-254)                                                                                            |
 | `packages/opencode/src/server/security/token-secret.ts`   | JWT secret                | VERIFIED | 26 lines, exports `getTokenSecret()` via lazy init                                                                                               |
 | `packages/opencode/src/server/routes/auth.ts`             | TOTP endpoints            | VERIFIED | `/login/2fa` (1396), `/2fa` page (1117), `/2fa/setup` (1675), `/2fa/verify` (1701), `/device-trust/status` (1594), `/device-trust/revoke` (1643) |
 | `packages/opencode/src/auth/totp-setup.ts`                | QR code generation        | VERIFIED | 95 lines, exports `generateTotpSetup`, `getGoogleAuthenticatorSetupCommand`                                                                      |
@@ -57,13 +57,13 @@ score: 4/4 must-haves verified
 | handler.rs AuthenticateOtp | validate_otp()            | function call   | WIRED  | Line 211                                              |
 | session-indicator.tsx      | /auth/device-trust/status | fetch           | WIRED  | Line 42                                               |
 | session-indicator.tsx      | /auth/device-trust/revoke | fetch           | WIRED  | Line 99                                               |
-| TOTP page JS               | /auth/login/2fa           | fetch           | WIRED  | Line 759 in generate2FAPageHtml                      |
+| TOTP page JS               | /auth/login/2fa           | fetch           | WIRED  | Line 759 in generate2FAPageHtml                       |
 | login page JS              | 2fa_required redirect     | window.location | WIRED  | Line 438-448 in generateLoginPageHtml                 |
 
 ### Requirements Coverage
 
-| Requirement                                      | Status    | Blocking Issue |
-| ------------------------------------------------ | --------- | -------------- |
+| Requirement                                             | Status    | Blocking Issue |
+| ------------------------------------------------------- | --------- | -------------- |
 | AUTH-05: User can optionally enable TOTP authentication | SATISFIED | None           |
 
 ### Anti-Patterns Found
