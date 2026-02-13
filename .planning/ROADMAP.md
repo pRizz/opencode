@@ -32,7 +32,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 17: Make the client boundary the only place where "unknown" exists, then validate and normalize into strict types so the rest of the UI can't represent invalid shapes. Concrete pattern: Typed API layer: Expose functions like findFiles(): Promise<string[]> (no { data }, no unknown), and only allow those in UI code. Don't export the raw SDK client outside this layer. Runtime validation: Parse server responses with a schema (zod, valibot, io-ts). If validation fails, throw or return a typed error. This makes "wrong shape" impossible to flow into components. Normalization at the boundary: If the SDK can return { data } or raw arrays, normalize there and return the canonical type. No any/unknown past boundary: The rest of the app should only see string[] or a typed error union. This fully applies "illegal states unrepresentable": UI code can't accidentally access .map on a non-array because it never sees non-array values.** - Client boundary validation and normalization to prevent type mismatches
 - [ ] **Phase 18: Audit all server routes for if they need authentication checks** - Audit all server routes for if they need authentication checks
 - [ ] **Phase 19: Refactor auth login page** - Replace string-based login HTML with a proper SolidJS-based login page in `packages/opencode/src/server/routes/auth.ts`
-- [ ] **Phase 20: Refactor TOTP verification page** - Refactor generate2FAPageHtml so the content is moved and integrated with the project at `packages/app` instead of the large string in code
+- [ ] **Phase 20: Refactor TOTP verification page** - Refactor the TOTP verification page renderer so the content is moved and integrated with the project at `packages/app` instead of large inline HTML strings in route code
 - [ ] **Phase 21: Allow the user to add and manage SSH keys in the opencode webapp** - Allow the user to add and manage SSH keys in the opencode webapp; when attempting to clone via git SSH, prompt for a key if none are registered; add CRUD in settings; install keys in ~/.ssh; update ssh config; add server routes as needed
 - [ ] **Phase 22: Refactor the /auth/totp/setup page from auth.ts into the SolidJS app at packages/app** - Refactor the /auth/totp/setup page from auth.ts into the SolidJS app at packages/app
 - [ ] **Phase 23: During TOTP setup, make the server automatically set the .google_authenticator file in the appropriate user's home folder, instead of asking the user to run the command on their machine** - During TOTP setup, make the server automatically set the .google_authenticator file in the appropriate user's home folder, instead of asking the user to run the command on their machine
@@ -400,7 +400,7 @@ Plans:
 - [ ] 20-02-PLAN.md — Auth route serves Solid TOTP HTML with bootstrap data
 
 **Details:**
-Move `generate2FAPageHtml` into `packages/app` and serve `2fa.html` from the UI build, following the login page refactor pattern.
+Move TOTP verification page rendering into `packages/app` and serve `totp.html` from the UI build (with legacy `2fa.html` compatibility), following the login page refactor pattern.
 
 ### Phase 21: Allow the user to add and manage SSH keys in the opencode webapp
 
