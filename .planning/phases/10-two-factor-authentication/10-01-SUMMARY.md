@@ -126,13 +126,13 @@ Following the same pattern as password authentication in `pam.rs`:
 
 ## Verification Results
 
-| Check                  | Result                           |
-| ---------------------- | -------------------------------- |
-| TypeScript compiles    | Pass                             |
-| Rust compiles          | Pass                             |
-| Config fields present  | 5 new fields verified            |
+| Check                  | Result                            |
+| ---------------------- | --------------------------------- |
+| TypeScript compiles    | Pass                              |
+| Rust compiles          | Pass                              |
+| Config fields present  | 5 new fields verified             |
 | OTP functions exported | has_totp_configured, validate_otp |
-| PAM files created      | Both Linux and macOS             |
+| PAM files created      | Both Linux and macOS              |
 
 ## Artifacts
 
