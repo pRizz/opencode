@@ -73,7 +73,7 @@ test("authenticated state enables tabs and footer logout hits endpoint", async (
 
 test("session tab exposes actions and handles trust state", async ({ page, gotoSession }) => {
   await mockAuthenticatedAuth(page, {
-    deviceTrust: {
+    totpTrust: {
       deviceTrusted: false,
     },
   })
@@ -137,7 +137,7 @@ test("passkeys tab remains reachable", async ({ page, gotoSession }) => {
 
 test("TOTP tab shows setup and disabled manage when not configured", async ({ page, gotoSession }) => {
   await mockAuthenticatedAuth(page, {
-    deviceTrust: {
+    totpTrust: {
       totpConfigured: false,
       deviceTrusted: false,
     },
