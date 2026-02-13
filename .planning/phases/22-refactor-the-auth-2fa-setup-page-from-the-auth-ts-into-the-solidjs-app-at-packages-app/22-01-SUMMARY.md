@@ -7,9 +7,9 @@ tags: [solidjs, 2fa, setup, vite]
 # Dependency graph
 requires:
   - phase: 20-refactor-2fa-login-page
-    provides: SolidJS 2FA verification patterns and Vite multi-page build
+    provides: SolidJS TOTP verification patterns and Vite multi-page build
 provides:
-  - Solid 2FA setup entry with parity UI/behavior
+  - Solid TOTP setup entry with parity UI/behavior
   - Vite build input for 2fa-setup.html
 affects: [22-refactor-the-auth-2fa-setup-page-from-the-auth-ts-into-the-solidjs-app-at-packages-app-02]
 
@@ -17,7 +17,7 @@ affects: [22-refactor-the-auth-2fa-setup-page-from-the-auth-ts-into-the-solidjs-
 tech-stack:
   added: []
   patterns:
-    - SolidJS setup entry uses window.__OPENCODE_2FA_SETUP__ bootstrap data
+    - SolidJS setup entry uses window.__OPENCODE_TOTP_SETUP__ bootstrap data
     - Copy + verify + skip flows mirror inline setup behavior
 
 key-files:
@@ -32,7 +32,7 @@ key-decisions:
   - "Keep inline styles and layout to preserve parity with the existing setup wizard."
 
 patterns-established:
-  - "2FA setup UI is a standalone Solid entry rendered from the app build."
+  - "TOTP setup UI is a standalone Solid entry rendered from the app build."
 
 # Metrics
 duration: 14 min
@@ -41,7 +41,7 @@ completed: 2026-02-01
 
 # Phase 22 Plan 01 Summary
 
-**SolidJS 2FA setup entry now mirrors the inline setup wizard and builds as `2fa-setup.html`.**
+**SolidJS TOTP setup entry now mirrors the inline setup wizard and builds as `2fa-setup.html`.**
 
 ## Performance
 
@@ -54,7 +54,7 @@ completed: 2026-02-01
 ## Accomplishments
 
 - Added a dedicated `2fa-setup.html` entry aligned with existing app metadata and assets.
-- Built a SolidJS 2FA setup UI with QR rendering, copy helper, verify flow, and skip handling.
+- Built a SolidJS TOTP setup UI with QR rendering, copy helper, verify flow, and skip handling.
 - Added `2fa-setup.html` to Vite multi-page inputs.
 
 ## Task Commits
@@ -63,10 +63,10 @@ No task commits were created (commits were not requested).
 
 ## Files Created/Modified
 
-- `packages/app/2fa-setup.html` - 2FA setup HTML entry with root element and module script.
+- `packages/app/2fa-setup.html` - TOTP setup HTML entry with root element and module script.
 - `packages/app/src/2fa-setup/index.tsx` - SolidJS setup entrypoint.
-- `packages/app/src/2fa-setup/setup.tsx` - 2FA setup UI and form logic.
-- `packages/app/vite.config.ts` - Adds 2FA setup entry to rollup inputs.
+- `packages/app/src/2fa-setup/setup.tsx` - TOTP setup UI and form logic.
+- `packages/app/vite.config.ts` - Adds TOTP setup entry to rollup inputs.
 
 ## Decisions Made
 

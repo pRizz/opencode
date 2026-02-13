@@ -10,7 +10,7 @@ requires:
     provides: SolidJS setup entry and 2fa-setup.html build output
 provides:
   - Auth route serves built 2fa-setup.html with bootstrap data
-  - Removal of inline 2FA setup HTML template
+  - Removal of inline TOTP setup HTML template
 affects: []
 
 # Tech tracking
@@ -18,7 +18,7 @@ tech-stack:
   added: []
   patterns:
     - Cached UI template loader for 2fa-setup.html
-    - Per-request bootstrap injection for 2FA setup data
+    - Per-request bootstrap injection for TOTP setup data
 
 key-files:
   created: []
@@ -29,7 +29,7 @@ key-decisions:
   - "Serve 2fa-setup.html from the UI directory and inject setup bootstrap data per request."
 
 patterns-established:
-  - "Auth 2FA setup route mirrors login/2FA template loading and bootstrap injection."
+  - "Auth TOTP setup route mirrors login/TOTP template loading and bootstrap injection."
 
 # Metrics
 duration: 8 min
@@ -51,8 +51,8 @@ completed: 2026-02-01
 ## Accomplishments
 
 - Added a cached loader for `2fa-setup.html` using the UI directory.
-- Injected `window.__OPENCODE_2FA_SETUP__` bootstrap data per request.
-- Removed the string-based 2FA setup HTML template from auth routes.
+- Injected `window.__OPENCODE_TOTP_SETUP__` bootstrap data per request.
+- Removed the string-based TOTP setup HTML template from auth routes.
 
 ## Task Commits
 
