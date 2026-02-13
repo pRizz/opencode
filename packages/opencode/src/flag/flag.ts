@@ -8,7 +8,7 @@ export namespace Flag {
   export const OPENCODE_GIT_BASH_PATH = process.env["OPENCODE_GIT_BASH_PATH"]
   export const OPENCODE_CONFIG = process.env["OPENCODE_CONFIG"]
   export declare const OPENCODE_CONFIG_DIR: string | undefined
-  export declare const OPENCODE_CONFIG_CONTENT: string | undefined
+  export const OPENCODE_CONFIG_CONTENT = process.env["OPENCODE_CONFIG_CONTENT"]
   export const OPENCODE_DISABLE_AUTOUPDATE = truthy("OPENCODE_DISABLE_AUTOUPDATE")
   export const OPENCODE_DISABLE_PRUNE = truthy("OPENCODE_DISABLE_PRUNE")
   export const OPENCODE_DISABLE_TERMINAL_TITLE = truthy("OPENCODE_DISABLE_TERMINAL_TITLE")
@@ -106,4 +106,3 @@ Object.defineProperty(Flag, "OPENCODE_CLIENT", {
   enumerable: true,
   configurable: false,
 })
-
