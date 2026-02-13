@@ -7,10 +7,10 @@ tags: [hono, solidjs, 2fa, ui-dir]
 # Dependency graph
 requires:
   - phase: 20-refactor-2fa-login-page-01
-    provides: SolidJS 2FA entry and 2fa.html build output
+    provides: SolidJS TOTP entry and 2fa.html build output
 provides:
   - Auth route serves built 2fa.html with bootstrap data
-  - Removal of inline 2FA HTML template
+  - Removal of inline TOTP HTML template
 affects: []
 
 # Tech tracking
@@ -18,7 +18,7 @@ tech-stack:
   added: []
   patterns:
     - Cached UI template loader for 2fa.html
-    - Per-request bootstrap injection for 2FA verification
+    - Per-request bootstrap injection for TOTP verification
 
 key-files:
   created: []
@@ -26,10 +26,10 @@ key-files:
     - packages/opencode/src/server/routes/auth.ts
 
 key-decisions:
-  - "Serve 2fa.html from the UI directory and inject 2FA bootstrap data per request."
+  - "Serve 2fa.html from the UI directory and inject TOTP bootstrap data per request."
 
 patterns-established:
-  - "Auth 2FA route mirrors login route template loading and bootstrap injection."
+  - "Auth TOTP route mirrors login route template loading and bootstrap injection."
 
 # Metrics
 duration: 8 min
@@ -38,7 +38,7 @@ completed: 2026-01-31
 
 # Phase 20 Plan 02 Summary
 
-**/auth/login/2fa now loads the built 2fa.html and injects 2FA bootstrap data, removing the inline template.**
+**/auth/login/2fa now loads the built 2fa.html and injects TOTP bootstrap data, removing the inline template.**
 
 ## Performance
 
@@ -51,8 +51,8 @@ completed: 2026-01-31
 ## Accomplishments
 
 - Added a cached loader for `2fa.html` using the UI directory.
-- Injected `window.__OPENCODE_2FA__` bootstrap data per request.
-- Removed the string-based 2FA HTML template from auth routes.
+- Injected `window.__OPENCODE_TOTP__` bootstrap data per request.
+- Removed the string-based TOTP HTML template from auth routes.
 
 ## Task Commits
 
@@ -60,7 +60,7 @@ No task commits were created (commits were not requested).
 
 ## Files Created/Modified
 
-- `packages/opencode/src/server/routes/auth.ts` - Loads 2fa.html and injects 2FA bootstrap data.
+- `packages/opencode/src/server/routes/auth.ts` - Loads 2fa.html and injects TOTP bootstrap data.
 
 ## Decisions Made
 
