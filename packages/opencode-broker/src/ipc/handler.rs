@@ -96,7 +96,7 @@ pub async fn handle_request(
 
         Method::RemoveOtp => handle_remove_otp(request, user_sessions).await,
 
-        Method::Check2fa => handle_check_totp(request).await,
+        Method::CheckTotp => handle_check_totp(request).await,
 
         Method::CheckOtpConfig => handle_check_otp_config(request, config).await,
 
@@ -333,7 +333,7 @@ async fn handle_authenticate_otp(
 /// This is a simple file existence check, no authentication required.
 async fn handle_check_totp(request: Request) -> Response {
     let (username, home) = match &request.params {
-        RequestParams::Check2fa(params) => (&params.username, &params.home),
+        RequestParams::CheckTotp(params) => (&params.username, &params.home),
         _ => {
             return Response::failure(&request.id, "invalid params for check_2fa");
         }

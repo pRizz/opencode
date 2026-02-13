@@ -30,7 +30,7 @@ impl fmt::Debug for Request {
             RequestParams::AuthenticateOtp(params) => s.field("params", params),
             RequestParams::SetupOtp(params) => s.field("params", params),
             RequestParams::RemoveOtp(params) => s.field("params", params),
-            RequestParams::Check2fa(params) => s.field("params", params),
+            RequestParams::CheckTotp(params) => s.field("params", params),
             RequestParams::CheckOtpConfig(params) => s.field("params", params),
             RequestParams::Ping(params) => s.field("params", params),
             RequestParams::SpawnPty(params) => s.field("params", params),
@@ -58,7 +58,8 @@ pub enum Method {
     /// Remove ~/.google_authenticator for the session user.
     RemoveOtp,
     /// Check if user has TOTP configured.
-    Check2fa,
+    #[serde(rename = "check2fa")]
+    CheckTotp,
     /// Check OTP/TOTP server configuration (PAM module, service file).
     CheckOtpConfig,
     Ping,
@@ -87,7 +88,7 @@ pub enum Method {
 /// - `UnregisterSession` (1 required + deny_unknown_fields) before `SpawnPty`
 /// - `SetupOtp` must come before `SpawnPty` because it uses session_id
 /// - `RemoveOtp` must come before `SpawnPty` because it uses session_id
-/// - `Check2fa` (2 required) before `Ping`
+/// - `CheckTotp` (2 required) before `Ping`
 /// - `CheckOtpConfig` uses deny_unknown_fields - must come before Ping
 /// - `Ping` must be LAST because `PingParams` is empty and matches any JSON
 #[derive(Clone, Serialize, Deserialize)]
@@ -114,8 +115,8 @@ pub enum RequestParams {
     PtyWrite(PtyWriteParams),
     /// Parameters for reading from a PTY.
     PtyRead(PtyReadParams),
-    /// Check2fa has 2 required fields - must come before Ping.
-    Check2fa(Check2faParams),
+    /// CheckTotp has 2 required fields - must come before Ping.
+    CheckTotp(CheckTotpParams),
     /// CheckOtpConfig uses deny_unknown_fields - must come before Ping.
     CheckOtpConfig(CheckOtpConfigParams),
     /// Ping must be last - empty params match any JSON with untagged serde.
@@ -145,7 +146,7 @@ impl fmt::Debug for AuthenticateParams {
 
 /// Parameters for checking if user has TOTP configured.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Check2faParams {
+pub struct CheckTotpParams {
     /// Username to check.
     pub username: String,
     /// User's home directory for .google_authenticator check.
@@ -788,14 +789,14 @@ mod tests {
     }
 
     #[test]
-    fn test_check2fa_params_roundtrip() {
-        let params = Check2faParams {
+    fn test_check_totp_params_roundtrip() {
+        let params = CheckTotpParams {
             username: "testuser".to_string(),
             home: "/home/testuser".to_string(),
         };
 
         let json = serde_json::to_string(&params).expect("serialize");
-        let parsed: Check2faParams = serde_json::from_str(&json).expect("deserialize");
+        let parsed: CheckTotpParams = serde_json::from_str(&json).expect("deserialize");
 
         assert_eq!(parsed.username, "testuser");
         assert_eq!(parsed.home, "/home/testuser");
@@ -836,9 +837,9 @@ mod tests {
     }
 
     #[test]
-    fn test_2fa_method_serialization() {
+    fn test_totp_method_serialization() {
         assert_eq!(
-            serde_json::to_string(&Method::Check2fa).expect("serialize"),
+            serde_json::to_string(&Method::CheckTotp).expect("serialize"),
             "\"check2fa\""
         );
         assert_eq!(
@@ -856,9 +857,9 @@ mod tests {
     }
 
     #[test]
-    fn test_2fa_method_deserialization() {
+    fn test_totp_method_deserialization() {
         let check: Method = serde_json::from_str("\"check2fa\"").expect("deserialize");
-        assert_eq!(check, Method::Check2fa);
+        assert_eq!(check, Method::CheckTotp);
 
         let otp: Method = serde_json::from_str("\"authenticateotp\"").expect("deserialize");
         assert_eq!(otp, Method::AuthenticateOtp);
