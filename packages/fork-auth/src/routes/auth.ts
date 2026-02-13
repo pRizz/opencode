@@ -347,10 +347,10 @@ function bootstrapSignupPath(returnTo?: string): string {
  */
 let cachedLoginTemplate: string | undefined
 let cachedLoginTemplatePath: string | undefined
-let cachedTwoFactorTemplate: string | undefined
-let cachedTwoFactorTemplatePath: string | undefined
-let cachedTwoFactorSetupTemplate: string | undefined
-let cachedTwoFactorSetupTemplatePath: string | undefined
+let cachedTotpTemplate: string | undefined
+let cachedTotpTemplatePath: string | undefined
+let cachedTotpSetupTemplate: string | undefined
+let cachedTotpSetupTemplatePath: string | undefined
 let cachedPasskeySetupTemplate: string | undefined
 let cachedPasskeySetupTemplatePath: string | undefined
 let cachedBootstrapSignupTemplate: string | undefined
@@ -396,12 +396,12 @@ function injectLoginBootstrap(
 /**
  * Load TOTP verification page HTML.
  */
-async function loadTwoFactorTemplate(uiDir: string): Promise<string> {
+async function loadTotpTemplate(uiDir: string): Promise<string> {
   const candidatePaths = [path.join(uiDir, "totp.html"), path.join(uiDir, "2fa.html")]
 
   for (const templatePath of candidatePaths) {
-    if (cachedTwoFactorTemplate && cachedTwoFactorTemplatePath === templatePath) {
-      return cachedTwoFactorTemplate
+    if (cachedTotpTemplate && cachedTotpTemplatePath === templatePath) {
+      return cachedTotpTemplate
     }
 
     const file = Bun.file(templatePath)
@@ -410,15 +410,15 @@ async function loadTwoFactorTemplate(uiDir: string): Promise<string> {
       continue
     }
 
-    cachedTwoFactorTemplate = await file.text()
-    cachedTwoFactorTemplatePath = templatePath
-    return cachedTwoFactorTemplate
+    cachedTotpTemplate = await file.text()
+    cachedTotpTemplatePath = templatePath
+    return cachedTotpTemplate
   }
 
   throw new Error(`TOTP HTML not found at ${candidatePaths.join(" or ")}`)
 }
 
-function injectTwoFactorBootstrap(
+function injectTotpBootstrap(
   template: string,
   bootstrap: { token: string; username: string; timeoutSeconds: number },
 ): string {
@@ -436,12 +436,12 @@ function injectTwoFactorBootstrap(
 /**
  * Load TOTP setup page HTML.
  */
-async function loadTwoFactorSetupTemplate(uiDir: string): Promise<string> {
+async function loadTotpSetupTemplate(uiDir: string): Promise<string> {
   const candidatePaths = [path.join(uiDir, "totp-setup.html"), path.join(uiDir, "2fa-setup.html")]
 
   for (const templatePath of candidatePaths) {
-    if (cachedTwoFactorSetupTemplate && cachedTwoFactorSetupTemplatePath === templatePath) {
-      return cachedTwoFactorSetupTemplate
+    if (cachedTotpSetupTemplate && cachedTotpSetupTemplatePath === templatePath) {
+      return cachedTotpSetupTemplate
     }
 
     const file = Bun.file(templatePath)
@@ -450,15 +450,15 @@ async function loadTwoFactorSetupTemplate(uiDir: string): Promise<string> {
       continue
     }
 
-    cachedTwoFactorSetupTemplate = await file.text()
-    cachedTwoFactorSetupTemplatePath = templatePath
-    return cachedTwoFactorSetupTemplate
+    cachedTotpSetupTemplate = await file.text()
+    cachedTotpSetupTemplatePath = templatePath
+    return cachedTotpSetupTemplate
   }
 
   throw new Error(`TOTP setup HTML not found at ${candidatePaths.join(" or ")}`)
 }
 
-function injectTwoFactorSetupBootstrap(template: string, bootstrap: TwoFactorSetupBootstrap): string {
+function injectTotpSetupBootstrap(template: string, bootstrap: TotpSetupBootstrap): string {
   // Set the new TOTP setup key and mirror to the legacy setup bootstrap key for older clients.
   const script = `<script>window.__OPENCODE_TOTP_SETUP__ = ${JSON.stringify(bootstrap)};window.__OPENCODE_2FA_SETUP__ = window.__OPENCODE_TOTP_SETUP__;</script>`
   if (template.includes("</head>")) {
@@ -470,7 +470,7 @@ function injectTwoFactorSetupBootstrap(template: string, bootstrap: TwoFactorSet
   return `${template}\n${script}`
 }
 
-type TwoFactorSetupBootstrap = {
+type TotpSetupBootstrap = {
   username: string
   secret: string
   qrCodeSvg: string
@@ -481,18 +481,18 @@ type TwoFactorSetupBootstrap = {
   setupMessage?: string
 }
 
-async function buildTwoFactorSetupBootstrap(
+async function buildTotpSetupBootstrap(
   sessionId: string,
   session: UserSession.Info,
   required: boolean,
-): Promise<TwoFactorSetupBootstrap> {
+): Promise<TotpSetupBootstrap> {
   const broker = new BrokerClient()
   const hasTotp = await broker.checkTotp(session.username, session.home ?? "")
 
   const setupData = await generateTotpSetup(session.username)
   UserSession.setTwoFactorSetupSecret(sessionId, setupData.secret)
 
-  let setupStatus: TwoFactorSetupBootstrap["setupStatus"] = "pending_verification"
+  let setupStatus: TotpSetupBootstrap["setupStatus"] = "pending_verification"
   let setupMessage: string | undefined = "We'll create your TOTP configuration after you verify your code."
   let setupCommand: string | undefined
 
@@ -782,7 +782,7 @@ async function renderTotpSetupPage(c: Context<AuthEnv>) {
 
   // Check if setup is required (from login redirect)
   const required = c.req.query("required") === "1"
-  const bootstrap = await buildTwoFactorSetupBootstrap(sessionId, session, required)
+  const bootstrap = await buildTotpSetupBootstrap(sessionId, session, required)
 
   const uiDir = getUiDir()
   if (!uiDir) {
@@ -790,8 +790,8 @@ async function renderTotpSetupPage(c: Context<AuthEnv>) {
   }
 
   try {
-    const template = await loadTwoFactorSetupTemplate(uiDir)
-    return c.html(injectTwoFactorSetupBootstrap(template, bootstrap))
+    const template = await loadTotpSetupTemplate(uiDir)
+    return c.html(injectTotpSetupBootstrap(template, bootstrap))
   } catch (error) {
     log.error("Failed to load TOTP setup HTML", { error })
     return c.text(
@@ -821,8 +821,8 @@ async function renderTotpVerificationPage(c: Context<AuthEnv>) {
   }
 
   try {
-    const template = await loadTwoFactorTemplate(uiDir)
-    return c.html(injectTwoFactorBootstrap(template, { token, username, timeoutSeconds }))
+    const template = await loadTotpTemplate(uiDir)
+    return c.html(injectTotpBootstrap(template, { token, username, timeoutSeconds }))
   } catch (error) {
     log.error("Failed to load TOTP HTML", { error })
     return c.text("TOTP UI is missing. Run the app build to generate totp.html (legacy: 2fa.html).", 500)
@@ -851,7 +851,7 @@ async function startTotpSetup(c: Context<AuthEnv>) {
 
   const body = await c.req.json().catch(() => ({}))
   const required = c.req.query("required") === "1" || body.required === true
-  const bootstrap = await buildTwoFactorSetupBootstrap(sessionId, session, required)
+  const bootstrap = await buildTotpSetupBootstrap(sessionId, session, required)
   return c.json(bootstrap)
 }
 
