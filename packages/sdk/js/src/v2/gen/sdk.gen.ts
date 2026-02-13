@@ -362,7 +362,7 @@ export class Auth extends HeyApiClient {
    */
   public loginTotp<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
     return (options?.client ?? this.client).post<AuthLoginTotpResponses, AuthLoginTotpErrors, ThrowOnError>({
-      url: "/auth/login/2fa",
+      url: "/auth/login/totp",
       ...options,
     })
   }

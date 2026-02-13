@@ -278,7 +278,7 @@
         ]
       }
     },
-    "/auth/login/2fa": {
+    "/auth/login/totp": {
       "post": {
         "operationId": "auth.loginTotp",
         "summary": "Complete TOTP login",

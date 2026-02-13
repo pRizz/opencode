@@ -1,4 +1,4 @@
-import { Hono } from "hono"
+import { Hono, type Context } from "hono"
 import { describeRoute, resolver } from "hono-openapi"
 import { getCookie, setCookie } from "hono/cookie"
 import z from "zod"
@@ -590,6 +590,185 @@ function injectPasskeySetupBootstrap(
   return `${template}\n${script}`
 }
 
+async function completeTotpLogin(c: Context<AuthEnv>) {
+  const authConfig = ServerAuth.get()
+  if (!authConfig.enabled || !authConfig.twoFactorEnabled) {
+    return c.json({ error: "2fa_disabled", message: "TOTP authentication is not enabled" }, 403)
+  }
+
+  // Check X-Requested-With for CSRF
+  const xrw = c.req.header("X-Requested-With")
+  if (!xrw) {
+    const ip = getRequestIP(c)
+    logSecurityEvent({
+      type: "csrf_violation",
+      ip,
+      timestamp: new Date().toISOString(),
+      userAgent: c.req.header("User-Agent"),
+    })
+    return c.json({ error: "csrf_missing", message: "X-Requested-With header required" }, 400)
+  }
+
+  // Parse body
+  const body = await c.req.json()
+  const { totpToken, twoFactorToken, code, rememberDevice } = body as {
+    totpToken?: string
+    twoFactorToken?: string
+    code?: string
+    rememberDevice?: boolean
+  }
+  const token = totpToken ?? twoFactorToken
+
+  if (!token || !code) {
+    return c.json({ error: "invalid_request", message: "Token and code are required" }, 400)
+  }
+
+  // Verify TOTP token
+  const ip = getRequestIP(c)
+  const userInfo = await verifyTotpToken(token, getTokenSecret(), ip)
+  if (!userInfo) {
+    return c.json({ error: "token_expired", message: "TOTP session expired, please login again" }, 401)
+  }
+
+  // Check rate limiting for OTP attempts
+  const otpLimiter = otpRateLimiter()
+  if (otpLimiter) {
+    const rateLimitResult = otpLimiter.checkRateLimit(c)
+    if (rateLimitResult) return rateLimitResult
+  }
+
+  // Check OTP configuration first
+  const broker = new BrokerClient()
+  const otpConfig = await broker.checkOtpConfig()
+  if (!otpConfig.configured) {
+    // Return specific error based on what's misconfigured
+    if (otpConfig.errorCode === "pam_module_not_installed") {
+      return c.json(
+        {
+          error: "server_misconfigured",
+          message: "Server configuration error: libpam-google-authenticator is not installed.",
+        },
+        500,
+      )
+    } else if (otpConfig.errorCode === "pam_service_not_configured") {
+      return c.json(
+        {
+          error: "server_misconfigured",
+          message: `Server configuration error: PAM service file missing at ${otpConfig.pamServicePath}`,
+        },
+        500,
+      )
+    } else if (otpConfig.errorCode === "broker_unavailable") {
+      return c.json(
+        {
+          error: "server_error",
+          message: "Authentication service unavailable. Please try again later.",
+        },
+        503,
+      )
+    } else {
+      return c.json(
+        {
+          error: "server_misconfigured",
+          message: "Server configuration error: OTP validation is not properly configured.",
+        },
+        500,
+      )
+    }
+  }
+
+  // Log if service file was auto-created
+  if (otpConfig.serviceAutoCreated) {
+    log.info("PAM service file auto-created", { path: otpConfig.pamServicePath })
+  }
+
+  // Validate OTP via broker
+  const otpResult = await broker.authenticateOtp(userInfo.username, code)
+
+  const timestamp = new Date().toISOString()
+  const userAgent = c.req.header("User-Agent")
+
+  if (!otpResult.success) {
+    logSecurityEvent({
+      type: "login_failed",
+      ip,
+      username: userInfo.username,
+      reason: "invalid_otp",
+      timestamp,
+      userAgent,
+    })
+    // Record failure for rate limiting
+    otpLimiter?.recordFailure(c)
+    return c.json({ error: "invalid_code", message: "Invalid verification code" }, 401)
+  }
+
+  // Create session
+  const session = UserSession.create(
+    userInfo.username,
+    userAgent,
+    {
+      uid: userInfo.uid,
+      gid: userInfo.gid,
+      home: userInfo.home,
+      shell: userInfo.shell,
+    },
+    false, // TOTP login doesn't use rememberMe for session (device trust is separate)
+  )
+
+  // Set session cookie
+  setSessionCookie(c, session.id, false)
+  setCSRFCookie(c, session.id)
+
+  // Set device trust cookie if requested
+  if (rememberDevice) {
+    const fingerprint = createDeviceFingerprint(userAgent ?? "")
+    const trustDurationMs = parseDuration(authConfig.deviceTrustDuration ?? "30d") ?? 30 * 24 * 60 * 60 * 1000
+    const trustDurationSec = Math.floor(trustDurationMs / 1000)
+
+    const trustToken = await createDeviceTrustToken(userInfo.username, fingerprint, trustDurationSec, getTokenSecret())
+
+    setCookie(c, "opencode_device_trust", trustToken, {
+      path: "/",
+      httpOnly: true,
+      secure: isEffectiveHttps(c, authConfig.trustProxy),
+      sameSite: "Strict",
+      maxAge: trustDurationSec,
+    })
+  }
+
+  // Register session with broker
+  const userInfoForBroker: UserInfo = {
+    username: userInfo.username,
+    uid: userInfo.uid,
+    gid: userInfo.gid,
+    home: userInfo.home,
+    shell: userInfo.shell,
+  }
+  broker.registerSession(session.id, userInfoForBroker).catch((err) => {
+    log.warn("Failed to register session with broker", { error: err })
+  })
+
+  // Log successful login
+  logSecurityEvent({
+    type: "login_success",
+    ip,
+    username: userInfo.username,
+    timestamp,
+    userAgent,
+  })
+
+  return c.json({
+    success: true as const,
+    user: {
+      username: userInfo.username,
+      uid: userInfo.uid,
+      gid: userInfo.gid,
+      home: userInfo.home,
+      shell: userInfo.shell,
+    },
+  })
+}
+
 /**
  * Auth routes for session management.
  *
@@ -605,6 +784,7 @@ function injectPasskeySetupBootstrap(
  * - POST /passkey/register/verify - Verify passkey registration response
  * - GET /passkey/list - List passkeys for current user
  * - POST /passkey/remove - Remove a passkey for current user
+ * - POST /login/totp - Complete TOTP login
  * - GET /2fa - TOTP verification page (legacy path name)
  * - POST /login/2fa - Complete TOTP login (legacy path name)
  * - GET /status - Get auth configuration status
@@ -1353,7 +1533,7 @@ export const AuthRoutes = lazy(() =>
       },
     )
     .post(
-      "/login/2fa",
+      "/login/totp",
       describeRoute({
         summary: "Complete TOTP login",
         description: "Validate OTP code and complete authentication.",
@@ -1384,188 +1564,9 @@ export const AuthRoutes = lazy(() =>
           429: { description: "Rate limit exceeded" },
         },
       }),
-      async (c) => {
-        const authConfig = ServerAuth.get()
-        if (!authConfig.enabled || !authConfig.twoFactorEnabled) {
-          return c.json({ error: "2fa_disabled", message: "TOTP authentication is not enabled" }, 403)
-        }
-
-        // Check X-Requested-With for CSRF
-        const xrw = c.req.header("X-Requested-With")
-        if (!xrw) {
-          const ip = getRequestIP(c)
-          logSecurityEvent({
-            type: "csrf_violation",
-            ip,
-            timestamp: new Date().toISOString(),
-            userAgent: c.req.header("User-Agent"),
-          })
-          return c.json({ error: "csrf_missing", message: "X-Requested-With header required" }, 400)
-        }
-
-        // Parse body
-        const body = await c.req.json()
-        const { twoFactorToken, code, rememberDevice } = body as {
-          twoFactorToken?: string
-          code?: string
-          rememberDevice?: boolean
-        }
-
-        if (!twoFactorToken || !code) {
-          return c.json({ error: "invalid_request", message: "Token and code are required" }, 400)
-        }
-
-        // Verify TOTP token
-        const ip = getRequestIP(c)
-        const userInfo = await verifyTotpToken(twoFactorToken, getTokenSecret(), ip)
-        if (!userInfo) {
-          return c.json({ error: "token_expired", message: "TOTP session expired, please login again" }, 401)
-        }
-
-        // Check rate limiting for OTP attempts
-        const otpLimiter = otpRateLimiter()
-        if (otpLimiter) {
-          const rateLimitResult = otpLimiter.checkRateLimit(c)
-          if (rateLimitResult) return rateLimitResult
-        }
-
-        // Check OTP configuration first
-        const broker = new BrokerClient()
-        const otpConfig = await broker.checkOtpConfig()
-        if (!otpConfig.configured) {
-          // Return specific error based on what's misconfigured
-          if (otpConfig.errorCode === "pam_module_not_installed") {
-            return c.json(
-              {
-                error: "server_misconfigured",
-                message: "Server configuration error: libpam-google-authenticator is not installed.",
-              },
-              500,
-            )
-          } else if (otpConfig.errorCode === "pam_service_not_configured") {
-            return c.json(
-              {
-                error: "server_misconfigured",
-                message: `Server configuration error: PAM service file missing at ${otpConfig.pamServicePath}`,
-              },
-              500,
-            )
-          } else if (otpConfig.errorCode === "broker_unavailable") {
-            return c.json(
-              {
-                error: "server_error",
-                message: "Authentication service unavailable. Please try again later.",
-              },
-              503,
-            )
-          } else {
-            return c.json(
-              {
-                error: "server_misconfigured",
-                message: "Server configuration error: OTP validation is not properly configured.",
-              },
-              500,
-            )
-          }
-        }
-
-        // Log if service file was auto-created
-        if (otpConfig.serviceAutoCreated) {
-          log.info("PAM service file auto-created", { path: otpConfig.pamServicePath })
-        }
-
-        // Validate OTP via broker
-        const otpResult = await broker.authenticateOtp(userInfo.username, code)
-
-        const timestamp = new Date().toISOString()
-        const userAgent = c.req.header("User-Agent")
-
-        if (!otpResult.success) {
-          logSecurityEvent({
-            type: "login_failed",
-            ip,
-            username: userInfo.username,
-            reason: "invalid_otp",
-            timestamp,
-            userAgent,
-          })
-          // Record failure for rate limiting
-          otpLimiter?.recordFailure(c)
-          return c.json({ error: "invalid_code", message: "Invalid verification code" }, 401)
-        }
-
-        // Create session
-        const session = UserSession.create(
-          userInfo.username,
-          userAgent,
-          {
-            uid: userInfo.uid,
-            gid: userInfo.gid,
-            home: userInfo.home,
-            shell: userInfo.shell,
-          },
-          false, // TOTP login doesn't use rememberMe for session (device trust is separate)
-        )
-
-        // Set session cookie
-        setSessionCookie(c, session.id, false)
-        setCSRFCookie(c, session.id)
-
-        // Set device trust cookie if requested
-        if (rememberDevice) {
-          const fingerprint = createDeviceFingerprint(userAgent ?? "")
-          const trustDurationMs = parseDuration(authConfig.deviceTrustDuration ?? "30d") ?? 30 * 24 * 60 * 60 * 1000
-          const trustDurationSec = Math.floor(trustDurationMs / 1000)
-
-          const trustToken = await createDeviceTrustToken(
-            userInfo.username,
-            fingerprint,
-            trustDurationSec,
-            getTokenSecret(),
-          )
-
-          setCookie(c, "opencode_device_trust", trustToken, {
-            path: "/",
-            httpOnly: true,
-            secure: isEffectiveHttps(c, authConfig.trustProxy),
-            sameSite: "Strict",
-            maxAge: trustDurationSec,
-          })
-        }
-
-        // Register session with broker
-        const userInfoForBroker: UserInfo = {
-          username: userInfo.username,
-          uid: userInfo.uid,
-          gid: userInfo.gid,
-          home: userInfo.home,
-          shell: userInfo.shell,
-        }
-        broker.registerSession(session.id, userInfoForBroker).catch((err) => {
-          log.warn("Failed to register session with broker", { error: err })
-        })
-
-        // Log successful login
-        logSecurityEvent({
-          type: "login_success",
-          ip,
-          username: userInfo.username,
-          timestamp,
-          userAgent,
-        })
-
-        return c.json({
-          success: true as const,
-          user: {
-            username: userInfo.username,
-            uid: userInfo.uid,
-            gid: userInfo.gid,
-            home: userInfo.home,
-            shell: userInfo.shell,
-          },
-        })
-      },
+      completeTotpLogin,
     )
+    .post("/login/2fa", completeTotpLogin)
     .post(
       "/passkey/auth/options",
       describeRoute({

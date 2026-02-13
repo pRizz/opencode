@@ -97,14 +97,14 @@ export function TotpApp() {
     })
 
     try {
-      const res = await fetch("/auth/login/2fa", {
+      const res = await fetch("/auth/login/totp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "X-Requested-With": "XMLHttpRequest",
         },
         body: JSON.stringify({
-          twoFactorToken: token,
+          totpToken: token,
           code,
           rememberDevice: state.rememberDevice,
         }),

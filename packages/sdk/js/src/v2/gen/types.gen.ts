@@ -2639,7 +2639,7 @@ export type AuthLoginTotpData = {
   body?: never
   path?: never
   query?: never
-  url: "/auth/login/2fa"
+  url: "/auth/login/totp"
 }
 
 export type AuthLoginTotpErrors = {
