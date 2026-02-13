@@ -5,7 +5,7 @@ pub mod validation;
 
 pub use otp::{
     OtpConfigStatus, OtpRemoveError, OtpRemoveResult, OtpSetupError, OtpSetupResult,
-    check_otp_config, has_2fa_configured, remove_google_authenticator, validate_otp,
-    write_google_authenticator,
+    check_otp_config, has_2fa_configured, has_totp_configured, remove_google_authenticator,
+    validate_otp, write_google_authenticator,
 };
 pub use pam::AuthError;

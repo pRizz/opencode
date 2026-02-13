@@ -12,7 +12,7 @@ use base64::Engine;
 use crate::auth::rate_limit::RateLimiter;
 use crate::auth::validation;
 use crate::auth::{
-    OtpRemoveError, OtpSetupError, check_otp_config, has_2fa_configured, pam,
+    OtpRemoveError, OtpSetupError, check_otp_config, has_totp_configured, pam,
     remove_google_authenticator, validate_otp, write_google_authenticator,
 };
 use crate::config::BrokerConfig;
@@ -96,7 +96,7 @@ pub async fn handle_request(
 
         Method::RemoveOtp => handle_remove_otp(request, user_sessions).await,
 
-        Method::Check2fa => handle_check_2fa(request).await,
+        Method::Check2fa => handle_check_totp(request).await,
 
         Method::CheckOtpConfig => handle_check_otp_config(request, config).await,
 
@@ -331,7 +331,7 @@ async fn handle_authenticate_otp(
 ///
 /// Checks if the user has a .google_authenticator file in their home directory.
 /// This is a simple file existence check, no authentication required.
-async fn handle_check_2fa(request: Request) -> Response {
+async fn handle_check_totp(request: Request) -> Response {
     let (username, home) = match &request.params {
         RequestParams::Check2fa(params) => (&params.username, &params.home),
         _ => {
@@ -346,9 +346,9 @@ async fn handle_check_2fa(request: Request) -> Response {
         "checking TOTP configuration"
     );
 
-    let has_2fa = has_2fa_configured(home);
+    let has_totp = has_totp_configured(home);
 
-    if has_2fa {
+    if has_totp {
         info!(
             id = %request.id,
             username = %username,

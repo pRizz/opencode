@@ -168,7 +168,7 @@ pub fn check_otp_config(pam_service: &str) -> OtpConfigStatus {
 ///
 /// * `true` - If the user has a `.google_authenticator` file
 /// * `false` - If the file doesn't exist or isn't readable
-pub fn has_2fa_configured(home: &str) -> bool {
+pub fn has_totp_configured(home: &str) -> bool {
     let auth_file = Path::new(home).join(".google_authenticator");
 
     // Check if file exists and is readable
@@ -192,6 +192,10 @@ pub fn has_2fa_configured(home: &str) -> bool {
             false
         }
     }
+}
+
+pub fn has_2fa_configured(home: &str) -> bool {
+    has_totp_configured(home)
 }
 
 /// Result of writing the google_authenticator file.
@@ -496,7 +500,7 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
-    fn test_has_2fa_configured_file_exists() {
+    fn test_has_totp_configured_file_exists() {
         let tmp = tempdir().unwrap();
         let home = tmp.path().to_str().unwrap();
 
@@ -504,20 +508,20 @@ mod tests {
         let auth_file = tmp.path().join(".google_authenticator");
         fs::write(&auth_file, "secret").unwrap();
 
-        assert!(has_2fa_configured(home));
+        assert!(has_totp_configured(home));
     }
 
     #[test]
-    fn test_has_2fa_configured_file_not_exists() {
+    fn test_has_totp_configured_file_not_exists() {
         let tmp = tempdir().unwrap();
         let home = tmp.path().to_str().unwrap();
 
-        assert!(!has_2fa_configured(home));
+        assert!(!has_totp_configured(home));
     }
 
     #[test]
-    fn test_has_2fa_configured_invalid_home() {
-        assert!(!has_2fa_configured("/nonexistent/path"));
+    fn test_has_totp_configured_invalid_home() {
+        assert!(!has_totp_configured("/nonexistent/path"));
     }
 
     #[test]
