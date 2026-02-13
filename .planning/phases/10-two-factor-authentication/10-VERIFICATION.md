@@ -27,38 +27,38 @@ score: 4/4 must-haves verified
 
 ### Required Artifacts
 
-| Artifact                                                  | Expected                  | Status   | Details                                                                                                                                          |
-| --------------------------------------------------------- | ------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `packages/opencode/src/config/auth.ts`                    | TOTP config fields        | VERIFIED | Contains `twoFactorEnabled`, `twoFactorTokenTimeout`, `deviceTrustDuration`, `otpRateLimitMax`, `otpRateLimitWindow` (lines 51-57)               |
-| `packages/opencode-broker/src/auth/otp.rs`                | OTP module                | VERIFIED | 167 lines, exports `has_totp_configured` (legacy `has_2fa_configured` alias), `validate_otp`, includes tests                                     |
-| `packages/opencode-broker/src/auth/mod.rs`                | OTP exports               | VERIFIED | Exports `has_totp_configured` plus legacy `has_2fa_configured` alias, and `validate_otp`                                                         |
-| `packages/opencode-broker/src/ipc/protocol.rs`            | CheckTotp, AuthenticateOtp | VERIFIED | Methods/params/tests present with `checktotp` canonical wire token and legacy `check2fa` alias deserialization                                    |
-| `packages/opencode-broker/src/ipc/handler.rs`             | TOTP handlers             | VERIFIED | `handle_authenticate_otp` and `handle_check_totp` with rate limiting                                                                               |
-| `packages/opencode/src/auth/device-trust.ts`              | Device trust tokens       | VERIFIED | 85 lines, exports `createDeviceFingerprint`, `createDeviceTrustToken`, `verifyDeviceTrustToken`                                                  |
-| `packages/opencode/src/auth/two-factor-token.ts`          | TOTP tokens               | VERIFIED | 129 lines, exports `create2FAToken`, `verify2FAToken`, `getTokenRemainingSeconds`                                                                |
-| `packages/opencode/src/auth/broker-client.ts`             | TOTP methods              | VERIFIED | `checkTotp()` canonical method with `check2fa()` compatibility alias, and `authenticateOtp()`                                                     |
-| `packages/opencode/src/server/security/token-secret.ts`   | JWT secret                | VERIFIED | 26 lines, exports `getTokenSecret()` via lazy init                                                                                               |
-| `packages/opencode/src/server/routes/auth.ts`             | TOTP endpoints            | VERIFIED | `/login/2fa` (1396), `/2fa` page (1117), `/2fa/setup` (1675), `/2fa/verify` (1701), `/device-trust/status` (1594), `/device-trust/revoke` (1643) |
-| `packages/opencode/src/auth/totp-setup.ts`                | QR code generation        | VERIFIED | 95 lines, exports `generateTotpSetup`, `getGoogleAuthenticatorSetupCommand`                                                                      |
-| `packages/opencode-broker/service/opencode-otp.pam`       | PAM service (Linux)       | VERIFIED | Contains `auth required pam_google_authenticator.so nullok`                                                                                      |
-| `packages/opencode-broker/service/opencode-otp.pam.macos` | PAM service (macOS)       | VERIFIED | Contains `auth required pam_google_authenticator.so nullok`                                                                                      |
-| `packages/app/src/components/session-indicator.tsx`       | Device trust UI           | VERIFIED | "Forget this device" (line 157), "Set up TOTP" (line 161), device trust status fetch                                                             |
+| Artifact                                                  | Expected                   | Status   | Details                                                                                                                                          |
+| --------------------------------------------------------- | -------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `packages/opencode/src/config/auth.ts`                    | TOTP config fields         | VERIFIED | Contains `twoFactorEnabled`, `twoFactorTokenTimeout`, `deviceTrustDuration`, `otpRateLimitMax`, `otpRateLimitWindow` (lines 51-57)               |
+| `packages/opencode-broker/src/auth/otp.rs`                | OTP module                 | VERIFIED | 167 lines, exports `has_totp_configured` (legacy `has_2fa_configured` alias), `validate_otp`, includes tests                                     |
+| `packages/opencode-broker/src/auth/mod.rs`                | OTP exports                | VERIFIED | Exports `has_totp_configured` plus legacy `has_2fa_configured` alias, and `validate_otp`                                                         |
+| `packages/opencode-broker/src/ipc/protocol.rs`            | CheckTotp, AuthenticateOtp | VERIFIED | Methods/params/tests present with `checktotp` canonical wire token and legacy `check2fa` alias deserialization                                   |
+| `packages/opencode-broker/src/ipc/handler.rs`             | TOTP handlers              | VERIFIED | `handle_authenticate_otp` and `handle_check_totp` with rate limiting                                                                             |
+| `packages/opencode/src/auth/device-trust.ts`              | Device trust tokens        | VERIFIED | 85 lines, exports `createDeviceFingerprint`, `createDeviceTrustToken`, `verifyDeviceTrustToken`                                                  |
+| `packages/opencode/src/auth/two-factor-token.ts`          | TOTP tokens                | VERIFIED | 129 lines, exports `create2FAToken`, `verify2FAToken`, `getTokenRemainingSeconds`                                                                |
+| `packages/opencode/src/auth/broker-client.ts`             | TOTP methods               | VERIFIED | `checkTotp()` canonical method with `check2fa()` compatibility alias, and `authenticateOtp()`                                                    |
+| `packages/opencode/src/server/security/token-secret.ts`   | JWT secret                 | VERIFIED | 26 lines, exports `getTokenSecret()` via lazy init                                                                                               |
+| `packages/opencode/src/server/routes/auth.ts`             | TOTP endpoints             | VERIFIED | `/login/2fa` (1396), `/2fa` page (1117), `/2fa/setup` (1675), `/2fa/verify` (1701), `/device-trust/status` (1594), `/device-trust/revoke` (1643) |
+| `packages/opencode/src/auth/totp-setup.ts`                | QR code generation         | VERIFIED | 95 lines, exports `generateTotpSetup`, `getGoogleAuthenticatorSetupCommand`                                                                      |
+| `packages/opencode-broker/service/opencode-otp.pam`       | PAM service (Linux)        | VERIFIED | Contains `auth required pam_google_authenticator.so nullok`                                                                                      |
+| `packages/opencode-broker/service/opencode-otp.pam.macos` | PAM service (macOS)        | VERIFIED | Contains `auth required pam_google_authenticator.so nullok`                                                                                      |
+| `packages/app/src/components/session-indicator.tsx`       | Device trust UI            | VERIFIED | "Forget this device" (line 157), "Set up TOTP" (line 161), device trust status fetch                                                             |
 
 ### Key Link Verification
 
-| From                       | To                        | Via             | Status | Details                                               |
-| -------------------------- | ------------------------- | --------------- | ------ | ----------------------------------------------------- |
+| From                       | To                        | Via             | Status | Details                                                                      |
+| -------------------------- | ------------------------- | --------------- | ------ | ---------------------------------------------------------------------------- |
 | auth.ts login endpoint     | broker.checkTotp()        | BrokerClient    | WIRED  | Login flow calls canonical `checkTotp(...)` (legacy check2fa alias retained) |
-| auth.ts login endpoint     | create2FAToken()          | import          | WIRED  | Lines 17, 1321-1326                                   |
-| auth.ts login endpoint     | verifyDeviceTrustToken()  | import          | WIRED  | Lines 17, 1297-1300                                   |
-| auth.ts /login/2fa         | verify2FAToken()          | import          | WIRED  | Line 1460                                             |
-| auth.ts /login/2fa         | broker.authenticateOtp()  | BrokerClient    | WIRED  | Line 1474                                             |
-| handler.rs CheckTotp       | has_totp_configured()     | function call   | WIRED  | Check handler resolves via TOTP-first helper          |
-| handler.rs AuthenticateOtp | validate_otp()            | function call   | WIRED  | Line 211                                              |
-| session-indicator.tsx      | /auth/device-trust/status | fetch           | WIRED  | Line 42                                               |
-| session-indicator.tsx      | /auth/device-trust/revoke | fetch           | WIRED  | Line 99                                               |
-| TOTP page JS               | /auth/login/2fa           | fetch           | WIRED  | Line 759 in generate2FAPageHtml                       |
-| login page JS              | 2fa_required redirect     | window.location | WIRED  | Line 438-448 in generateLoginPageHtml                 |
+| auth.ts login endpoint     | create2FAToken()          | import          | WIRED  | Lines 17, 1321-1326                                                          |
+| auth.ts login endpoint     | verifyDeviceTrustToken()  | import          | WIRED  | Lines 17, 1297-1300                                                          |
+| auth.ts /login/2fa         | verify2FAToken()          | import          | WIRED  | Line 1460                                                                    |
+| auth.ts /login/2fa         | broker.authenticateOtp()  | BrokerClient    | WIRED  | Line 1474                                                                    |
+| handler.rs CheckTotp       | has_totp_configured()     | function call   | WIRED  | Check handler resolves via TOTP-first helper                                 |
+| handler.rs AuthenticateOtp | validate_otp()            | function call   | WIRED  | Line 211                                                                     |
+| session-indicator.tsx      | /auth/device-trust/status | fetch           | WIRED  | Line 42                                                                      |
+| session-indicator.tsx      | /auth/device-trust/revoke | fetch           | WIRED  | Line 99                                                                      |
+| TOTP page JS               | /auth/login/2fa           | fetch           | WIRED  | Line 759 in generate2FAPageHtml                                              |
+| login page JS              | 2fa_required redirect     | window.location | WIRED  | Line 438-448 in generateLoginPageHtml                                        |
 
 ### Requirements Coverage
 
