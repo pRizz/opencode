@@ -1,21 +1,24 @@
 import { createMemo, createSignal, onCleanup, onMount } from "solid-js"
 import { createStore } from "solid-js/store"
 
-type TwoFactorBootstrap = {
+type TotpBootstrap = {
   token: string
   username: string
   timeoutSeconds: number
 }
 
+/** @deprecated Prefer TotpBootstrap. */
+export type TwoFactorBootstrap = TotpBootstrap
+
 declare global {
   interface Window {
-    __OPENCODE_TOTP__?: TwoFactorBootstrap
+    __OPENCODE_TOTP__?: TotpBootstrap
     /** @deprecated Legacy bootstrap key retained for backward compatibility. */
-    __OPENCODE_2FA__?: TwoFactorBootstrap
+    __OPENCODE_2FA__?: TotpBootstrap
   }
 }
 
-export function TwoFactorApp() {
+export function TotpApp() {
   // Prefer the TOTP bootstrap key, while preserving the legacy key fallback.
   const bootstrap = window.__OPENCODE_TOTP__ ?? window.__OPENCODE_2FA__
   const token = bootstrap?.token ?? ""
@@ -360,3 +363,6 @@ export function TwoFactorApp() {
     </>
   )
 }
+
+/** @deprecated Prefer TotpApp. */
+export const TwoFactorApp = TotpApp

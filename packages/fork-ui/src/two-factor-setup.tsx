@@ -1,14 +1,17 @@
-import { TwoFactorSetupFlow, type TwoFactorSetupBootstrap } from "./two-factor-setup-flow"
+import { TotpSetupFlow, type TotpSetupBootstrap } from "./two-factor-setup-flow"
 
 declare global {
   interface Window {
-    __OPENCODE_TOTP_SETUP__?: TwoFactorSetupBootstrap
+    __OPENCODE_TOTP_SETUP__?: TotpSetupBootstrap
     /** @deprecated Legacy bootstrap key retained for backward compatibility. */
-    __OPENCODE_2FA_SETUP__?: TwoFactorSetupBootstrap
+    __OPENCODE_2FA_SETUP__?: TotpSetupBootstrap
   }
 }
 
-export function TwoFactorSetupApp() {
+export function TotpSetupApp() {
   // Prefer the TOTP setup bootstrap key, while preserving the legacy key fallback.
-  return <TwoFactorSetupFlow bootstrap={window.__OPENCODE_TOTP_SETUP__ ?? window.__OPENCODE_2FA_SETUP__} />
+  return <TotpSetupFlow bootstrap={window.__OPENCODE_TOTP_SETUP__ ?? window.__OPENCODE_2FA_SETUP__} />
 }
+
+/** @deprecated Prefer TotpSetupApp. */
+export const TwoFactorSetupApp = TotpSetupApp

@@ -1,7 +1,7 @@
 import { Show, createMemo, createSignal, onCleanup, onMount } from "solid-js"
 import { Button } from "@opencode-ai/ui/button"
 
-export type TwoFactorSetupBootstrap = {
+export type TotpSetupBootstrap = {
   username: string
   secret: string
   qrCodeSvg: string
@@ -12,8 +12,11 @@ export type TwoFactorSetupBootstrap = {
   setupMessage?: string
 }
 
-interface TwoFactorSetupFlowProps {
-  bootstrap?: TwoFactorSetupBootstrap
+/** @deprecated Prefer TotpSetupBootstrap. */
+export type TwoFactorSetupBootstrap = TotpSetupBootstrap
+
+interface TotpSetupFlowProps {
+  bootstrap?: TotpSetupBootstrap
   getServerUrl?: () => string | undefined
   embedded?: boolean
   onConfigured?: () => void
@@ -35,9 +38,9 @@ function buildUrl(getServerUrl: (() => string | undefined) | undefined, path: st
   return base ? `${base}${path}` : path
 }
 
-export function TwoFactorSetupFlow(props: TwoFactorSetupFlowProps) {
+export function TotpSetupFlow(props: TotpSetupFlowProps) {
   const embedded = () => props.embedded === true
-  const [bootstrap, setBootstrap] = createSignal<TwoFactorSetupBootstrap | undefined>(props.bootstrap)
+  const [bootstrap, setBootstrap] = createSignal<TotpSetupBootstrap | undefined>(props.bootstrap)
   const [loadingBootstrap, setLoadingBootstrap] = createSignal(!props.bootstrap && embedded())
 
   const [code, setCode] = createSignal("")
@@ -84,7 +87,7 @@ export function TwoFactorSetupFlow(props: TwoFactorSetupFlowProps) {
         },
       })
 
-      const body = (await res.json().catch(() => ({}))) as Partial<TwoFactorSetupBootstrap> & { message?: string }
+      const body = (await res.json().catch(() => ({}))) as Partial<TotpSetupBootstrap> & { message?: string }
       if (!res.ok) {
         setError(body.message ?? "Unable to start TOTP setup.")
         return
@@ -313,14 +316,14 @@ export function TwoFactorSetupFlow(props: TwoFactorSetupFlowProps) {
             display: flex;
             justify-content: center;
           }
-          .two-factor-page { width: 100%; max-width: 520px; }
-          .two-factor-card {
+          .totp-setup-page { width: 100%; max-width: 520px; }
+          .totp-setup-card {
             background: #141414;
             border: 1px solid #262626;
             border-radius: 12px;
             padding: 1.5rem;
           }
-          .two-factor-input {
+          .totp-setup-input {
             width: 100%;
             height: 44px;
             border: 1px solid #333;
@@ -331,17 +334,17 @@ export function TwoFactorSetupFlow(props: TwoFactorSetupFlowProps) {
             text-align: center;
             letter-spacing: 0.25em;
           }
-          .two-factor-input:focus {
+          .totp-setup-input:focus {
             outline: none;
             border-color: #525252;
             box-shadow: 0 0 0 2px rgba(82, 82, 82, 0.3);
           }
-          .two-factor-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; }
+          .totp-setup-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; }
         `}</style>
       </Show>
 
-      <div class={embedded() ? "flex flex-col gap-3" : "two-factor-page"}>
-        <div class={embedded() ? "rounded-lg border border-border-weak-base p-4" : "two-factor-card"}>
+      <div class={embedded() ? "flex flex-col gap-3" : "totp-setup-page"}>
+        <div class={embedded() ? "rounded-lg border border-border-weak-base p-4" : "totp-setup-card"}>
           <div class="text-15-medium text-text-strong">Setup TOTP</div>
           <Show when={setupData()} fallback={<div class="mt-2 text-13-regular text-text-weak">Preparing setup...</div>}>
             {(setup) => (
@@ -401,7 +404,7 @@ export function TwoFactorSetupFlow(props: TwoFactorSetupFlowProps) {
                     class={
                       embedded()
                         ? "h-10 rounded-md border border-border-weak-base bg-background-base px-3 text-14-medium"
-                        : "two-factor-input"
+                        : "totp-setup-input"
                     }
                     type="text"
                     inputmode="numeric"
@@ -432,7 +435,7 @@ export function TwoFactorSetupFlow(props: TwoFactorSetupFlowProps) {
                 </Show>
 
                 <Show when={!embedded() && !required() && !alreadyConfigured()}>
-                  <div class="two-factor-actions">
+                  <div class="totp-setup-actions">
                     <Button size="small" variant="ghost" onClick={() => void handleSkip()} disabled={skipSubmitting()}>
                       {skipSubmitting() ? "Skipping..." : "Skip for now"}
                     </Button>
@@ -454,3 +457,6 @@ export function TwoFactorSetupFlow(props: TwoFactorSetupFlowProps) {
     </>
   )
 }
+
+/** @deprecated Prefer TotpSetupFlow. */
+export const TwoFactorSetupFlow = TotpSetupFlow

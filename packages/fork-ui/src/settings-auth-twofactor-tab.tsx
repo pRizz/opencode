@@ -2,7 +2,7 @@ import { Show } from "solid-js"
 import { Tooltip } from "@opencode-ai/ui/tooltip"
 import { ManageTwoFactorPanel } from "./manage-2fa-panel"
 import { useSettingsAuth } from "./settings-auth-state"
-import { TwoFactorSetupFlow } from "./two-factor-setup-flow"
+import { TotpSetupFlow } from "./two-factor-setup-flow"
 
 export function SettingsAuthTwoFactorTab() {
   const auth = useSettingsAuth()
@@ -27,7 +27,7 @@ export function SettingsAuthTwoFactorTab() {
             when={auth.state.twoFactorEnabled}
             fallback={<div class="text-13-regular text-text-weak">TOTP is disabled on this server.</div>}
           >
-            <TwoFactorSetupFlow
+            <TotpSetupFlow
               embedded
               getServerUrl={auth.getServerUrl}
               onConfigured={() => void auth.refreshDeviceTrust()}

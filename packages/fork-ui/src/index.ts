@@ -8,8 +8,8 @@ export function wrapRoutes<T>(routes: T): T {
 
 export { LoginApp } from "./login"
 export { BootstrapSignupApp } from "./bootstrap-signup"
-export { TwoFactorApp } from "./two-factor"
-export { TwoFactorSetupApp } from "./two-factor-setup"
+export { TotpApp, TwoFactorApp } from "./two-factor"
+export { TotpSetupApp, TwoFactorSetupApp } from "./two-factor-setup"
 export { PasskeySetupApp } from "./passkey-setup"
 export { ManageTwoFactorDialog } from "./manage-2fa-dialog"
 export { PasskeyManagerDialog } from "./passkey-manager-dialog"
