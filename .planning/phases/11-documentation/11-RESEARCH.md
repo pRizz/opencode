@@ -6,7 +6,7 @@
 
 ## Summary
 
-Deployment documentation for auth-enabled opencode requires coverage of three primary domains: reverse proxy configuration (nginx/Caddy + cloud providers), PAM authentication setup (including 2FA and LDAP), and comprehensive troubleshooting guides. The research identified established patterns for technical documentation structure, authoritative security header configurations from OWASP, and verified reverse proxy configurations for WebSocket-heavy applications like opencode.
+Deployment documentation for auth-enabled opencode requires coverage of three primary domains: reverse proxy configuration (nginx/Caddy + cloud providers), PAM authentication setup (including TOTP and LDAP), and comprehensive troubleshooting guides. The research identified established patterns for technical documentation structure, authoritative security header configurations from OWASP, and verified reverse proxy configurations for WebSocket-heavy applications like opencode.
 
 The standard approach for documentation organization is a `docs/` folder with topic-based markdown files (reverse-proxy.md, pam.md, troubleshooting.md), linked from the main README. This follows GitHub's recommended documentation hierarchy and aligns with how opencode.ai currently structures their documentation. For diagrams and flowcharts, Mermaid provides native GitHub support and integrates seamlessly with markdown documentation workflows.
 
@@ -34,7 +34,7 @@ The established tools/technologies for deployment documentation:
 | Tool/Library             | Version          | Purpose                        | When to Use                                         |
 | ------------------------ | ---------------- | ------------------------------ | --------------------------------------------------- |
 | certbot                  | Latest           | Let's Encrypt client for nginx | nginx deployments needing automated cert management |
-| pam_google_authenticator | libpam package   | 2FA via TOTP                   | Enhanced security for PAM authentication            |
+| pam_google_authenticator | libpam package   | TOTP authentication            | Enhanced security for PAM authentication            |
 | rsyslog/syslog           | Platform default | PAM debug logging              | Troubleshooting authentication failures             |
 
 ### Alternatives Considered
@@ -58,7 +58,7 @@ docs/
 ├── reverse-proxy/         # Full config examples
 │   ├── nginx-full.conf
 │   └── Caddyfile-full
-├── pam-config.md          # PAM setup, LDAP, 2FA
+├── pam-config.md          # PAM setup, LDAP, TOTP
 ├── troubleshooting.md     # Decision trees, common errors
 └── security-headers.md    # OWASP recommendations
 ```
@@ -110,7 +110,7 @@ proxy_set_header Connection "upgrade";
 ### Pattern 2: Progressive Disclosure for Technical Depth
 
 **What:** Provide quick start for experts, detailed explanations for newcomers
-**When to use:** PAM configuration, complex setups (LDAP, 2FA)
+**When to use:** PAM configuration, complex setups (LDAP, TOTP)
 **Example:**
 
 ```markdown
@@ -398,7 +398,7 @@ account required pam_unix.so
 password required pam_unix.so
 ```
 
-### PAM with 2FA (Google Authenticator)
+### PAM with TOTP (Google Authenticator)
 
 ```
 # /etc/pam.d/opencode-2fa
@@ -406,8 +406,8 @@ password required pam_unix.so
 
 # Two-factor authentication
 auth required pam_google_authenticator.so nullok
-# nullok: users without 2FA setup can still login
-# Remove nullok to enforce 2FA for all users
+# nullok: users without TOTP setup can still login
+# Remove nullok to enforce TOTP for all users
 
 auth required pam_unix.so
 account required pam_unix.so
@@ -538,7 +538,7 @@ sudo systemctl list-timers | grep certbot
 | supervisord/forever      | systemd units                   | ~2015+                | Native platform integration, better logging/resource control     |
 | Image-based diagrams     | Mermaid in markdown             | ~2020+                | Version control, GitHub native rendering, easier updates         |
 | Single nginx config      | Dual format (quick + annotated) | Current best practice | Serves both expert (quick copy) and learning (explanation) needs |
-| PAM-only auth            | PAM + 2FA (TOTP)                | ~2018+                | Defense against credential compromise, zero-trust environments   |
+| PAM-only auth            | PAM + TOTP authentication       | ~2018+                | Defense against credential compromise, zero-trust environments   |
 | HTTP-only load balancers | TLS termination at LB           | Cloud-native shift    | Offloads TLS from application, centralized cert management       |
 
 **Deprecated/outdated:**
@@ -597,7 +597,7 @@ Things that couldn't be fully resolved:
 - [Better Stack: nginx WebSocket SSL](https://betterstack.com/community/questions/nginx-to-reverse-proxy-websockets-and-enable-ssl/) - Community-verified nginx + WSS setup
 - [WebSocket.org nginx Guide](https://websocket.org/guides/infrastructure/nginx/) - WebSocket-specific nginx configuration
 - [DigitalOcean: Deploy Node.js with systemd and nginx](https://www.digitalocean.com/community/tutorials/how-to-deploy-node-js-applications-using-systemd-and-nginx) - Full deployment walkthrough
-- [GitHub: google-authenticator-libpam](https://github.com/google/google-authenticator-libpam) - Official 2FA PAM module
+- [GitHub: google-authenticator-libpam](https://github.com/google/google-authenticator-libpam) - Official TOTP PAM module
 - [Red Hat: Debugging PAM Configuration](https://access.redhat.com/articles/1314883) - PAM debug logging procedures
 - [NGINX SELinux Configuration](https://www.getpagespeed.com/server-setup/nginx/nginx-selinux-configuration) - SELinux troubleshooting for nginx
 - [CloudBees: Running Node.js with systemd](https://www.cloudbees.com/blog/running-node-js-linux-systemd) - systemd best practices for Node.js

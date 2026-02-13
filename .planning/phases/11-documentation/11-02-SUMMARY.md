@@ -4,7 +4,7 @@ plan: 02
 subsystem: documentation
 tags: [pam, authentication, 2fa, ldap, broker, systemd, launchd, security]
 requires:
-  - 10-08 # Two-factor authentication complete - document 2FA setup
+  - 10-08 # TOTP authentication complete - document TOTP setup
   - 03-04 # Broker systemd/launchd services created
   - 01-03 # PAM config validation established
 provides:
@@ -30,7 +30,7 @@ decisions:
     impact: Dual-format documentation serving multiple audience levels
   - decision: Separate OTP PAM service
     rationale: Allows independent password and OTP validation with nullok option
-    impact: Users without 2FA can authenticate while 2FA is enabled
+    impact: Users without TOTP can authenticate while TOTP is enabled
   - decision: SSSD recommended over pam_ldap.so
     rationale: Modern, maintained, better performance, offline support
     impact: Enterprise users should configure SSSD + pam_sss.so
@@ -47,7 +47,7 @@ completed: 2026-01-25
 
 # Phase 11 Plan 02: PAM Configuration Guide Summary
 
-**One-liner:** Comprehensive PAM setup guide covering basic password auth, 2FA with google-authenticator, LDAP/SSSD integration, and opencode-broker configuration for Linux and macOS.
+**One-liner:** Comprehensive PAM setup guide covering basic password auth, TOTP with google-authenticator, LDAP/SSSD integration, and opencode-broker configuration for Linux and macOS.
 
 ## What Was Built
 
@@ -57,7 +57,7 @@ Created complete PAM configuration documentation (`docs/pam-config.md`, 1065 lin
 2. **PAM Fundamentals** - Explanation of PAM architecture, module types, and control flags
 3. **Linux Setup** - systemd service configuration with detailed explanations
 4. **macOS Setup** - launchd configuration with Open Directory and TCC considerations
-5. **Two-Factor Authentication** - Complete 2FA setup with pam_google_authenticator
+5. **TOTP Authentication** - Complete TOTP setup with pam_google_authenticator
 6. **LDAP/AD Integration** - SSSD-based enterprise authentication guidance
 7. **Broker Architecture** - Deep dive into opencode-broker security model and troubleshooting
 8. **Configuration Reference** - Complete table of all auth config options
@@ -80,14 +80,14 @@ Created complete PAM configuration documentation (`docs/pam-config.md`, 1065 lin
 - Detailed sections follow with explanations
 - Cross-references link quick start to detailed sections
 
-### Two-Step 2FA Authentication Flow
+### Two-Step TOTP Authentication Flow
 
 **Decision:** Document separate PAM services for password (`opencode`) and OTP (`opencode-otp`).
 
 **Rationale:**
 
-- Allows `nullok` option for gradual 2FA adoption
-- Users without 2FA configured can still authenticate
+- Allows `nullok` option for gradual TOTP adoption
+- Users without TOTP configured can still authenticate
 - Independent configuration of password vs. OTP modules
 
 **Implementation:**
@@ -165,7 +165,7 @@ Complete table of all `AuthConfig` options from `packages/opencode/src/config/au
 | Option             | Type    | Default | Description           |
 | ------------------ | ------- | ------- | --------------------- |
 | `enabled`          | boolean | `false` | Enable authentication |
-| `twoFactorEnabled` | boolean | `false` | Enable 2FA support    |
+| `twoFactorEnabled` | boolean | `false` | Enable TOTP support   |
 | ...                | ...     | ...     | ...                   |
 
 Includes:
@@ -215,7 +215,7 @@ Verified all must-haves:
 - [x] Control flags explained with order-matters example
 - [x] Linux setup documented with systemd service
 - [x] macOS setup documented with launchd and TCC
-- [x] 2FA setup with pam_google_authenticator documented
+- [x] TOTP setup with pam_google_authenticator documented
 - [x] LDAP/SSSD integration mentioned with distribution links
 - [x] Broker details and troubleshooting documented
 - [x] Configuration reference table included (24 options)
@@ -262,7 +262,7 @@ Including full configuration files inline:
 
 **Ready for:**
 
-- Phase 12 (Server-Side TOTP Registration) - Can extend 2FA section with server-generated secrets
+- Phase 12 (Server-Side TOTP Registration) - Can extend TOTP section with server-generated secrets
 - Phase 11-04 (README) - Can link to this comprehensive PAM guide
 
 **Dependencies satisfied:**

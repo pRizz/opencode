@@ -49,7 +49,7 @@ Nine common issues with consistent symptom/cause/debug/solution format:
 4. **WebSocket Drops After 60 Seconds** - nginx proxy_read_timeout configuration
 5. **Rate Limited When You Shouldn't Be** - IP detection and trustProxy configuration
 6. **CSRF Token Error** - Cookie handling and browser settings
-7. **2FA Code Always Invalid** - Time sync and PAM configuration
+7. **TOTP Code Always Invalid** - Time sync and PAM configuration
 8. **SELinux Blocking nginx** - httpd_can_network_connect setsebool configuration
 9. **macOS PAM "Operation not permitted"** - TCC Full Disk Access permissions
 
@@ -211,6 +211,6 @@ Duration: 4.2 minutes
 
 - Most issues are configuration/setup, not code bugs
 - Platform differences cause majority of confusion
-- Time synchronization critical for 2FA
+- Time synchronization critical for TOTP
 - Proxy configuration most complex aspect (WebSocket + headers)
 - Permission issues common on locked-down systems (SELinux, TCC)

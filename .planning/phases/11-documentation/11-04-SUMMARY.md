@@ -93,7 +93,7 @@ Created the complete documentation index system to make all authentication docum
 ## Documentation
 
 - Reverse Proxy Setup: nginx/Caddy, HTTPS, WebSocket
-- PAM Configuration: Password auth, 2FA, LDAP/AD
+- PAM Configuration: Password auth, TOTP, LDAP/AD
 - Troubleshooting: Flowcharts, common issues, debug logging
 ```
 
@@ -380,7 +380,7 @@ For users deploying OpenCode:
 1. Start with Quick Start guide in docs/README.md
 2. Use production configs in docs/reverse-proxy/ as base
 3. Follow troubleshooting flowcharts for issues
-4. Enable 2FA for sensitive deployments (documented in pam-config.md)
+4. Enable TOTP for sensitive deployments (documented in pam-config.md)
 
 For documentation maintainers:
 

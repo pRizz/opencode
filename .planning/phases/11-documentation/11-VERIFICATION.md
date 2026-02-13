@@ -28,7 +28,7 @@ re_verification: false
 | 7   | User can set up TLS with Let's Encrypt                          | ✓ VERIFIED | reverse-proxy.md documents certbot setup, 14 Let's Encrypt references                                      |
 | 8   | User understands when to use trustProxy config option           | ✓ VERIFIED | reverse-proxy.md has 26 trustProxy references with security implications                                   |
 | 9   | User can set up basic PAM authentication for opencode           | ✓ VERIFIED | pam-config.md has Quick Start section and detailed Linux setup                                             |
-| 10  | User can configure 2FA with pam_google_authenticator            | ✓ VERIFIED | pam-config.md has 35 2FA/google_authenticator references                                                   |
+| 10  | User can configure TOTP with pam_google_authenticator           | ✓ VERIFIED | pam-config.md has 35 TOTP/google_authenticator references                                                  |
 | 11  | User can set up opencode-broker with correct permissions        | ✓ VERIFIED | pam-config.md documents broker setup, systemd service, socket permissions                                  |
 | 12  | User can configure PAM on macOS with OpenDirectory              | ✓ VERIFIED | pam-config.md has 17 macOS/OpenDirectory/pam_opendirectory references                                      |
 | 13  | User understands PAM control flags (required, sufficient, etc.) | ✓ VERIFIED | pam-config.md has dedicated Control Flags section with examples                                            |
@@ -77,7 +77,7 @@ re_verification: false
 | Requirement                                                                      | Status      | Evidence                                                                                                                                                      |
 | -------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | DOC-01: Reverse proxy setup guide (nginx, Caddy) with TLS configuration examples | ✓ SATISFIED | reverse-proxy.md covers nginx (63 refs), Caddy (31 refs), TLS/Let's Encrypt (14 refs), plus full production configs                                           |
-| DOC-02: PAM service file configuration and troubleshooting documentation         | ✓ SATISFIED | pam-config.md (1,065 lines) covers PAM setup, broker config, 2FA. troubleshooting.md (1,214 lines) covers diagnostic flowcharts, common issues, debug logging |
+| DOC-02: PAM service file configuration and troubleshooting documentation         | ✓ SATISFIED | pam-config.md (1,065 lines) covers PAM setup, broker config, TOTP. troubleshooting.md (1,214 lines) covers diagnostic flowcharts, common issues, debug logging |
 
 **Requirements coverage:** 2/2 satisfied (100%)
 
@@ -212,7 +212,7 @@ Phase 11 goal **ACHIEVED**. Users have clear, comprehensive guides for deploymen
 5. Security-conscious (trustProxy, permissions, rate limiting)
 6. Complete navigation (README → docs → specific guides)
 
-**Ready for production deployment:** Documentation enables users to deploy opencode with authentication on nginx or Caddy with HTTPS, configure PAM with optional 2FA, and troubleshoot common issues.
+**Ready for production deployment:** Documentation enables users to deploy opencode with authentication on nginx or Caddy with HTTPS, configure PAM with optional TOTP, and troubleshoot common issues.
 
 ---
 

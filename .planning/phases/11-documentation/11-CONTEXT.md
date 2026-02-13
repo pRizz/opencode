@@ -40,7 +40,7 @@ Deployment documentation for auth-enabled opencode — reverse proxy setup, PAM 
 
 - Both paths: quick start for those who know PAM, detailed for newcomers
 - LDAP/Active Directory integration gets dedicated section
-- 2FA PAM setup (pam_google_authenticator) step-by-step guide
+- TOTP PAM setup (pam_google_authenticator) step-by-step guide
 - opencode-broker setup detailed: setuid/setgid, socket permissions, systemd unit
 - macOS-specific PAM configuration documented (OpenDirectory)
 - Troubleshooting: both flowchart/decision tree AND detailed text FAQ

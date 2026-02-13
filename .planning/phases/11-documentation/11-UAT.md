@@ -38,13 +38,13 @@ verified:
 
 ### 4. PAM configuration guide covers core setups
 
-expected: `docs/pam-config.md` documents Linux and macOS setup, 2FA with pam_google_authenticator, LDAP/SSSD guidance, and includes auth config reference.
+expected: `docs/pam-config.md` documents Linux and macOS setup, TOTP with pam_google_authenticator, LDAP/SSSD guidance, and includes auth config reference.
 result: pass
 verified:
 
 - Linux setup documented (systemd service)
 - macOS setup documented (launchd)
-- 2FA with pam_google_authenticator covered
+- TOTP with pam_google_authenticator covered
 - LDAP/SSSD integration mentioned
 - Configuration Reference section exists (line 830)
 
