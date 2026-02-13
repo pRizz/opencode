@@ -10,9 +10,12 @@ interface AuthStatus {
 }
 
 interface DeviceTrustResponse {
-  twoFactorEnabled: boolean
-  twoFactorConfigured: boolean
-  twoFactorOptedOut: boolean
+  totpEnabled?: boolean
+  totpConfigured?: boolean
+  totpOptedOut?: boolean
+  twoFactorEnabled?: boolean
+  twoFactorConfigured?: boolean
+  twoFactorOptedOut?: boolean
   deviceTrusted: boolean
 }
 
@@ -147,9 +150,9 @@ function createSettingsAuthValue(getServerUrl: () => string | undefined): Settin
     }
 
     const trustBody = (await trustRes.json().catch(() => ({}))) as Partial<DeviceTrustResponse>
-    const totpEnabled = Boolean(trustBody.twoFactorEnabled)
-    const totpConfigured = Boolean(trustBody.twoFactorConfigured)
-    const totpOptedOut = Boolean(trustBody.twoFactorOptedOut)
+    const totpEnabled = Boolean(trustBody.totpEnabled ?? trustBody.twoFactorEnabled)
+    const totpConfigured = Boolean(trustBody.totpConfigured ?? trustBody.twoFactorConfigured)
+    const totpOptedOut = Boolean(trustBody.totpOptedOut ?? trustBody.twoFactorOptedOut)
     setState({
       totpEnabled,
       totpConfigured,

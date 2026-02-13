@@ -2887,6 +2887,9 @@ export type AuthDeviceTrustStatusResponses = {
    * Device trust status
    */
   200: {
+    totpEnabled: boolean
+    totpConfigured: boolean
+    totpOptedOut: boolean
     twoFactorEnabled: boolean
     twoFactorConfigured: boolean
     twoFactorOptedOut: boolean

@@ -2423,8 +2423,14 @@ export const AuthRoutes = lazy(() =>
               "application/json": {
                 schema: resolver(
                   z.object({
+                    totpEnabled: z.boolean(),
+                    totpConfigured: z.boolean(),
+                    totpOptedOut: z.boolean(),
+                    /** @deprecated Prefer `totpEnabled`. */
                     twoFactorEnabled: z.boolean(),
+                    /** @deprecated Prefer `totpConfigured`. */
                     twoFactorConfigured: z.boolean(),
+                    /** @deprecated Prefer `totpOptedOut`. */
                     twoFactorOptedOut: z.boolean(),
                     deviceTrusted: z.boolean(),
                   }),
@@ -2436,25 +2442,25 @@ export const AuthRoutes = lazy(() =>
       }),
       async (c) => {
         const authConfig = ServerAuth.get()
-        const twoFactorEnabled = authConfig.enabled && authConfig.twoFactorEnabled === true
+        const totpEnabled = authConfig.enabled && authConfig.twoFactorEnabled === true
 
         const sessionId = getCookie(c, "opencode_session")
         const session = sessionId ? UserSession.get(sessionId) : undefined
-        let twoFactorConfigured = false
-        let twoFactorOptedOut = false
+        let totpConfigured = false
+        let totpOptedOut = false
 
-        if (twoFactorEnabled && session?.username) {
+        if (totpEnabled && session?.username) {
           const preference = await getTotpPreference(session.username)
-          twoFactorOptedOut = preference.skipSetup ?? false
+          totpOptedOut = preference.skipSetup ?? false
           if (session.home) {
             const broker = new BrokerClient()
-            twoFactorConfigured = await broker.checkTotp(session.username, session.home)
+            totpConfigured = await broker.checkTotp(session.username, session.home)
           }
         }
 
         // Check for device trust cookie
         let deviceTrusted = false
-        if (twoFactorEnabled) {
+        if (totpEnabled) {
           const deviceTrustCookie = getCookie(c, "opencode_device_trust")
           if (deviceTrustCookie) {
             // Verify the cookie is valid
@@ -2466,9 +2472,12 @@ export const AuthRoutes = lazy(() =>
         }
 
         return c.json({
-          twoFactorEnabled,
-          twoFactorConfigured,
-          twoFactorOptedOut,
+          totpEnabled,
+          totpConfigured,
+          totpOptedOut,
+          twoFactorEnabled: totpEnabled,
+          twoFactorConfigured: totpConfigured,
+          twoFactorOptedOut: totpOptedOut,
           deviceTrusted,
         })
       },

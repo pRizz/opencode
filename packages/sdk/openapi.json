@@ -570,6 +570,15 @@
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "totpEnabled": {
+                      "type": "boolean"
+                    },
+                    "totpConfigured": {
+                      "type": "boolean"
+                    },
+                    "totpOptedOut": {
+                      "type": "boolean"
+                    },
                     "twoFactorEnabled": {
                       "type": "boolean"
                     },
@@ -583,7 +592,15 @@
                       "type": "boolean"
                     }
                   },
-                  "required": ["twoFactorEnabled", "twoFactorConfigured", "twoFactorOptedOut", "deviceTrusted"]
+                  "required": [
+                    "totpEnabled",
+                    "totpConfigured",
+                    "totpOptedOut",
+                    "twoFactorEnabled",
+                    "twoFactorConfigured",
+                    "twoFactorOptedOut",
+                    "deviceTrusted"
+                  ]
                 }
               }
             }

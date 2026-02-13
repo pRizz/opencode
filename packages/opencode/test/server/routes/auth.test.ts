@@ -597,6 +597,58 @@ describe("GET /auth/status", () => {
   })
 })
 
+describe("GET /auth/device-trust/status", () => {
+  let app: Hono
+
+  beforeEach(() => {
+    setMockAuthConfig({ enabled: true, method: "pam", twoFactorEnabled: true })
+    mockCheckTotp.mockClear()
+    mockCheckTotp.mockResolvedValue(true)
+    app = new Hono().route("/auth", AuthRoutes())
+  })
+
+  test("returns canonical totp fields and legacy twoFactor aliases", async () => {
+    const session = UserSession.create("testuser", "test-agent", {
+      uid: 1000,
+      gid: 1000,
+      home: "/home/testuser",
+      shell: "/bin/bash",
+    })
+
+    const res = await app.request("/auth/device-trust/status", {
+      headers: {
+        Cookie: `opencode_session=${session.id}`,
+      },
+    })
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.totpEnabled).toBe(true)
+    expect(body.totpConfigured).toBe(true)
+    expect(body.totpOptedOut).toBe(false)
+    expect(body.twoFactorEnabled).toBe(true)
+    expect(body.twoFactorConfigured).toBe(true)
+    expect(body.twoFactorOptedOut).toBe(false)
+    expect(body.deviceTrusted).toBe(false)
+    UserSession.remove(session.id)
+  })
+
+  test("returns disabled flags when totp is disabled", async () => {
+    setMockAuthConfig({ enabled: true, method: "pam", twoFactorEnabled: false })
+
+    const res = await app.request("/auth/device-trust/status")
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.totpEnabled).toBe(false)
+    expect(body.totpConfigured).toBe(false)
+    expect(body.totpOptedOut).toBe(false)
+    expect(body.twoFactorEnabled).toBe(false)
+    expect(body.twoFactorConfigured).toBe(false)
+    expect(body.twoFactorOptedOut).toBe(false)
+    expect(body.deviceTrusted).toBe(false)
+  })
+})
+
 describe("Bootstrap signup routes", () => {
   let app: Hono
 

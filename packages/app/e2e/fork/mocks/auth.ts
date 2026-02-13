@@ -8,6 +8,9 @@ export type TotpDeviceTrustStatus = {
 }
 
 interface TotpDeviceTrustResponse {
+  totpEnabled: boolean
+  totpConfigured: boolean
+  totpOptedOut: boolean
   twoFactorEnabled: boolean
   twoFactorConfigured: boolean
   twoFactorOptedOut: boolean
@@ -84,6 +87,9 @@ function normalizeDeviceTrustStatus(input: DeviceTrustStatusInput): TotpDeviceTr
 export function toTotpDeviceTrustResponse(input: DeviceTrustStatusInput = {}): TotpDeviceTrustResponse {
   const status = normalizeDeviceTrustStatus(input)
   return {
+    totpEnabled: status.totpEnabled,
+    totpConfigured: status.totpConfigured,
+    totpOptedOut: status.totpOptedOut,
     twoFactorEnabled: status.totpEnabled,
     twoFactorConfigured: status.totpConfigured,
     twoFactorOptedOut: status.totpOptedOut,
@@ -166,7 +172,7 @@ export async function mockTotpSetupStart(page: Page, input: TotpSetupStartMockOp
     username: input.username ?? "opencoder",
     secret: input.secret ?? "JBSWY3DPEHPK3PXP",
     qrCodeSvg: input.qrCodeSvg ?? '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"></svg>',
-    setupCommand: input.setupCommand ?? "opencode auth 2fa setup",
+    setupCommand: input.setupCommand ?? "opencode auth totp setup",
     alreadyConfigured: input.alreadyConfigured ?? false,
     required: input.required ?? false,
     setupStatus: input.setupStatus ?? "pending_verification",

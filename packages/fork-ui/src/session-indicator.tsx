@@ -18,9 +18,12 @@ interface SessionIndicatorProps {
 }
 
 interface DeviceTrustResponse {
-  twoFactorEnabled: boolean
-  twoFactorConfigured: boolean
-  twoFactorOptedOut: boolean
+  totpEnabled?: boolean
+  totpConfigured?: boolean
+  totpOptedOut?: boolean
+  twoFactorEnabled?: boolean
+  twoFactorConfigured?: boolean
+  twoFactorOptedOut?: boolean
   deviceTrusted: boolean
 }
 
@@ -56,9 +59,9 @@ export function SessionIndicator(props: SessionIndicatorProps) {
       })
       const data = (await res.json()) as DeviceTrustResponse
       setDeviceTrustStatus({
-        totpEnabled: Boolean(data.twoFactorEnabled),
-        totpConfigured: Boolean(data.twoFactorConfigured),
-        totpOptedOut: Boolean(data.twoFactorOptedOut),
+        totpEnabled: Boolean(data.totpEnabled ?? data.twoFactorEnabled),
+        totpConfigured: Boolean(data.totpConfigured ?? data.twoFactorConfigured),
+        totpOptedOut: Boolean(data.totpOptedOut ?? data.twoFactorOptedOut),
         deviceTrusted: Boolean(data.deviceTrusted),
       })
     } catch {
