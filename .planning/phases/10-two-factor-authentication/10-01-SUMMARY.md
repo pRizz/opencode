@@ -2,7 +2,7 @@
 phase: 10
 plan: 01
 subsystem: authentication
-tags: [2fa, totp, otp, pam, config]
+tags: [totp, otp, pam, config]
 requires:
   - 03-auth-broker-core
 provides:
@@ -10,7 +10,7 @@ provides:
   - otp-detection
   - otp-validation
 affects:
-  - 10-02 # 2FA UI and flow
+  - 10-02 # TOTP UI and flow
 tech-stack:
   added: []
   patterns:
@@ -32,26 +32,26 @@ decisions:
     rationale: Isolate OTP-only auth from password+OTP combined auth
   - id: 10-01-03
     decision: nullok option in PAM config
-    rationale: Graceful fallback for users without 2FA configured
+    rationale: Graceful fallback for users without TOTP configured
 metrics:
   duration: 4.7 min
   completed: 2026-01-24
 ---
 
-# Phase 10 Plan 01: 2FA Config and OTP Module Summary
+# Phase 10 Plan 01: TOTP Config and OTP Module Summary
 
-**One-liner:** Added 2FA configuration options to AuthConfig and broker OTP module with detection and PAM-based validation.
+**One-liner:** Added TOTP configuration options to AuthConfig and broker OTP module with detection and PAM-based validation.
 
 ## What Was Built
 
 ### 1. Extended AuthConfig Schema
 
-Added five new 2FA-related configuration fields:
+Added five new TOTP-related configuration fields:
 
 | Field                   | Type     | Default | Purpose                                         |
 | ----------------------- | -------- | ------- | ----------------------------------------------- |
-| `twoFactorEnabled`      | boolean  | false   | Enable 2FA support                              |
-| `twoFactorTokenTimeout` | Duration | "5m"    | How long 2FA token valid after password success |
+| `twoFactorEnabled`      | boolean  | false   | Enable TOTP support                             |
+| `twoFactorTokenTimeout` | Duration | "5m"    | How long TOTP token is valid after password success |
 | `deviceTrustDuration`   | Duration | "30d"   | "Remember this device" duration                 |
 | `otpRateLimitMax`       | number   | 5       | Max OTP attempts per window                     |
 | `otpRateLimitWindow`    | Duration | "15m"   | OTP rate limit window                           |
@@ -76,7 +76,7 @@ Added five new 2FA-related configuration fields:
 Created `opencode-otp.pam` and `opencode-otp.pam.macos`:
 
 - Single line: `auth required pam_google_authenticator.so nullok`
-- `nullok` allows users without 2FA to skip OTP validation
+- `nullok` allows users without TOTP to skip OTP validation
 
 ## Implementation Details
 
@@ -102,17 +102,17 @@ Following the same pattern as password authentication in `pam.rs`:
 | -------- | ------------------------------------ | ------------------------------------------------------ |
 | 10-01-01 | Reuse AuthError from pam module      | Consistent error handling, no new error types          |
 | 10-01-02 | Separate `{service}-otp` PAM service | Isolate OTP-only validation from password+OTP combined |
-| 10-01-03 | Use `nullok` PAM option              | Graceful fallback for users without 2FA                |
+| 10-01-03 | Use `nullok` PAM option              | Graceful fallback for users without TOTP               |
 
 ## Deviations from Plan
 
 ### Auto-fixed Issues
 
-**1. [Rule 3 - Blocking] Updated test configs with new 2FA fields**
+**1. [Rule 3 - Blocking] Updated test configs with new TOTP fields**
 
 - **Found during:** Task 1 verification
 - **Issue:** Test files had hardcoded AuthConfig objects missing new required fields
-- **Fix:** Added 2FA fields with default values to test configs
+- **Fix:** Added TOTP fields with default values to test configs
 - **Files modified:** csrf.test.ts, auth.test.ts, pty-auth.test.ts
 - **Commits:** Included in f5a9fb21e
 
@@ -148,17 +148,17 @@ Following the same pattern as password authentication in `pam.rs`:
 
 | Hash      | Description                                                         |
 | --------- | ------------------------------------------------------------------- |
-| f5a9fb21e | feat(10-01): add 2FA configuration options to AuthConfig            |
-| c32afce44 | feat(10-01): add broker OTP module for 2FA detection and validation |
+| f5a9fb21e | feat(10-01): add TOTP configuration options to AuthConfig           |
+| c32afce44 | feat(10-01): add broker OTP module for TOTP detection and validation |
 | 662ef552f | feat(10-01): add OTP PAM service files for Linux and macOS          |
 
 ## Next Phase Readiness
 
 **Ready for Plan 10-02:**
 
-- 2FA configuration fields available for runtime checks
+- TOTP configuration fields available for runtime checks
 - OTP detection function ready for auth flow integration
-- OTP validation function ready for 2FA step
+- OTP validation function ready for TOTP step
 - PAM service files ready for installation
 
 **Blockers/Concerns:** None

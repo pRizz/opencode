@@ -2,7 +2,7 @@
 phase: 10-two-factor-authentication
 plan: 04
 subsystem: auth
-tags: [2fa, totp, broker-client, ipc]
+tags: [totp, broker-client, ipc]
 
 # Dependency graph
 requires:
@@ -11,14 +11,14 @@ requires:
 provides:
   - check2fa() method on BrokerClient
   - authenticateOtp() method on BrokerClient
-  - TypeScript IPC interface for 2FA operations
+  - TypeScript IPC interface for TOTP operations
 affects: [10-05, 10-06, login-ui-2fa]
 
 # Tech tracking
 tech-stack:
   added: []
   patterns:
-    - BrokerClient method pattern for 2FA (matches existing authenticate/ping style)
+    - BrokerClient method pattern for TOTP (matches existing authenticate/ping style)
 
 key-files:
   created: []
@@ -30,16 +30,16 @@ key-decisions:
   - "authenticateOtp follows authenticate() pattern exactly for consistency"
 
 patterns-established:
-  - "2FA methods use same request/response pattern as password auth"
+  - "TOTP methods use same request/response pattern as password auth"
 
 # Metrics
 duration: 2min
 completed: 2026-01-24
 ---
 
-# Phase 10 Plan 04: BrokerClient 2FA Methods Summary
+# Phase 10 Plan 04: BrokerClient TOTP Methods Summary
 
-**TypeScript client methods for 2FA operations via IPC protocol - check2fa() for detection and authenticateOtp() for validation**
+**TypeScript client methods for TOTP operations via IPC protocol - check2fa() for detection and authenticateOtp() for validation**
 
 ## Performance
 
@@ -52,7 +52,7 @@ completed: 2026-01-24
 ## Accomplishments
 
 - Extended BrokerRequest interface with check2fa and authenticateotp methods
-- Implemented check2fa() to detect if user has 2FA configured
+- Implemented check2fa() to detect if user has TOTP configured
 - Implemented authenticateOtp() to validate OTP codes via broker
 
 ## Task Commits
@@ -65,11 +65,11 @@ Each task was committed atomically:
 
 ## Files Created/Modified
 
-- `packages/opencode/src/auth/broker-client.ts` - Added 2FA methods (check2fa, authenticateOtp) and updated BrokerRequest interface
+- `packages/opencode/src/auth/broker-client.ts` - Added TOTP methods (check2fa, authenticateOtp) and updated BrokerRequest interface
 
 ## Decisions Made
 
-- **check2fa fails open:** On error, returns false (assumes no 2FA) since this is for detection, not security enforcement
+- **check2fa fails open:** On error, returns false (assumes no TOTP) since this is for detection, not security enforcement
 - **authenticateOtp follows authenticate() pattern:** Same error handling, response structure, and generic error messages for consistency
 
 ## Deviations from Plan
@@ -86,9 +86,9 @@ None - no external service configuration required.
 
 ## Next Phase Readiness
 
-- BrokerClient now has complete 2FA support
+- BrokerClient now has complete TOTP support
 - Ready for Plan 10-05 (login route integration) to use these methods
-- check2fa() can detect 2FA requirement before prompting user
+- check2fa() can detect TOTP requirement before prompting user
 - authenticateOtp() validates codes after password auth succeeds
 
 ---

@@ -1,22 +1,22 @@
-# Phase 10: Two-Factor Authentication - Research
+# Phase 10: TOTP Authentication - Research
 
 **Researched:** 2026-01-24
-**Domain:** TOTP-based 2FA with pam_google_authenticator, device trust, and setup wizard
+**Domain:** TOTP-based authentication with pam_google_authenticator, device trust, and setup wizard
 **Confidence:** MEDIUM-HIGH
 
 ## Summary
 
-Phase 10 adds optional TOTP-based two-factor authentication to the login flow. The implementation builds on the existing PAM authentication in Phase 3/4, adding a second authentication step after password validation. The approach uses pam_google_authenticator for TOTP validation but separates the password and OTP validation into two distinct steps to enable the "2FA required" intermediate state.
+Phase 10 adds optional TOTP-based authentication to the login flow. The implementation builds on the existing PAM authentication in Phase 3/4, adding a second authentication step after password validation. The approach uses pam_google_authenticator for TOTP validation but separates the password and OTP validation into two distinct steps to enable the "TOTP required" intermediate state.
 
 Research validates that:
 
-1. **Detection of 2FA configuration:** Check for existence of `~/.google_authenticator` file for the user (or the path specified in PAM config)
+1. **Detection of TOTP configuration:** Check for existence of `~/.google_authenticator` file for the user (or the path specified in PAM config)
 2. **Two-step authentication flow:** After password success, return `2fa_required` status; second request validates OTP via pam_google_authenticator
 3. **Device trust cookies:** Use signed JWT tokens with device fingerprint stored in secure cookie
 4. **TOTP validation:** Can use pam_google_authenticator PAM module or direct TOTP validation via totp-rs crate in Rust
 5. **QR code setup:** Generate QR code with otpauth:// URL format using standard TOTP parameters
 
-**Primary recommendation:** Extend the broker protocol with an `authenticate_otp` method, detect 2FA configuration by checking the google_authenticator file existence, use secure signed cookies for device trust, and provide a setup wizard that generates QR codes client-side.
+**Primary recommendation:** Extend the broker protocol with an `authenticate_otp` method, detect TOTP configuration by checking the google_authenticator file existence, use secure signed cookies for device trust, and provide a setup wizard that generates QR codes client-side.
 
 ## Standard Stack
 
@@ -89,20 +89,20 @@ packages/opencode/src/
 |   `-- totp-setup.ts    # (NEW) QR code generation for setup wizard
 |-- server/
 |   |-- routes/
-|   |   `-- auth.ts      # (MODIFY) Add 2FA endpoints
+|   |   `-- auth.ts      # (MODIFY) Add TOTP endpoints
 |   `-- middleware/
 |       `-- auth.ts      # (MODIFY) Handle device trust cookies
 |-- config/
-|   `-- auth.ts          # (MODIFY) Add 2FA config options
+|   `-- auth.ts          # (MODIFY) Add TOTP config options
 `-- session/
-    `-- user-session.ts  # (MODIFY) Track 2FA completion state
+    `-- user-session.ts  # (MODIFY) Track TOTP completion state
 ```
 
 ### Pattern 1: Two-Step Authentication Flow
 
 **What:** Separate password validation from OTP validation with intermediate token
-**When to use:** All 2FA-enabled logins
-**Why:** Allows UI to redirect to 2FA screen; prevents replay attacks
+**When to use:** All TOTP-enabled logins
+**Why:** Allows UI to redirect to TOTP screen; prevents replay attacks
 
 ```typescript
 // Step 1: Password authentication
@@ -116,17 +116,17 @@ Body: { twoFactorToken, code, rememberDevice? }
 Response: { success: true, user: {...} }
 ```
 
-### Pattern 2: 2FA Detection in Broker
+### Pattern 2: TOTP Detection in Broker
 
-**What:** Check if user has 2FA configured before requiring OTP
+**What:** Check if user has TOTP configured before requiring OTP
 **When to use:** During password authentication step
-**Why:** Only prompt for OTP if user has set up 2FA
+**Why:** Only prompt for OTP if user has set up TOTP
 
 ```rust
 // Source: pam_google_authenticator documentation
 use std::path::Path;
 
-/// Check if user has 2FA configured by checking for .google_authenticator file
+/// Check if user has TOTP configured by checking for .google_authenticator file
 pub fn has_2fa_configured(username: &str, home: &str) -> bool {
     let secret_path = format!("{}/.google_authenticator", home);
     let path = Path::new(&secret_path);
@@ -143,7 +143,7 @@ pub fn has_2fa_configured_pam(secret_path: &str) -> bool {
 
 ### Pattern 3: Device Trust Token
 
-**What:** Signed JWT stored in cookie to skip 2FA on trusted devices
+**What:** Signed JWT stored in cookie to skip TOTP on trusted devices
 **When to use:** When user selects "Remember this device"
 **Why:** Balance security with convenience; revocable
 
@@ -193,7 +193,7 @@ async function verifyDeviceTrust(
 }
 ```
 
-### Pattern 4: Short-Lived 2FA Token
+### Pattern 4: Short-Lived TOTP Token
 
 **What:** Token issued after password success, required for OTP validation
 **When to use:** Between password and OTP steps
@@ -205,7 +205,7 @@ interface TwoFactorToken {
   sub: string // username
   iat: number // issued at
   exp: number // expires in 5 minutes
-  uid: number // user's UID (for session creation after 2FA)
+  uid: number // user's UID (for session creation after TOTP)
   gid: number
   home: string
   shell: string
@@ -277,7 +277,7 @@ pub async fn validate_otp(service: &str, username: &str, code: &str) -> Result<(
 ### Pattern 6: QR Code Setup Wizard
 
 **What:** Generate TOTP secret and QR code for authenticator app setup
-**When to use:** User first-time 2FA setup
+**When to use:** User first-time TOTP setup
 **Why:** Standard TOTP provisioning flow
 
 ```typescript
@@ -321,7 +321,7 @@ async function generateTotpSetup(username: string, issuer: string = "opencode"):
 ### Anti-Patterns to Avoid
 
 - **Logging OTP codes:** Never log the actual code, even in debug mode
-- **Long-lived 2FA tokens:** Keep the intermediate token short-lived (5 minutes max)
+- **Long-lived TOTP tokens:** Keep the intermediate token short-lived (5 minutes max)
 - **Device trust without fingerprint:** Always bind device trust to browser/user-agent
 - **Storing TOTP secrets in UserSession:** Keep TOTP secrets in filesystem (PAM handles this)
 - **Different timing for valid vs invalid codes:** Use constant-time comparison
@@ -349,24 +349,24 @@ Problems that look simple but have existing solutions:
 **How to avoid:** Generate secrets client-side, only store the google_authenticator file on user's home directory after verification
 **Warning signs:** Secrets appearing in server logs or database
 
-### Pitfall 2: 2FA Token Replay
+### Pitfall 2: TOTP Token Replay
 
-**What goes wrong:** Attacker captures 2FA token and uses it later
+**What goes wrong:** Attacker captures TOTP token and uses it later
 **Why it happens:** No binding between token and client
 **How to avoid:** Short expiration (5 min), single-use tokens, IP binding (optional)
-**Warning signs:** Same 2FA token accepted multiple times
+**Warning signs:** Same TOTP token accepted multiple times
 
-### Pitfall 3: User Enumeration via 2FA Required Response
+### Pitfall 3: User Enumeration via TOTP Required Response
 
-**What goes wrong:** Attacker learns which users have 2FA enabled
-**Why it happens:** Different responses for 2FA vs non-2FA users
-**How to avoid:** Always return `2fa_required` even for users without 2FA (prompt but accept any code)
+**What goes wrong:** Attacker learns which users have TOTP enabled
+**Why it happens:** Different responses for TOTP vs non-TOTP users
+**How to avoid:** Always return `2fa_required` even for users without TOTP (prompt but accept any code)
 **Alternative:** Accept this as low risk since attacker already has valid password
-**Warning signs:** Can distinguish 2FA users without password
+**Warning signs:** Can distinguish TOTP users without password
 
 ### Pitfall 4: Device Trust Cookie Theft
 
-**What goes wrong:** Stolen cookie allows 2FA bypass
+**What goes wrong:** Stolen cookie allows TOTP bypass
 **Why it happens:** Cookie alone is sufficient
 **How to avoid:** Bind to user-agent fingerprint, use Secure + HttpOnly flags, consider IP binding
 **Warning signs:** Device trust works from different browser
@@ -374,7 +374,7 @@ Problems that look simple but have existing solutions:
 ### Pitfall 5: Setup Wizard Without Verification
 
 **What goes wrong:** User sets up authenticator but types code wrong
-**Why it happens:** Not requiring code verification before enabling 2FA
+**Why it happens:** Not requiring code verification before enabling TOTP
 **How to avoid:** Require user to enter current code before saving configuration
 **Warning signs:** Users locked out immediately after setup
 
@@ -398,7 +398,7 @@ Verified patterns from official sources and existing codebase:
 pub enum Method {
     Authenticate,
     AuthenticateOtp,   // NEW: Second step OTP validation
-    Check2fa,          // NEW: Check if user has 2FA configured
+    Check2fa,          // NEW: Check if user has TOTP configured
     Ping,
     // ... existing methods
 }
@@ -413,7 +413,7 @@ pub struct AuthenticateOtpParams {
     pub code: String,
 }
 
-/// Parameters for checking 2FA status
+/// Parameters for checking TOTP status
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Check2faParams {
     /// Username to check
@@ -422,12 +422,12 @@ pub struct Check2faParams {
     pub home: String,
 }
 
-/// Response with 2FA requirement status
+/// Response with TOTP requirement status
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthenticateResult {
     /// Whether authentication succeeded
     pub success: bool,
-    /// Whether 2FA is required
+    /// Whether TOTP is required
     pub requires_2fa: Option<bool>,
     /// Error message if failed
     pub error: Option<String>,
@@ -440,7 +440,7 @@ pub struct AuthenticateResult {
 // Source: Extending existing broker-client.ts
 
 /**
- * Check if user has 2FA configured.
+ * Check if user has TOTP configured.
  */
 async check2fa(username: string, home: string): Promise<boolean> {
   const id = crypto.randomUUID()
@@ -500,7 +500,7 @@ async authenticateOtp(username: string, code: string): Promise<AuthResult> {
 auth required pam_google_authenticator.so nullok
 ```
 
-### 2FA Login Page HTML (Consistent with existing login page style)
+### TOTP Login Page HTML (Consistent with existing login page style)
 
 ```typescript
 // Source: Extending existing auth.ts generateLoginPageHtml pattern
@@ -510,7 +510,7 @@ function generate2FAPageHtml(username: string, countdown: number): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Two-Factor Authentication - opencode</title>
+  <title>TOTP Authentication - opencode</title>
   <style>
     /* Same base styles as login page */
     .countdown { color: #737373; font-size: 0.75rem; margin-top: 0.5rem; }
@@ -580,7 +580,7 @@ function generate2FAPageHtml(username: string, countdown: number): string {
 
 **Deprecated/outdated:**
 
-- **SMS-based 2FA:** SIM swap attacks; TOTP is preferred
+- **SMS-based OTP:** SIM swap attacks; TOTP is preferred
 - **HOTP (counter-based):** TOTP is more convenient and standard
 - **Single combined password+OTP field:** Separate screens are clearer
 
@@ -593,9 +593,9 @@ Things that couldn't be fully resolved:
    - What's unclear: Whether separate PAM service for OTP is cleaner than direct validation
    - Recommendation: Use PAM approach for consistency; configure /etc/pam.d/opencode-otp
 
-2. **User enumeration via 2FA check**
-   - What we know: Checking ~/.google_authenticator reveals if user has 2FA
-   - What's unclear: Whether to always prompt for 2FA or reveal status
+2. **User enumeration via TOTP check**
+   - What we know: Checking ~/.google_authenticator reveals if user has TOTP
+   - What's unclear: Whether to always prompt for TOTP or reveal status
    - Recommendation: Accept as low risk since attacker needs valid password first
 
 3. **Setup wizard secret storage**

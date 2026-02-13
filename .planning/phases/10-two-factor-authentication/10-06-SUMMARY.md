@@ -1,18 +1,18 @@
-# Phase 10 Plan 06: 2FA Verification Page UI Summary
+# Phase 10 Plan 06: TOTP Verification Page UI Summary
 
-2FA page UI with countdown timer, auto-submit on 6 digits, and remember device checkbox.
+TOTP page UI with countdown timer, auto-submit on 6 digits, and remember device checkbox.
 
 ## Tasks Completed
 
 | Task | Name                                            | Commit    | Files   |
 | ---- | ----------------------------------------------- | --------- | ------- |
-| 1    | Create 2FA page HTML generator                  | f011eb25d | auth.ts |
+| 1    | Create TOTP page HTML generator                 | f011eb25d | auth.ts |
 | 2    | Add GET /auth/2fa route                         | 6c8f63169 | auth.ts |
-| 3    | Update login page JavaScript to redirect to 2FA | f08ad1fef | auth.ts |
+| 3    | Update login page JavaScript to redirect to TOTP | f08ad1fef | auth.ts |
 
 ## Implementation Details
 
-### 2FA Page Features
+### TOTP Page Features
 
 - **Visual consistency**: Same dark theme, card layout, and logo as login page
 - **Username display**: Shows "Enter verification code for [username]"
@@ -30,7 +30,7 @@
 
 - GET /auth/2fa accepts token, username, timeout query params
 - Redirects to login if missing required params
-- Renders 2FA page with token embedded for form submission
+- Renders TOTP page with token embedded for form submission
 
 ### Login Page Integration
 

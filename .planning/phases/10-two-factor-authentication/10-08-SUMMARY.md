@@ -2,14 +2,14 @@
 phase: 10-two-factor-authentication
 plan: 08
 subsystem: auth
-tags: [2fa, device-trust, session, jwt, solid-js]
+tags: [totp, device-trust, session, jwt, solid-js]
 
 # Dependency graph
 requires:
   - phase: 10-05
     provides: Device trust token utilities (create/verify)
   - phase: 10-06
-    provides: 2FA verification page UI
+    provides: TOTP verification page UI
 provides:
   - POST /auth/device-trust/revoke endpoint
   - GET /auth/device-trust/status endpoint
@@ -33,7 +33,7 @@ key-files:
 key-decisions:
   - "Device trust cookie cleared on all logout paths"
   - "Status endpoint verifies cookie validity before reporting trusted"
-  - "2FA setup opens in new tab (placeholder URL)"
+  - "TOTP setup opens in new tab (placeholder URL)"
 
 patterns-established:
   - "Conditional dropdown menu items based on API state"
@@ -45,7 +45,7 @@ completed: 2026-01-24
 
 # Phase 10 Plan 08: Device Trust Management Summary
 
-**Device trust revocation and status endpoints with SessionIndicator UI for managing trusted devices and 2FA setup**
+**Device trust revocation and status endpoints with SessionIndicator UI for managing trusted devices and TOTP setup**
 
 ## Performance
 
@@ -58,9 +58,9 @@ completed: 2026-01-24
 ## Accomplishments
 
 - POST /auth/device-trust/revoke endpoint clears device trust cookie
-- GET /auth/device-trust/status returns 2FA enabled and device trusted state
+- GET /auth/device-trust/status returns TOTP enabled and device trusted state
 - SessionIndicator shows "Forget this device" when device is trusted
-- SessionIndicator shows "Set up 2FA" link when 2FA is enabled
+- SessionIndicator shows "Set up TOTP" link when TOTP is enabled
 - Logout handlers (/logout and /logout/all) clear device trust cookie
 
 ## Task Commits
@@ -80,7 +80,7 @@ Each task was committed atomically:
 
 - Device trust cookie cleared on all logout paths (both /logout and /logout/all) for consistency
 - Status endpoint verifies cookie validity before reporting deviceTrusted (prevents false positives)
-- 2FA setup link opens /auth/2fa/setup in new tab (placeholder for future setup page)
+- TOTP setup link opens /auth/2fa/setup in new tab (placeholder for future setup page)
 
 ## Deviations from Plan
 
@@ -94,8 +94,8 @@ None - plan executed as specified once file path was corrected.
 
 - Device trust management complete
 - Users can revoke trusted devices from session dropdown
-- 2FA setup link ready (needs actual setup endpoint in future plan)
-- Ready for 2FA setup flow implementation
+- TOTP setup link ready (needs actual setup endpoint in future plan)
+- Ready for TOTP setup flow implementation
 
 ---
 
