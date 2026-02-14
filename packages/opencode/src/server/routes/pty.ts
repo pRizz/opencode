@@ -3,7 +3,7 @@ import { describeRoute, validator, resolver } from "hono-openapi"
 import { upgradeWebSocket } from "hono/bun"
 import z from "zod"
 import { Pty } from "@/pty"
-import { Storage } from "../../storage/storage"
+import { NotFoundError } from "../../storage/db"
 import { errors } from "../error"
 import { lazy } from "../../util/lazy"
 import { ServerAuth } from "@/config/server-auth"
@@ -128,7 +128,7 @@ export const PtyRoutes = lazy(() =>
           ptyId: c.req.valid("param").ptyID,
           getPty: Pty.get,
           onNotFound: (message) => {
-            throw new Storage.NotFoundError({ message })
+            throw new NotFoundError({ message })
           },
         })
       },
@@ -163,7 +163,7 @@ export const PtyRoutes = lazy(() =>
           getPty: Pty.get,
           updatePty: Pty.update,
           onNotFound: (message) => {
-            throw new Storage.NotFoundError({ message })
+            throw new NotFoundError({ message })
           },
         })
       },
@@ -197,7 +197,7 @@ export const PtyRoutes = lazy(() =>
           getPty: Pty.get,
           removePty: Pty.remove,
           onNotFound: (message) => {
-            throw new Storage.NotFoundError({ message })
+            throw new NotFoundError({ message })
           },
         })
       },
