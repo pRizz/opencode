@@ -63,12 +63,13 @@ export namespace ZenData {
     format: FormatSchema.optional(),
     headers: z.record(z.string(), z.string()).optional(),
     headerMappings: z.record(z.string(), z.string()).optional(),
+    payloadModifier: z.record(z.string(), z.any()).optional(),
     family: z.string().optional(),
   })
 
   const ProviderFamilySchema = z.object({
     headers: z.record(z.string(), z.string()).optional(),
-    bodyModifier: z.record(z.string(), z.string()).optional(),
+    responseModifier: z.record(z.string(), z.string()).optional(),
   })
 
   const ModelsSchema = z.object({
