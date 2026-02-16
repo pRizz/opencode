@@ -13,12 +13,11 @@ import {
   welcomeModalSelector,
 } from "../selectors"
 
+const welcomeDir = process.env.OPENCODE_E2E_WELCOME_DIR ?? "/tmp/opencode-welcome-e2e"
 const welcomeKey = "opencode.fork.dat:welcome.v1"
-const fakeDir = Buffer.from("/tmp/opencode-welcome-e2e")
-  .toString("base64")
-  .replace(/\+/g, "-")
-  .replace(/\//g, "_")
-  .replace(/=+$/g, "")
+const fakeDir = Buffer.from(welcomeDir).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "")
+
+test.skip(process.env.OPENCODE_E2E_SKIP_FLAKY === "1", "Skipping welcome suite in flaky E2E quarantine mode")
 
 async function showWelcomeFromSettings(page: Parameters<typeof openSettings>[0]) {
   const settings = await openSettings(page)

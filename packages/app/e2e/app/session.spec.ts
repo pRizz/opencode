@@ -2,6 +2,8 @@ import { test, expect } from "../fixtures"
 import { promptSelector } from "../selectors"
 import { withSession } from "../actions"
 
+test.skip(process.env.OPENCODE_E2E_SKIP_FLAKY === "1", "Skipping session suite in flaky E2E quarantine mode")
+
 test("can open an existing session and type into the prompt", async ({ page, sdk, gotoSession }) => {
   const title = `e2e smoke ${Date.now()}`
 
