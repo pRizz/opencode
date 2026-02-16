@@ -71,7 +71,65 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 })
 
 async function seedStorage(page: Page, input: { directory: string; extra?: string[] }) {
+  const shouldCleanup = process.env.OPENCODE_E2E_CLEAN_SESSION_STATE === "1"
+
   await seedProjects(page, input)
+
+  if (shouldCleanup) {
+    await page.addInitScript(
+      ({ directory, extra }) => {
+        for (let index = localStorage.length - 1; index >= 0; index--) {
+          const key = localStorage.key(index)
+          if (!key) continue
+
+          if (!key.startsWith("opencode.workspace.")) continue
+          localStorage.removeItem(key)
+        }
+
+        const serverKey = "opencode.global.dat:server"
+        const rawServer = localStorage.getItem(serverKey)
+        if (!rawServer) return
+
+        const store = (() => {
+          try {
+            return JSON.parse(rawServer) as Record<string, unknown>
+          } catch {
+            return undefined
+          }
+        })()
+        if (!store || typeof store !== "object") return
+
+        const allowed = new Set([directory, ...(extra ?? [])])
+        const currentProjects = store.projects
+        if (currentProjects && typeof currentProjects === "object" && !Array.isArray(currentProjects)) {
+          const nextProjects: Record<string, unknown[]> = {}
+          for (const [origin, rawValue] of Object.entries(currentProjects)) {
+            if (!Array.isArray(rawValue)) continue
+            const projects = rawValue
+              .map((project) =>
+                project && typeof project === "object" && typeof project.worktree === "string" ? project : undefined,
+              )
+              .filter(
+                (project): project is { worktree: string } => project !== undefined && allowed.has(project.worktree),
+              )
+            if (projects.length > 0) nextProjects[origin] = projects
+          }
+          store.projects = nextProjects
+        }
+
+        const lastProject = store.lastProject
+        if (lastProject && typeof lastProject === "object" && typeof lastProject.worktree === "string") {
+          if (!allowed.has(lastProject.worktree)) {
+            delete store.lastProject
+          }
+        }
+
+        localStorage.setItem(serverKey, JSON.stringify(store))
+      },
+      { directory: input.directory, extra: input.extra ?? [] },
+    )
+  }
+
   await page.addInitScript(() => {
     localStorage.setItem(
       "opencode.global.dat:model",

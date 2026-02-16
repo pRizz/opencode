@@ -45,6 +45,7 @@ async function waitForHealth(url: string) {
 const appDir = process.cwd()
 const repoDir = path.resolve(appDir, "../..")
 const opencodeDir = path.join(repoDir, "packages", "opencode")
+const welcomeE2eDir = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-welcome-e2e-"))
 
 const extraArgs = (() => {
   const args = process.argv.slice(2)
@@ -70,6 +71,7 @@ const serverEnv = {
   XDG_CACHE_HOME: path.join(sandbox, "cache"),
   XDG_CONFIG_HOME: path.join(sandbox, "config"),
   XDG_STATE_HOME: path.join(sandbox, "state"),
+  OPENCODE_E2E_WELCOME_DIR: welcomeE2eDir,
   OPENCODE_E2E_PROJECT_DIR: repoDir,
   OPENCODE_E2E_SESSION_TITLE: "E2E Session",
   OPENCODE_E2E_MESSAGE: "Seeded for UI e2e",
@@ -107,6 +109,7 @@ const cleanup = async () => {
     inst?.Instance.disposeAll(),
     server?.stop(),
     keepSandbox ? undefined : fs.rm(sandbox, { recursive: true, force: true }),
+    keepSandbox ? undefined : fs.rm(welcomeE2eDir, { recursive: true, force: true }),
   ].filter(Boolean)
   await Promise.allSettled(jobs)
 }
