@@ -506,6 +506,7 @@ function ContextToolGroup(props: { parts: ToolPart[] }) {
 }
 
 export function UserMessageDisplay(props: { message: UserMessage; parts: PartType[]; interrupted?: boolean }) {
+  const data = useData()
   const dialog = useDialog()
   const i18n = useI18n()
   const [copied, setCopied] = createSignal(false)
@@ -533,6 +534,42 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
   )
 
   const agents = createMemo(() => (props.parts?.filter((p) => p.type === "agent") as AgentPart[]) ?? [])
+
+  const provider = createMemo(() => {
+    const id = props.message.model?.providerID
+    if (!id) return ""
+    const match = data.store.provider?.all?.find((p) => p.id === id)
+    return match?.name ?? id
+  })
+
+  const model = createMemo(() => {
+    const providerID = props.message.model?.providerID
+    const modelID = props.message.model?.modelID
+    if (!providerID || !modelID) return ""
+    const match = data.store.provider?.all?.find((p) => p.id === providerID)
+    return match?.models?.[modelID]?.name ?? modelID
+  })
+
+  const stamp = createMemo(() => {
+    const created = props.message.time?.created
+    if (typeof created !== "number") return ""
+    const date = new Date(created)
+    const hours = date.getHours()
+    const hour12 = hours % 12 || 12
+    const minute = String(date.getMinutes()).padStart(2, "0")
+    return `${hour12}:${minute} ${hours < 12 ? "AM" : "PM"}`
+  })
+
+  const metaHead = createMemo(() => {
+    const agent = props.message.agent
+    const items = [agent ? agent[0]?.toUpperCase() + agent.slice(1) : "", provider(), model()]
+    return items.filter((x) => !!x).join("\u00A0\u00B7\u00A0")
+  })
+
+  const metaTail = createMemo(() => {
+    const items = [stamp(), props.interrupted ? i18n.t("ui.message.interrupted") : ""]
+    return items.filter((x) => !!x).join("\u00A0\u00B7\u00A0")
+  })
 
   const openImagePreview = (url: string, alt?: string) => {
     dialog.show(() => <ImagePreview src={url} alt={alt} />)
@@ -581,18 +618,34 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
         </div>
       </Show>
       <Show when={text()}>
-        <div data-slot="user-message-body">
-          <div data-slot="user-message-text">
-            <HighlightedText text={text()} references={inlineFiles()} agents={agents()} />
+        <>
+          <div data-slot="user-message-body">
+            <div data-slot="user-message-text">
+              <HighlightedText text={text()} references={inlineFiles()} agents={agents()} />
+            </div>
           </div>
           <div data-slot="user-message-copy-wrapper" data-interrupted={props.interrupted ? "" : undefined}>
-            <Show when={props.interrupted}>
-              <span data-slot="user-message-interrupted" class="text-13-regular text-text-weak cursor-default">
-                {i18n.t("ui.message.interrupted")}
+            <Show when={metaHead() || metaTail()}>
+              <span data-slot="user-message-meta-wrap">
+                <Show when={metaHead()}>
+                  <span data-slot="user-message-meta" class="text-12-regular text-text-weak cursor-default">
+                    {metaHead()}
+                  </span>
+                </Show>
+                <Show when={metaHead() && metaTail()}>
+                  <span data-slot="user-message-meta-sep" class="text-12-regular text-text-weak cursor-default">
+                    {"\u00A0\u00B7\u00A0"}
+                  </span>
+                </Show>
+                <Show when={metaTail()}>
+                  <span data-slot="user-message-meta-tail" class="text-12-regular text-text-weak cursor-default">
+                    {metaTail()}
+                  </span>
+                </Show>
               </span>
             </Show>
             <Tooltip
-              value={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.message.copy")}
+              value={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.message.copyMessage")}
               placement="top"
               gutter={4}
             >
@@ -605,11 +658,11 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
                   event.stopPropagation()
                   handleCopy()
                 }}
-                aria-label={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.message.copy")}
+                aria-label={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.message.copyMessage")}
               />
             </Tooltip>
           </div>
-        </div>
+        </>
       </Show>
     </div>
   )
@@ -864,6 +917,47 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
     () =>
       props.message.role === "assistant" && (props.message as AssistantMessage).error?.name === "MessageAbortedError",
   )
+
+  const provider = createMemo(() => {
+    if (props.message.role !== "assistant") return ""
+    const id = (props.message as AssistantMessage).providerID
+    const match = data.store.provider?.all?.find((p) => p.id === id)
+    return match?.name ?? id
+  })
+
+  const model = createMemo(() => {
+    if (props.message.role !== "assistant") return ""
+    const message = props.message as AssistantMessage
+    const match = data.store.provider?.all?.find((p) => p.id === message.providerID)
+    return match?.models?.[message.modelID]?.name ?? message.modelID
+  })
+
+  const duration = createMemo(() => {
+    if (props.message.role !== "assistant") return ""
+    const message = props.message as AssistantMessage
+    const completed = message.time.completed
+    if (typeof completed !== "number") return ""
+    const ms = completed - message.time.created
+    if (!(ms >= 0)) return ""
+    if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`
+    const minutes = Math.floor(ms / 60_000)
+    const seconds = Math.round((ms - minutes * 60_000) / 1000)
+    return `${minutes}m ${seconds}s`
+  })
+
+  const meta = createMemo(() => {
+    if (props.message.role !== "assistant") return ""
+    const agent = (props.message as AssistantMessage).agent
+    const items = [
+      agent ? agent[0]?.toUpperCase() + agent.slice(1) : "",
+      provider(),
+      model(),
+      duration(),
+      interrupted() ? i18n.t("ui.message.interrupted") : "",
+    ]
+    return items.filter((x) => !!x).join(" \u00B7 ")
+  })
+
   const displayText = () => relativizeProjectPaths((part.text ?? "").trim(), data.directory)
   const throttledText = createThrottledValue(displayText)
   const isLastTextPart = createMemo(() => {
@@ -896,13 +990,8 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
         </div>
         <Show when={showCopy()}>
           <div data-slot="text-part-copy-wrapper" data-interrupted={interrupted() ? "" : undefined}>
-            <Show when={interrupted()}>
-              <span data-slot="text-part-interrupted" class="text-13-regular text-text-weak cursor-default">
-                {i18n.t("ui.message.interrupted")}
-              </span>
-            </Show>
             <Tooltip
-              value={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.message.copy")}
+              value={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.message.copyResponse")}
               placement="top"
               gutter={4}
             >
@@ -912,9 +1001,14 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
                 variant="ghost"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={handleCopy}
-                aria-label={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.message.copy")}
+                aria-label={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.message.copyResponse")}
               />
             </Tooltip>
+            <Show when={meta()}>
+              <span data-slot="text-part-meta" class="text-12-regular text-text-weak cursor-default">
+                {meta()}
+              </span>
+            </Show>
           </div>
         </Show>
       </div>

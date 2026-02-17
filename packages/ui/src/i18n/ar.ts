@@ -97,6 +97,8 @@ export const dict = {
   "ui.message.expand": "توسيع الرسالة",
   "ui.message.collapse": "طي الرسالة",
   "ui.message.copy": "نسخ",
+  "ui.message.copyMessage": "نسخ الرسالة",
+  "ui.message.copyResponse": "نسخ الرد",
   "ui.message.copied": "تم النسخ!",
   "ui.message.interrupted": "تمت المقاطعة",
   "ui.message.attachment.alt": "مرفق",
