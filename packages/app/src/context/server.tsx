@@ -200,6 +200,9 @@ export const { use: useServer, provider: ServerProvider } = createSimpleContext(
       ready: isReady,
       healthy,
       isLocal,
+      get url() {
+        return current()?.http.url
+      },
       get key() {
         return state.active
       },

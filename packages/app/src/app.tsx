@@ -63,6 +63,7 @@ declare global {
       updaterEnabled?: boolean
       deepLinks?: string[]
       wsl?: boolean
+      serverPassword?: string
     }
   }
 }
