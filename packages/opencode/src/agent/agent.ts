@@ -52,14 +52,13 @@ export namespace Agent {
     const cfg = await Config.get()
 
     const skillDirs = await Skill.dirs()
+    const whitelistedDirs = [Truncate.GLOB, ...skillDirs.map((dir) => path.join(dir, "*"))]
     const defaults = PermissionNext.fromConfig({
       "*": "allow",
-      doom_loop: "allow",
+      doom_loop: "ask",
       external_directory: {
         "*": "ask",
-        [Truncate.DIR]: "allow",
-        [Truncate.GLOB]: "allow",
-        ...Object.fromEntries(skillDirs.map((dir) => [path.join(dir, "*"), "allow"])),
+        ...Object.fromEntries(whitelistedDirs.map((dir) => [dir, "allow"])),
       },
       question: "deny",
       plan_enter: "deny",
@@ -67,8 +66,8 @@ export namespace Agent {
       // mirrors github.com/github/gitignore Node.gitignore pattern for .env files
       read: {
         "*": "allow",
-        "*.env": "allow",
-        "*.env.*": "allow",
+        "*.env": "ask",
+        "*.env.*": "ask",
         "*.env.example": "allow",
       },
     })
@@ -143,7 +142,8 @@ export namespace Agent {
             codesearch: "allow",
             read: "allow",
             external_directory: {
-              [Truncate.GLOB]: "allow",
+              "*": "ask",
+              ...Object.fromEntries(whitelistedDirs.map((dir) => [dir, "allow"])),
             },
           }),
           user,
