@@ -282,12 +282,31 @@ export function ensurePtyConnectSession<TInfo>(
   return null
 }
 
+type PtySocket = {
+  readyState: number
+  data: object
+  send: (data: string | Uint8Array<ArrayBuffer> | ArrayBuffer) => void
+  close: (code?: number, reason?: string) => void
+}
+
+const isPtySocket = (value: unknown): value is PtySocket => {
+  if (!value || typeof value !== "object") return false
+  if (!("readyState" in value)) return false
+  if (!("data" in value)) return false
+  if (!((value as { data?: unknown }).data && typeof (value as { data?: unknown }).data === "object")) {
+    return false
+  }
+  if (!("send" in value) || typeof (value as { send?: unknown }).send !== "function") return false
+  if (!("close" in value) || typeof (value as { close?: unknown }).close !== "function") return false
+  return typeof (value as { readyState?: unknown }).readyState === "number"
+}
+
 export function createPtyWebSocketHandlers(params: {
   id: string
   requestId?: string
   connect: (
     id: string,
-    ws: WSContext,
+    ws: PtySocket,
     options?: { requestId?: string },
   ) => { onMessage: (msg: string | ArrayBuffer) => void; onClose: () => void } | undefined
   log: PtyRouteLogger
@@ -296,10 +315,16 @@ export function createPtyWebSocketHandlers(params: {
   return {
     onOpen(_event: Event, ws: WSContext) {
       params.log.info("pty websocket opened", { requestId: params.requestId, ptyId: params.id })
-      handler = params.connect(params.id, ws, { requestId: params.requestId })
+      const raw = ws.raw
+      if (!isPtySocket(raw)) {
+        ws.close()
+        return
+      }
+      handler = params.connect(params.id, raw, { requestId: params.requestId })
     },
     onMessage(event: MessageEvent) {
-      handler?.onMessage(String(event.data))
+      if (typeof event.data !== "string") return
+      handler?.onMessage(event.data)
     },
     onClose() {
       params.log.info("pty websocket closed", { requestId: params.requestId, ptyId: params.id })
