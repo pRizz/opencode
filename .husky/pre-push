@@ -18,4 +18,5 @@ if (process.versions.bun !== expectedBunVersion) {
 }
 '
 bun run rules:parity:check
+bun run sdk:parity:check
 bun typecheck

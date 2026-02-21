@@ -239,7 +239,14 @@ jobs:
             `git show origin/dev:<path>` (fork before merge) and the upstream version
             to ensure all fork hooks are preserved alongside upstream's new features.
 
-            Fix the errors. Commit your changes. Do NOT run tests or push.
+            Before committing, run:
+            - `bun run rules:parity:check`
+            - `bun run sdk:parity:check`
+            If SDK parity fails due generated drift, run `./packages/sdk/js/script/build.ts`
+            and re-run parity check.
+
+            Fix the errors. Commit your changes only after parity checks pass.
+            Do NOT run tests or push.
           claude_args: >-
             --max-turns 200
             --model claude-opus-4-6
@@ -280,7 +287,14 @@ jobs:
             `git show origin/dev:<path>` (fork before merge) and the upstream version
             to ensure all fork hooks are preserved alongside upstream's new features.
 
-            Fix the errors. Commit your changes. Do NOT run tests or push.
+            Before committing, run:
+            - `bun run rules:parity:check`
+            - `bun run sdk:parity:check`
+            If SDK parity fails due generated drift, run `./packages/sdk/js/script/build.ts`
+            and re-run parity check.
+
+            Fix the errors. Commit your changes only after parity checks pass.
+            Do NOT run tests or push.
           claude_args: >-
             --max-turns 200
             --model claude-opus-4-6

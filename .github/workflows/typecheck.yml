@@ -20,5 +20,10 @@ jobs:
       - name: Check AGENTS/CLAUDE parity
         run: bun run rules:parity:check
 
+      - name: Rebuild SDK and validate generated parity
+        run: |
+          ./packages/sdk/js/script/build.ts
+          git diff --exit-code -- packages/sdk/js/src/gen packages/sdk/js/src/v2/gen packages/sdk/js/dist
+
       - name: Run typecheck
         run: bun typecheck

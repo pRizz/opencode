@@ -15,6 +15,7 @@
     "git:tags:sync": "bun ./script/git-tag-sync.ts",
     "rules:parity:check": "bun ./script/check-rules-parity.ts",
     "rules:parity:sync": "bun ./script/sync-rules-parity.ts",
+    "sdk:parity:check": "bun ./packages/sdk/js/script/check-generated-parity.ts",
     "random": "echo 'Random script'",
     "hello": "echo 'Hello World!'",
     "test": "echo 'do not run tests from root' && exit 1"

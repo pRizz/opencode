@@ -33,6 +33,11 @@ This repo uses [Husky 9](https://typicode.github.io/husky/) for git hooks (wired
 - Run `bun run rules:parity:sync`.
 - Run `bun run rules:parity:check`.
 
+## SDK Generated Parity
+
+- If SDK/OpenAPI-related code changes, run `./packages/sdk/js/script/build.ts`.
+- Verify generated src/dist SDK parity with `bun run sdk:parity:check`.
+
 ## Fork Isolation
 
 This is a fork with `fork-*` packages under `packages/`. To minimize upstream merge conflicts:

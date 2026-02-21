@@ -184,6 +184,14 @@ async function runTestGate(): Promise<{ passed: boolean; summary: string }> {
   }
   console.log("Dependencies installed.")
 
+  console.log("Running AGENTS/CLAUDE parity check...")
+  const rulesParity = await $`bun run rules:parity:check`.nothrow()
+  if (rulesParity.exitCode !== 0) {
+    const log = `${rulesParity.stdout.toString()}\n${rulesParity.stderr.toString()}`
+    return { passed: false, summary: `rules parity check failed:\n${tailLog(log, 4000)}` }
+  }
+  console.log("Rules parity check passed.")
+
   const lockfiles = (await $`git ls-files -m -- ':(glob)**/bun.lock'`.text()).trim()
   if (lockfiles.length > 0) {
     console.log(`bun.lock updates detected after bun install:\n${lockfiles}`)
@@ -201,6 +209,14 @@ async function runTestGate(): Promise<{ passed: boolean; summary: string }> {
     return { passed: false, summary: `SDK generation failed:\n${tailLog(log, 4000)}` }
   }
   console.log("SDK generation passed.")
+
+  console.log("Running SDK generated parity check...")
+  const sdkParity = await $`bun run sdk:parity:check`.nothrow()
+  if (sdkParity.exitCode !== 0) {
+    const log = `${sdkParity.stdout.toString()}\n${sdkParity.stderr.toString()}`
+    return { passed: false, summary: `SDK parity check failed:\n${tailLog(log, 4000)}` }
+  }
+  console.log("SDK generated parity check passed.")
 
   // Stage any SDK changes from generation
   const sdkStatus = (await $`git status --porcelain packages/sdk/js`.text()).trim()
