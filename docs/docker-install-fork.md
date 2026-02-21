@@ -1,6 +1,6 @@
 # Installing OpenCode Fork from Source in Docker
 
-This guide explains how to install the [pRizz/opencode fork](https://github.com/pRizz/opencode) (which includes authentication features) in a Dockerfile instead of using the official opencode installer.
+This guide explains how to install the [pRizz/opencode fork](https://github.com/pRizz/opencode) (which includes authentication features and a multi-user setup for independent managed users on one shared instance) in a Dockerfile instead of using the official opencode installer.
 
 ## Overview
 
@@ -290,4 +290,4 @@ RUN opencode --help | grep -i auth || echo "Fork installed successfully"
 3. Use BuildKit cache mounts to speed up rebuilds
 4. Consider multi-stage build if build dependencies are large
 
-This ensures you always get the fork with authentication features, regardless of whether releases are published.
+This ensures you always get the fork with authentication features and multi-user support (independent managed users on one shared instance), regardless of whether releases are published.

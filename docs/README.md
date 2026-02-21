@@ -1,6 +1,6 @@
 # OpenCode Authentication Documentation
 
-Documentation for deploying OpenCode with system authentication enabled.
+Documentation for deploying OpenCode with system authentication enabled in a multi-user setup, where one shared service instance hosts independent user accounts and authenticated sessions.
 
 ## Quick Start
 
@@ -57,6 +57,7 @@ System authentication setup for password login, two-factor authentication (2FA),
 **Topics covered:**
 
 - Basic PAM setup (Linux and macOS)
+- Multi-user account/session model on a single shared OpenCode service instance
 - Two-factor authentication with Google Authenticator
 - LDAP/Active Directory integration
 - Account lockout policies

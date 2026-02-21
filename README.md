@@ -133,6 +133,7 @@ Learn more about [agents](https://opencode.ai/docs/agents).
 ### Fork Defaults
 
 This fork runs with approvals disabled by default (equivalent to `permission: "allow"`). If you want prompts back, set `permission` rules to `ask` in your config.
+It also supports a multi-user setup: one shared service instance can host multiple independent managed users with separate accounts and authenticated sessions.
 
 ### Documentation
 
