@@ -101,6 +101,14 @@ jobs:
           git config --global user.email "bot@opencode.ai"
           git config --global user.name "opencode"
 
+      - name: Check AGENTS/CLAUDE parity
+        run: bun run rules:parity:check
+
+      - name: Rebuild SDK and validate generated parity
+        run: |
+          ./packages/sdk/js/script/build.ts
+          git diff --exit-code -- packages/sdk/js/src/gen packages/sdk/js/src/v2/gen packages/sdk/js/dist
+
       - name: Check fork boundary
         run: bun run fork:boundary:check
 

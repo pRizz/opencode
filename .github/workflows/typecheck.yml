@@ -25,5 +25,8 @@ jobs:
           ./packages/sdk/js/script/build.ts
           git diff --exit-code -- packages/sdk/js/src/gen packages/sdk/js/src/v2/gen packages/sdk/js/dist
 
+      - name: Check fork boundary
+        run: bun run fork:boundary:check
+
       - name: Run typecheck
         run: bun typecheck
