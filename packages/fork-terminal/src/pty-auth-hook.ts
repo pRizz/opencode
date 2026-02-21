@@ -285,7 +285,7 @@ export function ensurePtyConnectSession<TInfo>(
 type PtySocket = {
   readyState: number
   data: object
-  send: (data: string | Uint8Array<ArrayBuffer> | ArrayBuffer) => void
+  send: (data: string | ArrayBuffer | Uint8Array<ArrayBufferLike>) => void
   close: (code?: number, reason?: string) => void
 }
 
