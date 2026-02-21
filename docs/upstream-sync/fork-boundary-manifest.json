@@ -1,6 +1,6 @@
 {
-  "base": "upstream/dev...dev",
-  "generated_at": "2026-02-21T14:55:00.354Z",
+  "base": "upstream/dev...HEAD",
+  "generated_at": "2026-02-21T20:59:45.454Z",
   "entries": {
     ".cursor/rules/rust-precommit.mdc": {
       "classification": "upstream-candidate",
@@ -1560,6 +1560,12 @@
     "packages/opencode/tsconfig.json": {
       "classification": "upstream-candidate",
       "owner": "opencode",
+      "reason": "Non-fork divergence tracked for upstream alignment or fork extraction.",
+      "retirement_condition": "Retire by upstreaming change or moving fork-owned behavior behind adapter boundaries."
+    },
+    "packages/sdk/js/script/build.ts": {
+      "classification": "upstream-candidate",
+      "owner": "sdk",
       "reason": "Non-fork divergence tracked for upstream alignment or fork extraction.",
       "retirement_condition": "Retire by upstreaming change or moving fork-owned behavior behind adapter boundaries."
     },

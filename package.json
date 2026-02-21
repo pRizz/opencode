@@ -9,7 +9,7 @@
     "dev": "bun run --cwd packages/opencode --conditions=browser src/index.ts",
     "dev:desktop": "bun --cwd packages/desktop tauri dev",
     "dev:web": "bun --cwd packages/app dev",
-    "typecheck": "bun turbo typecheck",
+    "typecheck": "bun run fork:boundary:check && bun turbo typecheck",
     "prepare": "husky && bun ./script/git-tag-bootstrap.ts",
     "git:tags:bootstrap": "bun ./script/git-tag-bootstrap.ts",
     "git:tags:sync": "bun ./script/git-tag-sync.ts",

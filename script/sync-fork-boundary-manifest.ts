@@ -1,8 +1,15 @@
 #!/usr/bin/env bun
+/**
+ * Regenerates the fork-boundary manifest for non-fork divergence.
+ * - Computes divergent files from upstream/dev to a target ref.
+ * - Classifies each divergent path with boundary metadata.
+ * - Writes docs/upstream-sync/fork-boundary-manifest.json for boundary checks.
+ */
 
-const BASE = "upstream/dev...dev"
 const UPSTREAM_REMOTE = "upstream"
+const UPSTREAM_BRANCH = "dev"
 const UPSTREAM_URL = "https://github.com/anomalyco/opencode.git"
+const UPSTREAM_REF = `${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}`
 const OUT_PATH = "docs/upstream-sync/fork-boundary-manifest.json"
 
 type Classification = "adapter" | "fork-owned-moved" | "upstream-candidate" | "exception"
@@ -31,6 +38,14 @@ async function git(...args: string[]) {
   return stdout.trim()
 }
 
+async function gitMaybe(...args: string[]) {
+  try {
+    return await git(...args)
+  } catch {
+    return ""
+  }
+}
+
 async function gitOk(...args: string[]) {
   try {
     await git(...args)
@@ -40,8 +55,18 @@ async function gitOk(...args: string[]) {
   }
 }
 
+async function resolveTargetRef() {
+  const configured = process.env.FORK_BOUNDARY_TARGET_REF?.trim()
+  if (configured) return configured
+
+  const branch = await gitMaybe("symbolic-ref", "--quiet", "--short", "HEAD")
+  if (branch) return branch
+
+  return "HEAD"
+}
+
 async function ensureUpstream() {
-  if (await gitOk("rev-parse", "--verify", `${UPSTREAM_REMOTE}/dev`)) return
+  if (await gitOk("rev-parse", "--verify", UPSTREAM_REF)) return
 
   const hasRemote = await gitOk("remote", "get-url", UPSTREAM_REMOTE)
   if (!hasRemote) {
@@ -51,7 +76,37 @@ async function ensureUpstream() {
     if (url !== UPSTREAM_URL) await git("remote", "set-url", UPSTREAM_REMOTE, UPSTREAM_URL)
   }
 
-  await git("fetch", UPSTREAM_REMOTE, "dev")
+  await git("fetch", UPSTREAM_REMOTE, UPSTREAM_BRANCH)
+}
+
+async function hasMergeBase(refA: string, refB: string) {
+  return gitOk("merge-base", refA, refB)
+}
+
+async function isShallowRepository() {
+  const shallow = await git("rev-parse", "--is-shallow-repository")
+  return shallow === "true"
+}
+
+async function ensureMergeBase(targetRef: string) {
+  let attemptedShallowRecovery = false
+
+  if (await hasMergeBase(UPSTREAM_REF, targetRef)) return
+
+  if (await isShallowRepository()) {
+    attemptedShallowRecovery = true
+    await git("fetch", "--unshallow", "origin")
+    await git("fetch", UPSTREAM_REMOTE, UPSTREAM_BRANCH)
+    if (await hasMergeBase(UPSTREAM_REF, targetRef)) return
+  }
+
+  throw new Error(
+    [
+      `Unable to determine a merge base between ${UPSTREAM_REF} and ${targetRef}.`,
+      `Shallow recovery attempted: ${attemptedShallowRecovery ? "yes" : "no"}.`,
+      "Verify remotes and branch history (for example: ensure the refs are related and fully fetched).",
+    ].join(" "),
+  )
 }
 
 function owner(file: string) {
@@ -118,8 +173,11 @@ function classify(file: string, text: string): Entry {
 }
 
 await ensureUpstream()
+const targetRef = await resolveTargetRef()
+await ensureMergeBase(targetRef)
+const base = `${UPSTREAM_REF}...${targetRef}`
 
-const files = await git("diff", "--name-only", BASE)
+const files = await git("diff", "--name-only", base)
   .then((x) =>
     x
       .split("\n")
@@ -141,7 +199,7 @@ for (const file of files) {
 }
 
 const out = {
-  base: BASE,
+  base,
   generated_at: new Date().toISOString(),
   entries,
 }

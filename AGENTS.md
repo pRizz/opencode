@@ -16,7 +16,7 @@ When these `bun.lock` changes are tied to intended package/version updates, they
 
 This repo uses [Husky 9](https://typicode.github.io/husky/) for git hooks (wired automatically by `bun install` via the `"prepare"` script):
 
-- **pre-push** — Validates Bun version matches `package.json`, then runs `bun typecheck`.
+- **pre-push** — Validates Bun version matches `package.json`, then runs `bun typecheck` (which includes `fork:boundary:check` before Turbo typecheck).
 - **post-merge** — After every `git pull`, automatically runs `bun install` to pick up dependency changes. No manual action needed.
 - **post-rewrite** — After pull/rebase rewrites, mirrors local tags to the pulled remote.
 
@@ -37,6 +37,14 @@ This repo uses [Husky 9](https://typicode.github.io/husky/) for git hooks (wired
 
 - If SDK/OpenAPI-related code changes, run `./packages/sdk/js/script/build.ts`.
 - Verify generated src/dist SDK parity with `bun run sdk:parity:check`.
+
+## Fork Boundary Guardrails
+
+- `bun run fork:boundary:check` resolves target refs as: `FORK_BOUNDARY_TARGET_REF` (if set), current symbolic branch, then `HEAD` when detached.
+- `bun typecheck` now enforces fork-boundary checks before running Turbo typechecking.
+- If manifest drift (`Missing manifest entries` / `Stale manifest entries`) is the only failure, local flows can run `FORK_BOUNDARY_AUTOFIX=1 bun run fork:boundary:check` to sync then re-check.
+- Manual recovery path: `bun run fork:boundary:sync` (optionally with `FORK_BOUNDARY_TARGET_REF=<ref>`), then `bun run fork:boundary:check`.
+- CI guardrails are strict and do not enable boundary autofix.
 
 ## Fork Isolation
 
