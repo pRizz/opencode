@@ -8,6 +8,7 @@ const ADAPTER_MAX_LINES = 120
 
 const CLASSIFICATIONS = new Set(["adapter", "fork-owned-moved", "upstream-candidate", "exception"])
 const CODE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs|rs)$/
+const FORK_IMPORT = /(?:from\s*["']@opencode-ai\/fork-|import\s*\(\s*["']@opencode-ai\/fork-|require\(\s*["']@opencode-ai\/fork-)/
 
 type Classification = "adapter" | "fork-owned-moved" | "upstream-candidate" | "exception"
 
@@ -123,7 +124,7 @@ for (const file of divergent) {
   if (!exists) continue
 
   const text = await Bun.file(file).text().catch(() => "")
-  const hasForkImport = text.includes("@opencode-ai/fork-")
+  const hasForkImport = FORK_IMPORT.test(text)
 
   if (entry.classification === "adapter") {
     const max = entry.max_lines ?? ADAPTER_MAX_LINES

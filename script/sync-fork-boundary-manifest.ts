@@ -17,6 +17,7 @@ type Entry = {
 }
 
 const CODE_ADAPTER_EXT = /\.(ts|tsx|js|jsx|mjs|cjs|rs)$/
+const FORK_IMPORT = /(?:from\s*["']@opencode-ai\/fork-|import\s*\(\s*["']@opencode-ai\/fork-|require\(\s*["']@opencode-ai\/fork-)/
 
 async function git(...args: string[]) {
   const proc = Bun.spawn(["git", ...args], { stdout: "pipe", stderr: "pipe" })
@@ -97,7 +98,7 @@ function classify(file: string, text: string): Entry {
     }
   }
 
-  if (CODE_ADAPTER_EXT.test(file) && text.includes("@opencode-ai/fork-")) {
+  if (file.startsWith("packages/") && CODE_ADAPTER_EXT.test(file) && FORK_IMPORT.test(text)) {
     return {
       classification: "adapter",
       owner: owner(file),
