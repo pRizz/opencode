@@ -10,7 +10,7 @@ import { BrokerClient } from "@opencode-ai/fork-auth/auth/broker-client"
 
 type Socket = {
   readyState: number
-  send: (data: string | Uint8Array<ArrayBuffer> | ArrayBuffer) => void
+  send: (data: string | Uint8Array | ArrayBuffer) => void
   close: (code?: number, reason?: string) => void
 }
 
