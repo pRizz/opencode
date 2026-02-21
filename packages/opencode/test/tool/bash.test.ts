@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import path from "path"
 import { BashTool } from "../../src/tool/bash"
 import { Instance } from "../../src/project/instance"
+import { Filesystem } from "../../src/util/filesystem"
 import { tmpdir } from "../fixture/fixture"
 import type { PermissionNext } from "../../src/permission/next"
 import { Truncate } from "../../src/tool/truncation"
@@ -399,8 +400,8 @@ describe("tool.bash truncation", () => {
         const filepath = (result.metadata as any).outputPath
         expect(filepath).toBeTruthy()
 
-        const saved = await Bun.file(filepath).text()
-        const lines = stripShellInit(saved).trim().split("\n")
+        const saved = await Filesystem.readText(filepath)
+        const lines = saved.trim().split("\n")
         expect(lines.length).toBe(lineCount)
         expect(lines[0]).toBe("1")
         expect(lines[lineCount - 1]).toBe(String(lineCount))
