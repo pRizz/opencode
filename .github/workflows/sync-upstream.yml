@@ -407,8 +407,8 @@ jobs:
           done
           echo "tests_passed=false" >> "$GITHUB_OUTPUT"
 
-      # ── Rebase + push to dev (success path) ───────────────
-      - name: Post-resolve sync (rebase + push to dev)
+      # ── Merge + push to dev (success path) ────────────────
+      - name: Post-resolve sync (merge + push to dev)
         if: steps.final.outputs.tests_passed == 'true'
         run: |
           ./script/sync-upstream.ts \

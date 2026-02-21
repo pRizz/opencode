@@ -269,7 +269,7 @@ async function createPushFailureIssue(params: {
   mergeBase: string
   behind: number
   ahead: number
-  stage: "rebase" | "push"
+  stage: "merge" | "push"
   log: string
   backup: string
   claudeResolved: boolean
@@ -292,7 +292,7 @@ async function createPushFailureIssue(params: {
     "```",
     "",
     "Next steps:",
-    "- Inspect the backup branch and resolve any remaining rebase/push blockers.",
+    "- Inspect the backup branch and resolve any remaining merge/push blockers.",
     "- Re-run sync-upstream after branch policy or conflicts are addressed.",
   ].join("\n")
 
@@ -399,18 +399,19 @@ async function runPostResolvePhase(opts: {
   const repo = await resolveOriginRepo()
   await $`git checkout ${opts.branch}`
 
-  let stage: "rebase" | "push" = "push"
+  let stage: "merge" | "push" = "push"
   let log = ""
   for (let i = 1; i <= 2; i += 1) {
     // Avoid reintroducing origin tag conflicts after upstream tag reset.
     await $`git fetch --no-tags ${REMOTE_ORIGIN} ${DEV_BRANCH}`
-    const rebase = await $`git rebase --rebase-merges ${REMOTE_ORIGIN}/${DEV_BRANCH}`.nothrow()
-    if (rebase.exitCode !== 0) {
-      stage = "rebase"
-      const abort = await $`git rebase --abort`.nothrow()
-      log = `${rebase.stdout.toString()}\n${rebase.stderr.toString()}`
+    // Merge latest dev to avoid replaying the entire sync history with rebase.
+    const merge = await $`git merge --no-edit ${REMOTE_ORIGIN}/${DEV_BRANCH}`.nothrow()
+    if (merge.exitCode !== 0) {
+      stage = "merge"
+      const abort = await $`git merge --abort`.nothrow()
+      log = `${merge.stdout.toString()}\n${merge.stderr.toString()}`
       if (abort.exitCode !== 0) {
-        log = `${log}\n\nRebase abort failed:\n${abort.stdout.toString()}\n${abort.stderr.toString()}`
+        log = `${log}\n\nMerge abort failed:\n${abort.stdout.toString()}\n${abort.stderr.toString()}`
       }
       break
     }

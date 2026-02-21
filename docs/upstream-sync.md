@@ -79,8 +79,8 @@ wc -l docs/upstream-sync/upstream-first-parent.txt > docs/upstream-sync/upstream
     - `bun turbo typecheck`
     - installs Playwright dependencies
     - runs `bun run test:e2e:local -- --workers=2` in `packages/app`
-  - On success, rebases the sync branch onto latest `origin/dev` with `git rebase --rebase-merges origin/dev` and pushes directly to `dev`.
-  - If the direct push is rejected as non-fast-forward, refetches/rebases and retries push once.
+  - On success, merges latest `origin/dev` into the sync branch with `git merge --no-edit origin/dev` and pushes directly to `dev`.
+  - If the direct push is rejected as non-fast-forward, refetches/merges and retries push once.
   - Creates/uses labels in the fork repository (`sync-conflict`, `sync-e2e-failure`, `sync-push-failure`) via CLI.
   - On conflict, invokes Claude Code Action (`anthropics/claude-code-action@v1`) to resolve automatically:
     - Claude reads `docs/upstream-sync/fork-feature-audit.md` for ownership context
@@ -89,7 +89,7 @@ wc -l docs/upstream-sync/upstream-first-parent.txt > docs/upstream-sync/upstream
   - On test failure (clean merge or post-conflict), invokes Claude to fix errors:
     - Up to 2 fix attempts, each followed by a test re-run
     - Claude receives test failure output and fixes code without running tests itself
-  - On post-resolve rebase/push failure, pushes backup sync branch and creates issue labeled `sync-push-failure`
+  - On post-resolve merge/push failure, pushes backup sync branch and creates issue labeled `sync-push-failure`
   - On failure (Claude exhausts attempts), creates an issue with `sync-conflict` or `sync-e2e-failure` label
 
 Manual dispatch and monitoring:
@@ -105,8 +105,8 @@ Conflict handling (automated):
 1. Claude Code Action resolves conflicts using fork-feature-audit.md as ownership source of truth.
 2. Script runs typecheck + e2e tests after resolution.
 3. If tests fail, Claude attempts fixes (up to 2 retries).
-4. If successful, sync rebases onto latest `origin/dev` and pushes directly to `dev`.
-5. If final rebase/push fails, workflow pushes the backup sync branch and files a `sync-push-failure` issue.
+4. If successful, sync merges latest `origin/dev` and pushes directly to `dev`.
+5. If final merge/push fails, workflow pushes the backup sync branch and files a `sync-push-failure` issue.
 
 Conflict handling (manual fallback):
 
