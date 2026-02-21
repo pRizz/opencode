@@ -27,6 +27,12 @@ This repo uses [Husky 9](https://typicode.github.io/husky/) for git hooks (wired
 - `bun install` bootstraps local git config for this repo (`fetch.prune=true`, `fetch.pruneTags=true`, and `remote.*.tagOpt=--no-tags`).
 - If hooks are disabled (`HUSKY=0`) or unavailable, run `bun run git:tags:sync` after pull.
 
+## AGENTS/CLAUDE Parity
+
+- Edit `AGENTS.md` first.
+- Run `bun run rules:parity:sync`.
+- Run `bun run rules:parity:check`.
+
 ## Fork Isolation
 
 This is a fork with `fork-*` packages under `packages/`. To minimize upstream merge conflicts:

@@ -27,6 +27,12 @@ This repo uses [Husky 9](https://typicode.github.io/husky/) for git hooks (wired
 - `bun install` bootstraps local git config for this repo (`fetch.prune=true`, `fetch.pruneTags=true`, and `remote.*.tagOpt=--no-tags`).
 - If hooks are disabled (`HUSKY=0`) or unavailable, run `bun run git:tags:sync` after pull.
 
+## AGENTS/CLAUDE Parity
+
+- Edit `AGENTS.md` first.
+- Run `bun run rules:parity:sync`.
+- Run `bun run rules:parity:check`.
+
 ## Fork Isolation
 
 This is a fork with `fork-*` packages under `packages/`. To minimize upstream merge conflicts:
@@ -141,3 +147,6 @@ const table = sqliteTable("session", {
 
 - Avoid mocks as much as possible
 - Test actual implementation, do not duplicate logic into tests
+- Tests cannot run from repo root (guard: `do-not-run-tests-from-root`); run from package dirs like `packages/opencode`.
+- For CI-equivalent unit coverage, run `bun turbo test --only --force` from the repo root.
+- Running `bun turbo test --only` from package subdirectories changes Turbo scope and may skip `@opencode-ai/fork-tests`.

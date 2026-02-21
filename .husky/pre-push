@@ -17,4 +17,5 @@ if (process.versions.bun !== expectedBunVersion) {
   console.warn(`Warning: Bun version ${process.versions.bun} differs from expected ${expectedBunVersion}`);
 }
 '
+bun run rules:parity:check
 bun typecheck
