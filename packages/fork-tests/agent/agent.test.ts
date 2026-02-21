@@ -380,13 +380,13 @@ test("Agent.get returns undefined for non-existent agent", async () => {
   })
 })
 
-test("default permission includes doom_loop allow and external_directory ask", async () => {
+test("default permission includes doom_loop ask and external_directory ask", async () => {
   await using tmp = await tmpdir()
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
       const build = await Agent.get("build")
-      expect(evalPerm(build, "doom_loop")).toBe("allow")
+      expect(evalPerm(build, "doom_loop")).toBe("ask")
       expect(evalPerm(build, "external_directory")).toBe("ask")
     },
   })

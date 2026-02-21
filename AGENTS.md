@@ -134,3 +134,5 @@ const table = sqliteTable("session", {
 - Avoid mocks as much as possible
 - Test actual implementation, do not duplicate logic into tests
 - Tests cannot run from repo root (guard: `do-not-run-tests-from-root`); run from package dirs like `packages/opencode`.
+- For CI-equivalent unit coverage, run `bun turbo test --only --force` from the repo root.
+- Running `bun turbo test --only` from package subdirectories changes Turbo scope and may skip `@opencode-ai/fork-tests`.

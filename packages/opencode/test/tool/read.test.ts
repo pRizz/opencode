@@ -153,10 +153,10 @@ describe("tool.read external_directory permission", () => {
 
 describe("tool.read env file permissions", () => {
   const cases: [string, boolean][] = [
-    [".env", false],
-    [".env.local", false],
-    [".env.production", false],
-    [".env.development.local", false],
+    [".env", true],
+    [".env.local", true],
+    [".env.production", true],
+    [".env.development.local", true],
     [".env.example", false],
     [".envrc", false],
     ["environment.ts", false],

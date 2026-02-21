@@ -127,10 +127,10 @@ describe("tool.read external_directory permission", () => {
 
 describe("tool.read env file permissions", () => {
   const cases: [string, boolean][] = [
-    [".env", false],
-    [".env.local", false],
-    [".env.production", false],
-    [".env.development.local", false],
+    [".env", true],
+    [".env.local", true],
+    [".env.production", true],
+    [".env.development.local", true],
     [".env.example", false],
     [".envrc", false],
     ["environment.ts", false],
@@ -183,8 +183,8 @@ describe("tool.read truncation", () => {
         const read = await ReadTool.init()
         const result = await read.execute({ filePath: path.join(tmp.path, "large.json") }, ctx)
         expect(result.metadata.truncated).toBe(true)
-        expect(result.output).toContain("Output truncated at")
-        expect(result.output).toContain("bytes")
+        expect(result.output).toContain("Output capped at")
+        expect(result.output).toContain("Use offset=")
       },
     })
   })
@@ -202,7 +202,8 @@ describe("tool.read truncation", () => {
         const read = await ReadTool.init()
         const result = await read.execute({ filePath: path.join(tmp.path, "many-lines.txt"), limit: 10 }, ctx)
         expect(result.metadata.truncated).toBe(true)
-        expect(result.output).toContain("File has more lines")
+        expect(result.output).toContain("Showing lines 1-10 of 100")
+        expect(result.output).toContain("Use offset=11")
         expect(result.output).toContain("line0")
         expect(result.output).toContain("line9")
         expect(result.output).not.toContain("line10")
