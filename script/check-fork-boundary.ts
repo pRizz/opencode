@@ -8,7 +8,8 @@ const ADAPTER_MAX_LINES = 120
 
 const CLASSIFICATIONS = new Set(["adapter", "fork-owned-moved", "upstream-candidate", "exception"])
 const CODE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs|rs)$/
-const FORK_IMPORT = /(?:from\s*["']@opencode-ai\/fork-|import\s*\(\s*["']@opencode-ai\/fork-|require\(\s*["']@opencode-ai\/fork-)/
+const FORK_IMPORT =
+  /(?:from\s*["']@opencode-ai\/fork-|import\s*\(\s*["']@opencode-ai\/fork-|require\(\s*["']@opencode-ai\/fork-)/
 
 type Classification = "adapter" | "fork-owned-moved" | "upstream-candidate" | "exception"
 
@@ -84,7 +85,12 @@ if (!manifest || typeof manifest !== "object" || !manifest.entries) {
 await ensureUpstream()
 
 const divergent = await git("diff", "--name-only", BASE)
-  .then((x) => x.split("\n").map((v) => v.trim()).filter(Boolean))
+  .then((x) =>
+    x
+      .split("\n")
+      .map((v) => v.trim())
+      .filter(Boolean),
+  )
   .then((x) => x.filter(isNonForkPath))
   .then((x) => [...new Set(x)].sort())
 
@@ -123,7 +129,9 @@ for (const file of divergent) {
   const exists = await Bun.file(file).exists()
   if (!exists) continue
 
-  const text = await Bun.file(file).text().catch(() => "")
+  const text = await Bun.file(file)
+    .text()
+    .catch(() => "")
   const hasForkImport = FORK_IMPORT.test(text)
 
   if (entry.classification === "adapter") {
@@ -138,7 +146,8 @@ for (const file of divergent) {
   }
 
   if (isCodePath(file) && hasForkImport) {
-    const allowed = entry.classification === "adapter" || (entry.classification === "exception" && entry.allow_fork_imports)
+    const allowed =
+      entry.classification === "adapter" || (entry.classification === "exception" && entry.allow_fork_imports)
     if (!allowed) {
       issues.push(
         `${file} directly references @opencode-ai/fork- but is classified as ${entry.classification} (not allowlisted)`,

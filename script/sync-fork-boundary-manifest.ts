@@ -17,7 +17,8 @@ type Entry = {
 }
 
 const CODE_ADAPTER_EXT = /\.(ts|tsx|js|jsx|mjs|cjs|rs)$/
-const FORK_IMPORT = /(?:from\s*["']@opencode-ai\/fork-|import\s*\(\s*["']@opencode-ai\/fork-|require\(\s*["']@opencode-ai\/fork-)/
+const FORK_IMPORT =
+  /(?:from\s*["']@opencode-ai\/fork-|import\s*\(\s*["']@opencode-ai\/fork-|require\(\s*["']@opencode-ai\/fork-)/
 
 async function git(...args: string[]) {
   const proc = Bun.spawn(["git", ...args], { stdout: "pipe", stderr: "pipe" })
@@ -119,14 +120,23 @@ function classify(file: string, text: string): Entry {
 await ensureUpstream()
 
 const files = await git("diff", "--name-only", BASE)
-  .then((x) => x.split("\n").map((v) => v.trim()).filter(Boolean))
+  .then((x) =>
+    x
+      .split("\n")
+      .map((v) => v.trim())
+      .filter(Boolean),
+  )
   .then((x) => x.filter((file) => !file.startsWith("packages/fork-")))
   .then((x) => [...new Set(x)].sort())
 
 const entries: Record<string, Entry> = {}
 for (const file of files) {
   const exists = await Bun.file(file).exists()
-  const text = exists ? await Bun.file(file).text().catch(() => "") : ""
+  const text = exists
+    ? await Bun.file(file)
+        .text()
+        .catch(() => "")
+    : ""
   entries[file] = classify(file, text)
 }
 
