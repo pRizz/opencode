@@ -3,3 +3,5 @@ set -e
 
 echo "post-merge: installing dependencies..."
 bun install
+echo "post-merge: syncing tags from pulled remote..."
+bun ./script/git-tag-sync.ts

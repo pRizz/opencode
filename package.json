@@ -10,7 +10,9 @@
     "dev:desktop": "bun --cwd packages/desktop tauri dev",
     "dev:web": "bun --cwd packages/app dev",
     "typecheck": "bun turbo typecheck",
-    "prepare": "husky",
+    "prepare": "husky && bun ./script/git-tag-bootstrap.ts",
+    "git:tags:bootstrap": "bun ./script/git-tag-bootstrap.ts",
+    "git:tags:sync": "bun ./script/git-tag-sync.ts",
     "random": "echo 'Random script'",
     "hello": "echo 'Hello World!'",
     "test": "echo 'do not run tests from root' && exit 1"

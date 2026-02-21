@@ -1,0 +1,9 @@
+#!/bin/sh
+set -e
+
+if [ "$1" != "rebase" ]; then
+  exit 0
+fi
+
+echo "post-rewrite: syncing tags from pulled remote..."
+bun ./script/git-tag-sync.ts

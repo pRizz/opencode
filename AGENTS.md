@@ -18,6 +18,14 @@ This repo uses [Husky 9](https://typicode.github.io/husky/) for git hooks (wired
 
 - **pre-push** — Validates Bun version matches `package.json`, then runs `bun typecheck`.
 - **post-merge** — After every `git pull`, automatically runs `bun install` to pick up dependency changes. No manual action needed.
+- **post-rewrite** — After pull/rebase rewrites, mirrors local tags to the pulled remote.
+
+## Tag Sync Policy
+
+- Pulls mirror local tags to the pulled remote.
+- Local-only tags are intentionally deleted by this mirror policy.
+- `bun install` bootstraps local git config for this repo (`fetch.prune=true`, `fetch.pruneTags=true`, and `remote.*.tagOpt=--no-tags`).
+- If hooks are disabled (`HUSKY=0`) or unavailable, run `bun run git:tags:sync` after pull.
 
 ## Fork Isolation
 
