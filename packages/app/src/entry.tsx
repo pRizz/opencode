@@ -141,7 +141,7 @@ const platform: Platform = {
   forward,
   restart,
   notify,
-  getDefaultServerUrl: readDefaultServerUrl,
+  getDefaultServerUrl: async () => readDefaultServerUrl(),
   setDefaultServerUrl: writeDefaultServerUrl,
 }
 
