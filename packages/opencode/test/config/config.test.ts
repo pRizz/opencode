@@ -1899,6 +1899,7 @@ describe("OPENCODE_CONFIG_CONTENT precedence", () => {
           expect(config.auth?.enabled).toBe(false)
         },
       })
+      expect(await Bun.file(path.join(tmp.path, "project", "OPENCODE_CONFIG_CONTENT")).exists()).toBe(false)
     } finally {
       if (originalInlineConfig === undefined) {
         delete process.env["OPENCODE_CONFIG_CONTENT"]

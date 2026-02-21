@@ -185,7 +185,9 @@ export namespace Config {
     if (Flag.OPENCODE_CONFIG_CONTENT) {
       result = merge(
         result,
-        await load(Flag.OPENCODE_CONFIG_CONTENT, path.join(Instance.directory, "OPENCODE_CONFIG_CONTENT")),
+        await load(Flag.OPENCODE_CONFIG_CONTENT, path.join(Instance.directory, "OPENCODE_CONFIG_CONTENT"), {
+          writeback: false,
+        }),
       )
       log.debug("loaded custom config from OPENCODE_CONFIG_CONTENT")
     }
@@ -1292,7 +1294,8 @@ export namespace Config {
     return load(text, filepath)
   }
 
-  async function load(text: string, configFilepath: string) {
+  async function load(text: string, configFilepath: string, options: { writeback?: boolean } = {}) {
+    const writeback = options.writeback ?? true
     const original = text
     text = text.replace(/\{env:([^}]+)\}/g, (_, varName) => {
       return process.env[varName] || ""
@@ -1361,9 +1364,11 @@ export namespace Config {
     if (parsed.success) {
       if (!parsed.data.$schema) {
         parsed.data.$schema = "https://opencode.ai/config.json"
-        // Write the $schema to the original text to preserve variables like {env:VAR}
-        const updated = original.replace(/^\s*\{/, '{\n  "$schema": "https://opencode.ai/config.json",')
-        await Filesystem.write(configFilepath, updated).catch(() => {})
+        if (writeback) {
+          // Write the $schema to the original text to preserve variables like {env:VAR}
+          const updated = original.replace(/^\s*\{/, '{\n  "$schema": "https://opencode.ai/config.json",')
+          await Filesystem.write(configFilepath, updated).catch(() => {})
+        }
       }
       const data = parsed.data
       if (data.plugin) {
