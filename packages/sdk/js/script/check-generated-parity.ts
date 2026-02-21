@@ -90,6 +90,29 @@ function rel(file: string) {
   return path.relative(root, file)
 }
 
+async function runSdkBuild() {
+  const proc = Bun.spawn(["./packages/sdk/js/script/build.ts"], {
+    cwd: root,
+    stdout: "inherit",
+    stderr: "inherit",
+  })
+  const code = await proc.exited
+  if (code !== 0) {
+    throw new Error(`./packages/sdk/js/script/build.ts failed (${code})`)
+  }
+}
+
+const missingDistBeforeCheck = await Promise.all(
+  pairs.map(async (pair) => ((await Bun.file(pair.dist).exists()) ? null : pair.dist)),
+).then((values) => values.filter((value): value is string => Boolean(value)))
+
+if (missingDistBeforeCheck.length) {
+  console.warn(
+    `sdk:parity:check bootstrap: missing ${missingDistBeforeCheck.length} dist artifact(s); running ./packages/sdk/js/script/build.ts`,
+  )
+  await runSdkBuild()
+}
+
 let ok = true
 const lines: string[] = []
 

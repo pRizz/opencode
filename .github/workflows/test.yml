@@ -73,6 +73,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
       - name: Mark setup start
         run: echo "SETUP_START_TS=$(date +%s)" >> "$GITHUB_ENV"
@@ -104,10 +105,8 @@ jobs:
       - name: Check AGENTS/CLAUDE parity
         run: bun run rules:parity:check
 
-      - name: Rebuild SDK and validate generated parity
-        run: |
-          ./packages/sdk/js/script/build.ts
-          git diff --exit-code -- packages/sdk/js/src/gen packages/sdk/js/src/v2/gen packages/sdk/js/dist
+      - name: Check SDK parity
+        run: bun run sdk:parity:check
 
       - name: Check fork boundary
         run: bun run fork:boundary:check

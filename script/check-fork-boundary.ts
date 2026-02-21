@@ -3,6 +3,8 @@
 const BASE = "upstream/dev...dev"
 const UPSTREAM_REMOTE = "upstream"
 const UPSTREAM_URL = "https://github.com/anomalyco/opencode.git"
+const TARGET_REF = "dev"
+const UPSTREAM_REF = `${UPSTREAM_REMOTE}/dev`
 const MANIFEST_PATH = "docs/upstream-sync/fork-boundary-manifest.json"
 const ADAPTER_MAX_LINES = 120
 
@@ -49,7 +51,7 @@ async function gitOk(...args: string[]) {
 }
 
 async function ensureUpstream() {
-  if (await gitOk("rev-parse", "--verify", `${UPSTREAM_REMOTE}/dev`)) return
+  if (await gitOk("rev-parse", "--verify", UPSTREAM_REF)) return
 
   const hasRemote = await gitOk("remote", "get-url", UPSTREAM_REMOTE)
   if (!hasRemote) {
@@ -62,6 +64,36 @@ async function ensureUpstream() {
   }
 
   await git("fetch", UPSTREAM_REMOTE, "dev")
+}
+
+async function hasMergeBase(refA: string, refB: string) {
+  return gitOk("merge-base", refA, refB)
+}
+
+async function isShallowRepository() {
+  const shallow = await git("rev-parse", "--is-shallow-repository")
+  return shallow === "true"
+}
+
+async function ensureMergeBase() {
+  let attemptedShallowRecovery = false
+
+  if (await hasMergeBase(UPSTREAM_REF, TARGET_REF)) return
+
+  if (await isShallowRepository()) {
+    attemptedShallowRecovery = true
+    await git("fetch", "--unshallow", "origin")
+    await git("fetch", UPSTREAM_REMOTE, "dev")
+    if (await hasMergeBase(UPSTREAM_REF, TARGET_REF)) return
+  }
+
+  throw new Error(
+    [
+      `Unable to determine a merge base between ${UPSTREAM_REF} and ${TARGET_REF}.`,
+      `Shallow recovery attempted: ${attemptedShallowRecovery ? "yes" : "no"}.`,
+      "Verify remotes and branch history (for example: ensure the refs are related and fully fetched).",
+    ].join(" "),
+  )
 }
 
 function isNonForkPath(file: string) {
@@ -83,6 +115,7 @@ if (!manifest || typeof manifest !== "object" || !manifest.entries) {
 }
 
 await ensureUpstream()
+await ensureMergeBase()
 
 const divergent = await git("diff", "--name-only", BASE)
   .then((x) =>
