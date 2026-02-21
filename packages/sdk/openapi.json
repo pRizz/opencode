@@ -7234,6 +7234,34 @@
         },
         "required": ["type", "properties"]
       },
+      "Event.server.connected": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "server.connected"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {}
+          }
+        },
+        "required": ["type", "properties"]
+      },
+      "Event.global.disposed": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "global.disposed"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {}
+          }
+        },
+        "required": ["type", "properties"]
+      },
       "Event.lsp.client.diagnostics": {
         "type": "object",
         "properties": {
@@ -9631,34 +9659,6 @@
         },
         "required": ["type", "properties"]
       },
-      "Event.global.disposed": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "global.disposed"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {}
-          }
-        },
-        "required": ["type", "properties"]
-      },
-      "Event.server.connected": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "server.connected"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {}
-          }
-        },
-        "required": ["type", "properties"]
-      },
       "Event": {
         "anyOf": [
           {
@@ -9672,6 +9672,12 @@
           },
           {
             "$ref": "#/components/schemas/Event.server.instance.disposed"
+          },
+          {
+            "$ref": "#/components/schemas/Event.server.connected"
+          },
+          {
+            "$ref": "#/components/schemas/Event.global.disposed"
           },
           {
             "$ref": "#/components/schemas/Event.lsp.client.diagnostics"
@@ -9783,12 +9789,6 @@
           },
           {
             "$ref": "#/components/schemas/Event.worktree.failed"
-          },
-          {
-            "$ref": "#/components/schemas/Event.global.disposed"
-          },
-          {
-            "$ref": "#/components/schemas/Event.server.connected"
           }
         ]
       },
@@ -10404,6 +10404,9 @@
               },
               "doom_loop": {
                 "$ref": "#/components/schemas/PermissionActionConfig"
+              },
+              "skill": {
+                "$ref": "#/components/schemas/PermissionRuleConfig"
               }
             },
             "additionalProperties": {
@@ -11117,6 +11120,26 @@
               "required": ["template"]
             }
           },
+          "skills": {
+            "description": "Additional skill folder paths",
+            "type": "object",
+            "properties": {
+              "paths": {
+                "description": "Additional paths to skill folders",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "urls": {
+                "description": "URLs to fetch skills from (e.g., https://example.com/.well-known/skills/)",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "watcher": {
             "type": "object",
             "properties": {
@@ -11392,26 +11415,6 @@
               "type": "string"
             }
           },
-          "skills": {
-            "description": "Additional skill folder paths",
-            "type": "object",
-            "properties": {
-              "paths": {
-                "description": "Additional paths to skill folders",
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "urls": {
-                "description": "URLs to fetch skills from (e.g., https://example.com/.well-known/skills/)",
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
-            }
-          },
           "layout": {
             "$ref": "#/components/schemas/LayoutConfig"
           },
@@ -11458,69 +11461,6 @@
           "experimental": {
             "type": "object",
             "properties": {
-              "hook": {
-                "type": "object",
-                "properties": {
-                  "file_edited": {
-                    "type": "object",
-                    "propertyNames": {
-                      "type": "string"
-                    },
-                    "additionalProperties": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "command": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            }
-                          },
-                          "environment": {
-                            "type": "object",
-                            "propertyNames": {
-                              "type": "string"
-                            },
-                            "additionalProperties": {
-                              "type": "string"
-                            }
-                          }
-                        },
-                        "required": ["command"]
-                      }
-                    }
-                  },
-                  "session_completed": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "command": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        },
-                        "environment": {
-                          "type": "object",
-                          "propertyNames": {
-                            "type": "string"
-                          },
-                          "additionalProperties": {
-                            "type": "string"
-                          }
-                        }
-                      },
-                      "required": ["command"]
-                    }
-                  }
-                }
-              },
-              "chatMaxRetries": {
-                "description": "Number of retries for chat completions on failure",
-                "type": "number"
-              },
               "disable_paste_summary": {
                 "type": "boolean"
               },

@@ -44,18 +44,20 @@
 ### Fork Divergence
 
 <!-- BEGIN:fork-divergence -->
-| Metric | Value |
-|--------|-------|
-| Merge base | `2d7c9c9` |
-| Merge base age | 2 days |
-| Upstream commits since base | 177 |
-| Fork commits since base | 633 |
-| Modified upstream files | 108 (+8,601 / -4,852 lines) |
-| Fork-only files | 490 (+122,519 lines) |
-| **Total divergent files** | **598** |
-| **Total lines changed** | **135,972** |
 
-*Last updated: 2026-02-21 — [historical data](data/fork-divergence.csv)*
+| Metric                      | Value                       |
+| --------------------------- | --------------------------- |
+| Merge base                  | `2d7c9c9`                   |
+| Merge base age              | 2 days                      |
+| Upstream commits since base | 177                         |
+| Fork commits since base     | 633                         |
+| Modified upstream files     | 108 (+8,601 / -4,852 lines) |
+| Fork-only files             | 490 (+122,519 lines)        |
+| **Total divergent files**   | **598**                     |
+| **Total lines changed**     | **135,972**                 |
+
+_Last updated: 2026-02-21 — [historical data](data/fork-divergence.csv)_
+
 <!-- END:fork-divergence -->
 
 [![OpenCode Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://opencode.ai)
