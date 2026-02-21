@@ -1,6 +1,6 @@
 {
   "base": "upstream/dev...HEAD",
-  "generated_at": "2026-02-21T20:59:45.454Z",
+  "generated_at": "2026-02-21T22:00:42.240Z",
   "entries": {
     ".cursor/rules/rust-precommit.mdc": {
       "classification": "upstream-candidate",
@@ -459,6 +459,12 @@
       "retirement_condition": "Retire by upstreaming change or moving fork-owned behavior behind adapter boundaries."
     },
     "packages/app/e2e/fork/welcome/welcome.spec.ts": {
+      "classification": "upstream-candidate",
+      "owner": "app",
+      "reason": "Non-fork divergence tracked for upstream alignment or fork extraction.",
+      "retirement_condition": "Retire by upstreaming change or moving fork-owned behavior behind adapter boundaries."
+    },
+    "packages/app/e2e/prompt/prompt-slash-terminal.spec.ts": {
       "classification": "upstream-candidate",
       "owner": "app",
       "reason": "Non-fork divergence tracked for upstream alignment or fork extraction.",
