@@ -87,6 +87,19 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
 
+      - name: Clear local tags before sync
+        run: |
+          # Upstream has rewritten existing tag names before. Clear local tags so
+          # subsequent sync fetches don't fail on tag clobber errors.
+          tags="$(git tag -l)"
+          if [ -z "$tags" ]; then
+            echo "No local tags to delete."
+            exit 0
+          fi
+
+          echo "$tags" | xargs -n 100 git tag -d
+          echo "Cleared local tags."
+
       - name: Configure Git identity
         run: |
           git config user.name "github-actions[bot]"

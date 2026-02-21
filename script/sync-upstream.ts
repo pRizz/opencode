@@ -151,6 +151,26 @@ async function ensureOriginAuth() {
   await $`git remote set-url ${REMOTE_ORIGIN} ${authedUrl}`
 }
 
+// Upstream occasionally retargets existing tag names. Reset local tags first so
+// sync fetches don't fail with "would clobber existing tag" errors.
+async function resetLocalTagsFromUpstream() {
+  const list = (await $`git tag --list`.text()).trim()
+  const tags = list.length === 0 ? [] : list.split("\n")
+
+  if (tags.length === 0) {
+    console.log("No local tags to delete before sync.")
+  }
+  if (tags.length > 0) {
+    console.log(`Deleting ${tags.length} local tag(s) before sync...`)
+  }
+  for (let i = 0; i < tags.length; i += 200) {
+    await $`git tag -d ${tags.slice(i, i + 200)}`
+  }
+
+  console.log("Fetching upstream tags (forced)...")
+  await $`git fetch ${REMOTE_UPSTREAM} --tags --force`
+}
+
 // ── Test gate ─────────────────────────────────────────────
 
 async function runTestGate(): Promise<{ passed: boolean; summary: string }> {
@@ -297,8 +317,9 @@ async function runMergePhase() {
   await $`git config user.email "opencode-sync-bot@users.noreply.github.com"`
 
   await ensureUpstreamRemote()
-  await $`git fetch ${REMOTE_UPSTREAM} --tags`
-  await $`git fetch ${REMOTE_ORIGIN} ${DEV_BRANCH}`
+  await resetLocalTagsFromUpstream()
+  // Branch sync does not need origin tags; keep tag state sourced from upstream.
+  await $`git fetch --no-tags ${REMOTE_ORIGIN} ${DEV_BRANCH}`
 
   // Avoid ambiguous branch resolution once both origin/dev and upstream/dev exist.
   await $`git checkout -B ${DEV_BRANCH} ${REMOTE_ORIGIN}/${DEV_BRANCH}`
@@ -381,7 +402,8 @@ async function runPostResolvePhase(opts: {
   let stage: "rebase" | "push" = "push"
   let log = ""
   for (let i = 1; i <= 2; i += 1) {
-    await $`git fetch ${REMOTE_ORIGIN} ${DEV_BRANCH}`
+    // Avoid reintroducing origin tag conflicts after upstream tag reset.
+    await $`git fetch --no-tags ${REMOTE_ORIGIN} ${DEV_BRANCH}`
     const rebase = await $`git rebase --rebase-merges ${REMOTE_ORIGIN}/${DEV_BRANCH}`.nothrow()
     if (rebase.exitCode !== 0) {
       stage = "rebase"

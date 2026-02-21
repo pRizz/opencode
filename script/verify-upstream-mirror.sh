@@ -11,8 +11,10 @@ if ! git remote get-url "${REMOTE_UPSTREAM}" >/dev/null 2>&1; then
   git remote add "${REMOTE_UPSTREAM}" "${UPSTREAM_REPO_URL}"
 fi
 
-git fetch "${REMOTE_UPSTREAM}" "${UPSTREAM_BRANCH}"
-git fetch "${REMOTE_ORIGIN}" "${PARENT_BRANCH}"
+# Upstream has retargeted tags in the past; mirror-health checks only need
+# branches, so skip tags to avoid clobber/fetch failures in preflight.
+git fetch --no-tags "${REMOTE_UPSTREAM}" "${UPSTREAM_BRANCH}"
+git fetch --no-tags "${REMOTE_ORIGIN}" "${PARENT_BRANCH}"
 
 counts="$(git rev-list --left-right --count ${REMOTE_UPSTREAM}/${UPSTREAM_BRANCH}...${REMOTE_ORIGIN}/${PARENT_BRANCH})"
 left="${counts%%[[:space:]]*}"

@@ -64,9 +64,12 @@ wc -l docs/upstream-sync/upstream-first-parent.txt > docs/upstream-sync/upstream
   - `UPSTREAM_SYNC_TOKEN` — GitHub token for repo operations (falls back to `${{ github.token }}`)
   - `ANTHROPIC_API_KEY` — Anthropic API key for Claude Code Action (conflict resolution + test fixes)
 - Workflow behavior:
+  - Clears all local tags at workflow start.
   - Verifies mirror health before running sync:
     - fails only if `origin/parent-dev` has commits not in `upstream/dev` (unsafe drift)
     - allows upstream-ahead stale state and lets sync refresh `parent-dev` via force update
+  - Resets tags in sync merge phase by deleting all local tags and force-fetching tags from `upstream` only.
+  - Uses `--no-tags` for origin branch fetches to avoid reintroducing conflicting local tags.
   - Updates `parent-dev` to match `upstream/dev` (force push).
   - Attempts merge (no tests in merge phase — testing is a separate workflow step).
   - After merge (or conflict resolution), runs post-merge dependency/install + test gate:
