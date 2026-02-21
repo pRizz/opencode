@@ -11,7 +11,7 @@ import { Global } from "../../global"
 import { Plugin } from "../../plugin"
 import { Instance } from "../../project/instance"
 import type { Hooks } from "@opencode-ai/plugin"
-import { registerAuthBrokerCommands } from "@opencode-ai/fork-cli/auth-broker"
+import { registerAuthBrokerCommands } from "../fork"
 
 type PluginAuth = NonNullable<Hooks["auth"]>
 

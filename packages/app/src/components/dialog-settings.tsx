@@ -14,7 +14,7 @@ import {
   SettingsRepositoriesTab,
   SettingsWelcomeTab,
   useSettingsAuth,
-} from "@opencode-ai/fork-ui"
+} from "@/fork/ui"
 import type { Repo } from "@opencode-ai/sdk/v2/client"
 import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"

@@ -101,6 +101,9 @@ jobs:
           git config --global user.email "bot@opencode.ai"
           git config --global user.name "opencode"
 
+      - name: Check fork boundary
+        run: bun run fork:boundary:check
+
       - name: Mark test start
         run: echo "TEST_START_TS=$(date +%s)" >> "$GITHUB_ENV"
 

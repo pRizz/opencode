@@ -44,7 +44,7 @@ import { fromNodeProviderChain } from "@aws-sdk/credential-providers"
 import { GoogleAuth } from "google-auth-library"
 import { ProviderTransform } from "./transform"
 import { Installation } from "../installation"
-import { augmentForkProviders, getForkPreferredModels } from "@opencode-ai/fork-provider"
+import { augmentForkProviders, getForkPreferredModels } from "./fork"
 
 export namespace Provider {
   const log = Log.create({ service: "provider" })

@@ -1,7 +1,7 @@
 import { createSignal, onMount, onCleanup, type ParentProps } from "solid-js"
 import { createSimpleContext } from "@opencode-ai/ui/context"
 import { useServer } from "@/context/server"
-import { createSessionExpirationWarning } from "@opencode-ai/fork-ui"
+import { createSessionExpirationWarning } from "@/fork/ui"
 
 /**
  * Session information from /auth/session endpoint.

@@ -4,13 +4,14 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 
 ## Status
 
-- Snapshot date: 2026-02-06
+- Snapshot date: 2026-02-21
 - Base comparison: `upstream/dev...dev`
-- Current divergence: `0` behind / `431` ahead (`git rev-list --left-right --count upstream/dev...dev`)
-- `parent-dev` mirror: `0 0` (`git rev-list --left-right --count upstream/dev...parent-dev`)
-- Source artifacts: `docs/upstream-sync/restore-missing-commits.txt`, `docs/upstream-sync/restore-file-map.txt`
-- Catch-up status: upstream catch-up is complete; this file reflects post-catch-up decoupling restoration from `sync/decouple-fork-layer`.
-- Continuous sync status: `.github/workflows/sync-upstream.yml` active; `parent-dev` stays mirrored to `upstream/dev`.
+- Current divergence: `0` behind / `1178` ahead (`git rev-list --left-right --count upstream/dev...dev`)
+- `parent-dev` mirror: maintained by `.github/workflows/sync-upstream.yml`
+- Fork boundary governance:
+  - Manifest: `docs/upstream-sync/fork-boundary-manifest.json`
+  - Check: `script/check-fork-boundary.ts`
+  - Sync helper: `script/sync-fork-boundary-manifest.ts`
 
 ## A. System Authentication & Security (Core Runtime)
 
@@ -306,11 +307,22 @@ Purpose: track **all** fork deltas and keep them preserved during upstream merge
 - `.cursor/rules/*.mdc` (fork editor/agent policy defaults)
 - Root metadata/config deltas: `.gitignore`, `package.json`, `bun.lock`, `tsconfig.json`
 
+## M. Boundary Adapters
+
+- Shared non-fork runtime files now consume fork implementations through local adapter modules:
+  - `packages/opencode/src/cli/fork.ts`
+  - `packages/opencode/src/pty/fork.ts`
+  - `packages/opencode/src/provider/fork.ts`
+  - `packages/opencode/src/server/fork.ts`
+  - `packages/opencode/src/server/routes/fork-global.ts`
+  - `packages/app/src/fork/ui.ts`
+- Goal: keep direct `@opencode-ai/fork-*` imports constrained to thin adapter/re-export surfaces.
+
 ## Remaining Areas
 
-- None (current decoupling checklist complete)
+- Continue reducing non-fork divergence by upstreaming upstream-candidate files or moving fork-owned behavior behind adapters.
 
 ## Notes
 
-- This is the restored post-catch-up inventory. Update this checklist whenever fork behavior ownership changes.
+- Update this checklist whenever fork behavior ownership changes.
 - Fork hook packages: `packages/fork-auth`, `packages/fork-ui`, `packages/fork-terminal`, `packages/fork-cli`, `packages/fork-security`, `packages/fork-provider`, `packages/fork-config`.

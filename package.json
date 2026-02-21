@@ -13,6 +13,8 @@
     "prepare": "husky && bun ./script/git-tag-bootstrap.ts",
     "git:tags:bootstrap": "bun ./script/git-tag-bootstrap.ts",
     "git:tags:sync": "bun ./script/git-tag-sync.ts",
+    "fork:boundary:sync": "bun ./script/sync-fork-boundary-manifest.ts",
+    "fork:boundary:check": "bun ./script/check-fork-boundary.ts",
     "rules:parity:check": "bun ./script/check-rules-parity.ts",
     "rules:parity:sync": "bun ./script/sync-rules-parity.ts",
     "sdk:parity:check": "bun ./packages/sdk/js/script/check-generated-parity.ts",

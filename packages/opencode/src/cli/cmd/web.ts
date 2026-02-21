@@ -6,7 +6,7 @@ import { withNetworkOptions, resolveNetworkOptions } from "../network"
 import { Flag } from "../../flag/flag"
 import open from "open"
 import { networkInterfaces } from "os"
-import { formatForkWebMdnsLabel, resolveForkWebUiDir } from "@opencode-ai/fork-cli/web"
+import { formatForkWebMdnsLabel, resolveForkWebUiDir } from "../fork"
 
 function getNetworkIPs() {
   const nets = networkInterfaces()

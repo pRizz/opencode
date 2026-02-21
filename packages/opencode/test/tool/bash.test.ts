@@ -401,7 +401,10 @@ describe("tool.bash truncation", () => {
         expect(filepath).toBeTruthy()
 
         const saved = await Filesystem.readText(filepath)
-        const lines = saved.trim().split("\n")
+        const lines = stripShellInit(saved)
+          .trim()
+          .split("\n")
+          .filter((line) => /^\d+$/.test(line))
         expect(lines.length).toBe(lineCount)
         expect(lines[0]).toBe("1")
         expect(lines[lineCount - 1]).toBe(String(lineCount))

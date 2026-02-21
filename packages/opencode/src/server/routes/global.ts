@@ -10,8 +10,8 @@ import { Log } from "../../util/log"
 import { lazy } from "../../util/lazy"
 import { Config } from "../../config/config"
 import { errors } from "../error"
-import { epoch } from "@opencode-ai/fork-config"
 import { Global } from "../../global"
+import { epoch } from "./fork-global"
 
 const log = Log.create({ service: "server" })
 

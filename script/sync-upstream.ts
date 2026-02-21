@@ -192,6 +192,14 @@ async function runTestGate(): Promise<{ passed: boolean; summary: string }> {
   }
   console.log("Rules parity check passed.")
 
+  console.log("Running fork boundary check...")
+  const forkBoundary = await $`bun run fork:boundary:check`.nothrow()
+  if (forkBoundary.exitCode !== 0) {
+    const log = `${forkBoundary.stdout.toString()}\n${forkBoundary.stderr.toString()}`
+    return { passed: false, summary: `fork boundary check failed:\n${tailLog(log, 4000)}` }
+  }
+  console.log("Fork boundary check passed.")
+
   const lockfiles = (await $`git ls-files -m -- ':(glob)**/bun.lock'`.text()).trim()
   if (lockfiles.length > 0) {
     console.log(`bun.lock updates detected after bun install:\n${lockfiles}`)

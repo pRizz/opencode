@@ -241,6 +241,7 @@ jobs:
 
             Before committing, run:
             - `bun run rules:parity:check`
+            - `bun run fork:boundary:check`
             - `bun run sdk:parity:check`
             If SDK parity fails due generated drift, run `./packages/sdk/js/script/build.ts`
             and re-run parity check.
@@ -289,6 +290,7 @@ jobs:
 
             Before committing, run:
             - `bun run rules:parity:check`
+            - `bun run fork:boundary:check`
             - `bun run sdk:parity:check`
             If SDK parity fails due generated drift, run `./packages/sdk/js/script/build.ts`
             and re-run parity check.

@@ -2,7 +2,7 @@ import z from "zod"
 import { EOL } from "os"
 import { NamedError } from "@opencode-ai/util/error"
 import { logo as glyphs } from "./logo"
-import { getForkCliLogo } from "@opencode-ai/fork-cli/logo"
+import { getForkCliLogo } from "./fork-logo"
 
 export namespace UI {
   export const CancelledError = NamedError.create("UICancelledError", z.void())

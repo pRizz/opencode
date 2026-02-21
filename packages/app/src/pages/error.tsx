@@ -6,7 +6,7 @@ import { createStore } from "solid-js/store"
 import { usePlatform } from "@/context/platform"
 import { useLanguage } from "@/context/language"
 import { Icon } from "@opencode-ai/ui/icon"
-import { formatAuthInitError } from "@opencode-ai/fork-ui"
+import { formatAuthInitError } from "@/fork/ui"
 
 export type InitError = {
   name: string

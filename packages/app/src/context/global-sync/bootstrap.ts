@@ -16,7 +16,7 @@ import { batch } from "solid-js"
 import { reconcile, type SetStoreFunction, type Store } from "solid-js/store"
 import type { State, VcsCache } from "./types"
 import { cmp, normalizeProviderList } from "./utils"
-import { checkEpoch } from "@opencode-ai/fork-ui"
+import { checkEpoch } from "@/fork/ui"
 
 type GlobalStore = {
   ready: boolean

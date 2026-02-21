@@ -24,7 +24,7 @@ import {
   maybeRequirePtyAuth,
   resolvePtyConnectRequestId,
   type PtyRouteEnv,
-} from "@opencode-ai/fork-terminal/pty-auth-hook"
+} from "../../pty/fork"
 
 const log = Log.create({ service: "pty-routes" })
 

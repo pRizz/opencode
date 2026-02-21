@@ -32,7 +32,7 @@ import {
   handleForkRunEvent,
   resolveForkRunSessionCreateInput,
   validateForkRunCommand,
-} from "@opencode-ai/fork-cli/run"
+} from "../fork"
 
 type ToolProps<T extends Tool.Info> = {
   input: Tool.InferParameters<T>
